@@ -75,7 +75,7 @@ input[type=file]{display:none}
 .small-btn:hover{background:#c8e4f4}
 .edit-btn{font-size:12px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#a0d4f8,#78b8ee);color:#fff;cursor:pointer;white-space:nowrap;font-weight:700;min-width:48px;text-align:center;line-height:1.3}
 .edit-btn:hover{opacity:.85}
-.rebuy-btn{font-size:11px;padding:4px 9px;border:none;border-radius:8px;background:linear-gradient(135deg,#a0e8d8,#78d0b8);color:#1a6050;cursor:pointer;white-space:nowrap;font-weight:600}
+.rebuy-btn{font-size:13px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#a0e8d8,#78d0b8);color:#1a6050;cursor:pointer;white-space:nowrap;font-weight:700;min-width:52px;text-align:center;line-height:1.3}
 .rebuy-btn:hover{opacity:.85}
 /* 経費バッジ */
 .cat-badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600}
@@ -508,28 +508,34 @@ function renderDoneList(){
 
 /* ── マスタ管理タブ ─── */
 function renderMasterTab(){
+  const rRows=masterRequesters.map((r,idx)=>
+    `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #eef4fb">
+      <span style="font-size:14px;color:#2a3f5f">👤 ${esc(r)}</span>
+      <button class="icon-btn" data-type="requester" data-idx="${idx}" onclick="deleteMasterByIdx(this)" title="削除">🗑</button>
+    </div>`).join('');
+  const pRows=masterPlaces.map((p,idx)=>
+    `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #eef4fb">
+      <span style="font-size:14px;color:#2a3f5f">📍 ${esc(p)}</span>
+      <button class="icon-btn" data-type="place" data-idx="${idx}" onclick="deleteMasterByIdx(this)" title="削除">🗑</button>
+    </div>`).join('');
   return`<div class="section">
     <div class="form-card" style="margin-bottom:14px">
       <div style="font-size:13px;font-weight:700;color:#1a6fba;margin-bottom:10px">👤 依頼者マスタ</div>
-      ${masterRequesters.length===0
-        ?'<div style="font-size:13px;color:#8ab0cc">登録された依頼者はいません</div>'
-        :masterRequesters.map(r=>`
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #eef4fb">
-          <span style="font-size:14px;color:#2a3f5f">👤 ${esc(r)}</span>
-          <button class="icon-btn" onclick="deleteMaster('requester',${JSON.stringify(r)})" title="削除">🗑</button>
-        </div>`).join('')}
+      ${masterRequesters.length===0?'<div style="font-size:13px;color:#8ab0cc">登録された依頼者はいません</div>':rRows}
     </div>
     <div class="form-card">
-      <div style="font-size:13px;font-weight:700;color:#1a6fba;margin-bottom:10px">📍 購入場所マスタ</div>
-      ${masterPlaces.length===0
-        ?'<div style="font-size:13px;color:#8ab0cc">カスタム登録された場所はありません</div>'
-        :masterPlaces.map(p=>`
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #eef4fb">
-          <span style="font-size:14px;color:#2a3f5f">📍 ${esc(p)}</span>
-          <button class="icon-btn" onclick="deleteMaster('place',${JSON.stringify(p)})" title="削除">🗑</button>
-        </div>`).join('')}
+      <div style="font-size:13px;font-weight:700;color:#1a6fba;margin-bottom:10px">📍 購入場所マスタ（カスタム登録分）</div>
+      ${masterPlaces.length===0?'<div style="font-size:13px;color:#8ab0cc">カスタム登録された場所はありません</div>':pRows}
     </div>
   </div>`;
+}
+
+function deleteMasterByIdx(btn){
+  const type=btn.dataset.type;
+  const idx=parseInt(btn.dataset.idx);
+  const value=type==='requester'?masterRequesters[idx]:masterPlaces[idx];
+  if(!value)return;
+  deleteMaster(type,value);
 }
 
 async function deleteMaster(type, value){
