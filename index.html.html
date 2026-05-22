@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>買出しリクエスト</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;font-size:15px;color:#4a4a5a;background:#f5f3ff;min-height:100vh}
+.app{max-width:480px;margin:0 auto;padding:0 0 80px;background:#f5f3ff;min-height:100vh}
+.header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid #e8e4f0;background:#faf8ff;position:sticky;top:0;z-index:10}
+.header h1{font-size:16px;font-weight:600;color:#6b5fb5}
+.mode-btn{font-size:12px;padding:5px 12px;border:1px solid #d4cef0;border-radius:20px;background:#f0ecff;color:#7b6fc4;cursor:pointer;white-space:nowrap}
+.mode-btn:hover{background:#e4deff}
+.loading-overlay{position:fixed;inset:0;background:rgba(250,248,255,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;gap:12px}
+.spinner{width:36px;height:36px;border:3px solid #e2ddf2;border-top-color:#9b7fe8;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:13px;color:#9b95b8}
+.tabs{display:flex;gap:6px;padding:12px 16px 0}
+.tab{flex:1;padding:9px 4px;font-size:13px;font-weight:500;border:1px solid #e2ddf2;border-radius:12px;background:#f0ecff;color:#9b95b8;cursor:pointer;text-align:center;white-space:nowrap}
+.tab.active{background:#fff;border-color:#c8b8f8;color:#6b5fb5;box-shadow:0 1px 6px rgba(160,140,230,.15)}
+.section{padding:14px 16px}
+.form-card{background:#fff;border:1px solid #ede9f8;border-radius:16px;padding:16px;box-shadow:0 2px 12px rgba(120,100,200,.06)}
+.form-row{margin-bottom:12px}
+.form-row:last-child{margin-bottom:0}
+label{display:block;font-size:12px;color:#9b95b8;margin-bottom:4px}
+.req{color:#f08cad}
+.opt{font-size:11px;color:#bbb8cc}
+input[type=text],input[type=url],select,textarea{width:100%;border:1px solid #e2ddf2;border-radius:10px;padding:9px 11px;font-size:14px;background:#faf9ff;color:#4a4a5a;outline:none;-webkit-appearance:none;appearance:none}
+input[type=text]:focus,input[type=url]:focus,select:focus,textarea:focus{border-color:#b3a8e8;background:#fff}
+textarea{resize:vertical;min-height:60px}
+.qty-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sub-input{margin-top:6px;display:none}
+.submit-btn{width:100%;padding:12px;background:linear-gradient(135deg,#c8b8f8,#f0a8cc);border:none;border-radius:12px;font-size:15px;font-weight:600;color:#fff;cursor:pointer;margin-top:4px}
+.submit-btn:hover{opacity:.9}
+.submit-btn:active{transform:scale(.99)}
+.submit-btn:disabled{opacity:.5;cursor:not-allowed}
+.img-preview{width:100%;max-height:130px;object-fit:cover;border-radius:10px;margin-top:6px;display:none}
+.file-label{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:7px 13px;border:1px solid #e2ddf2;border-radius:10px;cursor:pointer;background:#f5f3ff;color:#9b95b8}
+input[type=file]{display:none}
+/* ソート・フィルタバー */
+.sort-bar{display:flex;gap:6px;padding:10px 16px 0;align-items:center;flex-wrap:wrap}
+.sort-bar label{font-size:12px;color:#9b95b8;margin:0;white-space:nowrap}
+.sort-bar select{width:auto;flex:1;min-width:0;font-size:13px;padding:6px 10px}
+.filter-row{display:flex;gap:6px;padding:6px 16px 0;overflow-x:auto;scrollbar-width:none}
+.filter-row::-webkit-scrollbar{display:none}
+.filter-chip{font-size:12px;padding:4px 11px;border:1px solid #e2ddf2;border-radius:20px;background:#f0ecff;color:#9b95b8;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.filter-chip.active{background:#ede9ff;border-color:#c8b8f8;color:#6b5fb5}
+.group-block{margin-bottom:16px}
+.group-label{font-size:11px;font-weight:600;color:#9b95b8;letter-spacing:.06em;margin-bottom:7px;display:flex;align-items:center;gap:5px}
+.item-card{background:#fff;border:1px solid #ede9f8;border-radius:12px;padding:11px 12px;display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;box-shadow:0 1px 6px rgba(120,100,200,.05)}
+.item-card.done{opacity:.5}
+.chk{width:22px;height:22px;flex-shrink:0;cursor:pointer;margin-top:1px;accent-color:#b3a8e8}
+.item-info{flex:1;min-width:0}
+.item-name{font-size:14px;font-weight:600;color:#4a4a5a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.item-name.done{text-decoration:line-through;color:#aaa}
+.item-meta{font-size:12px;color:#9b95b8;margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.item-thumb{width:46px;height:46px;object-fit:cover;border-radius:10px;flex-shrink:0;border:1px solid #ede9f8}
+.icon-btn{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid #e8e4f4;border-radius:8px;background:transparent;cursor:pointer;color:#bbb8cc;font-size:16px;flex-shrink:0}
+.icon-btn:hover{background:#f5f3ff;color:#9b95b8}
+.actions-col{display:flex;flex-direction:column;gap:4px;align-items:center;flex-shrink:0}
+.small-btn{font-size:11px;padding:4px 9px;border:1px solid #e2ddf2;border-radius:8px;background:#f5f3ff;color:#9b95b8;cursor:pointer;white-space:nowrap}
+.small-btn:hover{background:#ede9ff}
+.rebuy-btn{font-size:11px;padding:4px 9px;border:none;border-radius:8px;background:linear-gradient(135deg,#c8e8f8,#b8e8d8);color:#4a8a9a;cursor:pointer;white-space:nowrap;font-weight:600}
+.rebuy-btn:hover{opacity:.85}
+.cat-badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600}
+.bc-kyozai{background:#ddeeff;color:#5588bb}
+.bc-shoumou{background:#ddf5e8;color:#4a9a6a}
+.bc-kyushoku{background:#fff3dd;color:#bb8833}
+.bc-cake{background:#ffe8f0;color:#cc6688}
+.bc-torig{background:#eeeeee;color:#777788}
+.bc-diy{background:#ddfaf0;color:#3a9a80}
+.bc-zappi{background:#ede8ff;color:#7766bb}
+.requester-tag{font-size:11px;padding:2px 8px;border-radius:20px;background:#f0ecff;color:#8878cc;font-weight:500}
+.empty{text-align:center;padding:36px 16px;color:#bbb8cc;font-size:13px}
+.empty-icon{font-size:36px;display:block;margin-bottom:8px}
+.url-link{font-size:11px;color:#9ab8e8;word-break:break-all;text-decoration:none}
+.url-link:hover{text-decoration:underline}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#6b5fb5;color:#fff;font-size:13px;padding:10px 22px;border-radius:20px;opacity:0;transition:opacity .3s;white-space:nowrap;pointer-events:none;z-index:200;box-shadow:0 4px 16px rgba(100,80,200,.25)}
+.toast.show{opacity:1}
+.err-banner{background:#fff0f3;border:1px solid #f8c8d4;border-radius:10px;padding:10px 14px;margin:12px 16px;font-size:13px;color:#c05070;display:none}
+.qty-alert{font-size:11px;color:#f08cad}
+/* 経費プルダウン編集 */
+.cat-edit-wrap{display:flex;gap:6px;align-items:center}
+.cat-edit-wrap .cat-badge{cursor:default}
+.cat-select-inline{border:1px solid #c8b8f8;border-radius:8px;font-size:12px;padding:3px 6px;background:#faf9ff;color:#4a4a5a;width:auto}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1 id="header-title">🛒 買出しリクエスト</h1>
+    <button class="mode-btn" id="mode-toggle" onclick="toggleMode()">⚙ 管理者</button>
+  </div>
+  <div id="err-banner" class="err-banner"></div>
+  <div id="staff-view"></div>
+  <div id="admin-view" style="display:none"></div>
+  <div class="toast" id="toast"></div>
+  <div class="loading-overlay" id="loading" style="display:none">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loading-text">読み込み中…</div>
+  </div>
+</div>
+
+<script>
+const GAS_URL='https://script.google.com/macros/s/AKfycbwb5ifc8IfKDVOvuLD6oneZiElekMiS1jFx3wqAk4FoMADt3MmyErbuYL8iMhKYOVo-bA/exec';
+
+const CATS=[
+  {id:'kyozai',label:'保育教材費'},
+  {id:'shoumou',label:'消耗品'},
+  {id:'kyushoku',label:'給食費'},
+  {id:'cake',label:'誕生日ケーキ'},
+  {id:'torig',label:'トリグ（お米）'},
+  {id:'diy',label:'DIY'},
+  {id:'zappi',label:'雑費'},
+];
+const DEFAULT_PLACES=['ダイソー','セリア','ドラッグストア','ホームセンター','文房具店','Amazon'];
+
+let pending=[],done=[],masterRequesters=[],masterPlaces=[];
+let mode='staff',staffTab='request',adminTab='pending';
+let sortKey='place'; // 'place' | 'cat' | 'date' | 'requester'
+let filterCat='all',filterPlace='all';
+
+/* ── ローディング ─── */
+function showLoading(msg='処理中…'){
+  document.getElementById('loading-text').textContent=msg;
+  document.getElementById('loading').style.display='flex';
+}
+function hideLoading(){document.getElementById('loading').style.display='none';}
+function showErr(msg){
+  const b=document.getElementById('err-banner');
+  b.textContent='⚠ '+msg;b.style.display='block';
+  setTimeout(()=>b.style.display='none',6000);
+}
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2400);
+}
+
+/* ── API通信（GAS対応: GETはクエリ、POSTはフォームエンコード） ─── */
+async function apiGet(){
+  const url=GAS_URL+'?action=getAll&t='+Date.now();
+  const res=await fetch(url,{redirect:'follow'});
+  const text=await res.text();
+  return JSON.parse(text);
+}
+
+async function apiPost(payload){
+  // GASはapplication/jsonのPOSTをdoPostで受け取れるが
+  // CORSプリフライトを避けるためtext/plainで送る
+  const res=await fetch(GAS_URL,{
+    method:'POST',
+    headers:{'Content-Type':'text/plain;charset=utf-8'},
+    body:JSON.stringify(payload),
+    redirect:'follow'
+  });
+  const text=await res.text();
+  return JSON.parse(text);
+}
+
+async function loadAll(){
+  showLoading('データを読み込み中…');
+  try{
+    const d=await apiGet();
+    pending=d.pending||[];
+    done=d.done||[];
+    masterRequesters=d.masters?.requesters||[];
+    masterPlaces=d.masters?.places||[];
+  }catch(e){
+    console.error(e);
+    showErr('読み込み失敗: '+e.message);
+  }finally{hideLoading();}
+}
+
+/* ── ユーティリティ ─── */
+function getCatLabel(id){const c=CATS.find(c=>c.id===id);return c?c.label:id}
+function getCatClass(id){return'bc-'+id}
+function allPlaces(){return[...DEFAULT_PLACES,...masterPlaces.filter(p=>!DEFAULT_PLACES.includes(p))]}
+function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function shortUrl(u){try{const x=new URL(u);return x.hostname+(x.pathname.length>1?x.pathname.slice(0,20)+'…':'');}catch{return String(u).slice(0,28)+'…'}}
+
+/* ── モード切替 ─── */
+function toggleMode(){
+  mode=mode==='staff'?'admin':'staff';
+  document.getElementById('header-title').textContent=mode==='staff'?'🛒 買出しリクエスト':'📋 買出し管理';
+  document.getElementById('mode-toggle').textContent=mode==='staff'?'⚙ 管理者':'👤 職員';
+  document.getElementById('staff-view').style.display=mode==='staff'?'block':'none';
+  document.getElementById('admin-view').style.display=mode==='admin'?'block':'none';
+  if(mode==='admin')renderAdmin();else renderStaff();
+}
+
+/* ── 再購入 ─── */
+async function rebuyItem(id){
+  showLoading('再購入リクエストを追加中…');
+  try{
+    await apiPost({action:'rebuy',id:String(id)});
+    await loadAll();
+    showToast('再購入リクエストに追加しました');
+    if(mode==='staff'){staffTab='mylist';renderStaff();}else renderAdmin();
+  }catch(e){showErr('失敗: '+e.message);}
+  finally{hideLoading();}
+}
+
+/* ── 経費を直接変更 ─── */
+async function updateCat(id,newCat,fromList){
+  showLoading('更新中…');
+  try{
+    await apiPost({action:'updateCat',id:String(id),cat:newCat});
+    await loadAll();
+    if(fromList==='pending')renderAdmin();else renderAdmin();
+  }catch(e){showErr('更新失敗: '+e.message);}
+  finally{hideLoading();}
+}
+
+/* ════════════════════════════════
+   職員ビュー
+════════════════════════════════ */
+function renderStaff(){
+  document.getElementById('staff-view').innerHTML=`
+  <div class="tabs">
+    <button class="tab ${staffTab==='request'?'active':''}" onclick="setStaffTab('request')">リクエスト</button>
+    <button class="tab ${staffTab==='mylist'?'active':''}" onclick="setStaffTab('mylist')">依頼中 (${pending.length})</button>
+    <button class="tab ${staffTab==='history'?'active':''}" onclick="setStaffTab('history')">購入履歴 (${done.length})</button>
+  </div>
+  <div id="staff-content"></div>`;
+  renderStaffContent();
+}
+function setStaffTab(t){staffTab=t;renderStaffContent();}
+function renderStaffContent(){
+  const el=document.getElementById('staff-content');
+  if(!el)return;
+  if(staffTab==='request')el.innerHTML=renderRequestForm();
+  else if(staffTab==='mylist')el.innerHTML=renderMyList();
+  else el.innerHTML=renderStaffHistory();
+}
+
+function renderRequestForm(){
+  const places=allPlaces();
+  return`<div class="section"><div class="form-card">
+    <div class="form-row">
+      <label>依頼者 <span class="req">*</span></label>
+      <select id="f-requester" onchange="onRequesterChange()">
+        <option value="">選択または入力</option>
+        ${masterRequesters.map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join('')}
+        <option value="__new__">＋ 新しい名前を入力</option>
+      </select>
+      <input type="text" class="sub-input" id="f-requester-new" placeholder="名前を入力">
+    </div>
+    <div class="form-row">
+      <label>品名 <span class="req">*</span></label>
+      <input type="text" id="f-name" placeholder="例: 絵の具セット">
+    </div>
+    <div class="form-row qty-row">
+      <div>
+        <label>個数 <span class="req">*</span></label>
+        <input type="text" id="f-qty" placeholder="例: 2個">
+      </div>
+      <div>
+        <label>経費の種類 <span class="req">*</span></label>
+        <select id="f-cat">
+          ${CATS.map(c=>`<option value="${c.id}"${c.id==='kyozai'?' selected':''}>${c.label}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>購入場所 <span class="opt">(任意)</span></label>
+      <select id="f-place" onchange="onPlaceChange()">
+        <option value="">未定</option>
+        ${places.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('')}
+        <option value="__new__">＋ その他（直接入力）</option>
+      </select>
+      <input type="text" class="sub-input" id="f-place-new" placeholder="購入場所を入力">
+    </div>
+    <div class="form-row">
+      <label>参考URL <span class="opt">(任意)</span></label>
+      <input type="url" id="f-url" placeholder="https://...">
+    </div>
+    <div class="form-row">
+      <label>画像 <span class="opt">(任意)</span></label>
+      <label class="file-label" for="f-img">📷 画像を選択</label>
+      <input type="file" id="f-img" accept="image/*" onchange="onImgChange()">
+      <img id="f-img-preview" class="img-preview" alt="">
+    </div>
+    <div class="form-row">
+      <label>メモ <span class="opt">(任意)</span></label>
+      <textarea id="f-memo" placeholder="サイズ、色、銘柄など"></textarea>
+    </div>
+    <button class="submit-btn" id="submit-btn" onclick="submitItem()">📨 リクエストを送る</button>
+  </div></div>`;
+}
+
+function renderMyList(){
+  if(!pending.length)return'<div class="empty"><span class="empty-icon">📭</span>依頼中のアイテムはありません</div>';
+  return`<div class="section">${pending.map(i=>itemCardHTML(i,{cancelBtn:true})).join('')}</div>`;
+}
+function renderStaffHistory(){
+  if(!done.length)return'<div class="empty"><span class="empty-icon">🕐</span>購入履歴はありません</div>';
+  return`<div class="section">${done.map(i=>itemCardHTML(i,{rebuyBtn:true,isDone:true})).join('')}</div>`;
+}
+
+function onRequesterChange(){
+  const s=document.getElementById('f-requester'),n=document.getElementById('f-requester-new');
+  if(!n)return;n.style.display=s.value==='__new__'?'block':'none';if(s.value==='__new__')n.focus();
+}
+function onPlaceChange(){
+  const s=document.getElementById('f-place'),n=document.getElementById('f-place-new');
+  if(!n)return;n.style.display=s.value==='__new__'?'block':'none';if(s.value==='__new__')n.focus();
+}
+function onImgChange(){
+  const file=document.getElementById('f-img').files[0];
+  const preview=document.getElementById('f-img-preview');
+  if(!file){preview.style.display='none';return;}
+  const reader=new FileReader();
+  reader.onload=e=>{preview.src=e.target.result;preview.style.display='block'};
+  reader.readAsDataURL(file);
+}
+
+async function submitItem(){
+  let requester=document.getElementById('f-requester').value;
+  if(requester==='__new__')requester=(document.getElementById('f-requester-new').value||'').trim();
+  const name=(document.getElementById('f-name').value||'').trim();
+  const qty=(document.getElementById('f-qty').value||'').trim();
+  const cat=document.getElementById('f-cat').value;
+  if(!requester||!name||!qty||!cat){showToast('依頼者・品名・個数・経費種類は必須です');return;}
+  let place=document.getElementById('f-place').value;
+  if(place==='__new__')place=(document.getElementById('f-place-new').value||'').trim();
+  const url=(document.getElementById('f-url').value||'').trim();
+  const memo=(document.getElementById('f-memo').value||'').trim();
+  const imgEl=document.getElementById('f-img-preview');
+  const img=(imgEl&&imgEl.style.display==='block'&&imgEl.src&&imgEl.src.startsWith('data:'))?imgEl.src:'';
+  const btn=document.getElementById('submit-btn');
+  if(btn)btn.disabled=true;
+  showLoading('リクエストを送信中…');
+  try{
+    const item={id:String(Date.now()),requester,name,qty,cat,place,url,memo,img,
+                created:new Date().toLocaleDateString('ja-JP')};
+    await apiPost({action:'addPending',item});
+    await loadAll();
+    showToast('リクエストを送りました ✓');
+    staffTab='mylist';renderStaff();
+  }catch(e){
+    showErr('送信失敗: '+e.message);
+    if(btn)btn.disabled=false;
+  }finally{hideLoading();}
+}
+
+async function cancelItem(id){
+  if(!confirm('このリクエストを取り消しますか？'))return;
+  showLoading('取り消し中…');
+  try{
+    await apiPost({action:'deletePending',id:String(id)});
+    await loadAll();showToast('取り消しました');renderStaff();
+  }catch(e){showErr('失敗: '+e.message);}
+  finally{hideLoading();}
+}
+
+/* ════════════════════════════════
+   管理者ビュー
+════════════════════════════════ */
+function renderAdmin(){
+  document.getElementById('admin-view').innerHTML=`
+  <div class="tabs">
+    <button class="tab ${adminTab==='pending'?'active':''}" onclick="setAdminTab('pending')">要購入 (${pending.length})</button>
+    <button class="tab ${adminTab==='done'?'active':''}" onclick="setAdminTab('done')">購入済 (${done.length})</button>
+  </div>
+  ${adminTab==='pending'?renderPendingList():renderDoneList()}`;
+}
+function setAdminTab(t){adminTab=t;filterCat='all';filterPlace='all';renderAdmin();}
+
+function renderPendingList(){
+  if(!pending.length)return'<div class="empty"><span class="empty-icon">✅</span>リクエストはありません</div>';
+
+  // ソートバー
+  const sortBar=`<div class="sort-bar">
+    <label>グループ:</label>
+    <select onchange="sortKey=this.value;renderAdmin()" style="flex:1;min-width:0">
+      <option value="place" ${sortKey==='place'?'selected':''}>購入場所</option>
+      <option value="cat"   ${sortKey==='cat'  ?'selected':''}>経費の種類</option>
+      <option value="requester" ${sortKey==='requester'?'selected':''}>依頼者</option>
+      <option value="date"  ${sortKey==='date' ?'selected':''}>日付（新しい順）</option>
+    </select>
+  </div>`;
+
+  // フィルタ（経費）
+  const cats=[...new Set(pending.map(i=>i.cat))];
+  const places=[...new Set(pending.map(i=>i.place||'場所未定'))];
+  const catChips=['all',...cats].map(c=>
+    `<span class="filter-chip ${filterCat===c?'active':''}" onclick="setAdminFilter('cat',${JSON.stringify(c)})">${c==='all'?'全経費':getCatLabel(c)}</span>`
+  ).join('');
+  const placeChips=['all',...places].map(p=>
+    `<span class="filter-chip ${filterPlace===p?'active':''}" onclick="setAdminFilter('place',${JSON.stringify(p)})">${p==='all'?'全店舗':p}</span>`
+  ).join('');
+
+  // フィルタ適用
+  let items=pending.filter(i=>{
+    const p=i.place||'場所未定';
+    return(filterCat==='all'||i.cat===filterCat)&&(filterPlace==='all'||p===filterPlace);
+  });
+
+  // ソート＆グルーピング
+  let grouped={};
+  if(sortKey==='date'){
+    // 日付順はグループなしで一覧
+    items=[...items].sort((a,b)=>Number(b.id)-Number(a.id));
+    grouped={'すべて':items};
+  } else {
+    const keyFn = sortKey==='place' ? i=>(i.place||'場所未定')
+                : sortKey==='cat'   ? i=>getCatLabel(i.cat)
+                :                     i=>(i.requester||'不明');
+    items.forEach(i=>{const k=keyFn(i);if(!grouped[k])grouped[k]=[];grouped[k].push(i);});
+  }
+
+  const groupHTML=Object.entries(grouped).map(([grp,its])=>`
+    <div class="group-block">
+      <div class="group-label">${grpIcon()} ${esc(grp)}<span style="font-size:11px;color:#bbb8cc;font-weight:400;margin-left:4px">${its.length}件</span></div>
+      ${its.map(i=>itemCardHTML(i,{checkBox:true,deleteBtn:true,catEditable:true})).join('')}
+    </div>`).join('');
+
+  return`${sortBar}
+  <div class="filter-row">${catChips}</div>
+  <div class="filter-row">${placeChips}</div>
+  <div class="section" style="padding-top:8px">${items.length?groupHTML:'<div class="empty">該当なし</div>'}</div>`;
+}
+
+function grpIcon(){
+  return sortKey==='place'?'📍':sortKey==='cat'?'🏷':sortKey==='requester'?'👤':'📅';
+}
+function setAdminFilter(type,val){
+  if(type==='cat')filterCat=val;else filterPlace=val;
+  renderAdmin();
+}
+
+function renderDoneList(){
+  if(!done.length)return'<div class="empty"><span class="empty-icon">🛍</span>購入済アイテムはありません</div>';
+  return`<div class="section" style="padding-top:10px">
+    ${done.map(i=>itemCardHTML(i,{rebuyBtn:true,deleteBtn:true,isDone:true})).join('')}
+  </div>`;
+}
+
+/* ── 共通カードHTML ─── */
+function itemCardHTML(i,opts={}){
+  const {checkBox,cancelBtn,rebuyBtn,deleteBtn,isDone,catEditable}=opts;
+  const catBadge=catEditable
+    ? `<div class="cat-edit-wrap">
+        <select class="cat-select-inline" onchange="updateCat('${i.id}',this.value,'pending')" title="経費を変更">
+          ${CATS.map(c=>`<option value="${c.id}"${c.id===i.cat?' selected':''}>${c.label}</option>`).join('')}
+        </select>
+       </div>`
+    : `<span class="cat-badge ${getCatClass(i.cat)}">${getCatLabel(i.cat)}</span>`;
+
+  return`<div class="item-card${isDone?' done':''}">
+    ${checkBox?`<input type="checkbox" class="chk" onchange="checkItem('${i.id}',this.checked)">`:''}
+    ${i.img?`<img class="item-thumb" src="${esc(i.img)}" alt="">`:''}
+    <div class="item-info">
+      <div class="item-name${isDone?' done':''}">${esc(i.name)}${i.qty
+        ?` <span style="color:#bbb8cc;font-weight:400;font-size:13px">× ${esc(i.qty)}</span>`
+        :'<span class="qty-alert"> 個数未記入</span>'}</div>
+      <div class="item-meta">
+        ${catBadge}
+        ${i.requester?`<span class="requester-tag">👤 ${esc(i.requester)}</span>`:''}
+        ${i.place?`<span>📍${esc(i.place)}</span>`:''}
+      </div>
+      ${i.url?`<a class="url-link" href="${esc(i.url)}" target="_blank">🔗 ${shortUrl(i.url)}</a>`:''}
+      ${i.memo?`<div style="font-size:12px;color:#9b95b8;margin-top:2px">${esc(i.memo)}</div>`:''}
+      <div style="font-size:11px;color:#bbb8cc;margin-top:3px">${esc(isDone?(i.boughtAt||i.created):i.created)}</div>
+    </div>
+    <div class="actions-col">
+      ${cancelBtn?`<button class="small-btn" onclick="cancelItem('${i.id}')">取消</button>`:''}
+      ${rebuyBtn?`<button class="rebuy-btn" onclick="rebuyItem('${i.id}')">🔄 再購入</button>`:''}
+      ${deleteBtn?`<button class="icon-btn" onclick="deleteItem('${i.id}','${isDone?'done':'pending'}')">🗑</button>`:''}
+    </div>
+  </div>`;
+}
+
+async function checkItem(id,checked){
+  if(!checked)return;
+  showLoading('購入済にしています…');
+  try{
+    await apiPost({action:'moveToDone',id:String(id),boughtAt:new Date().toLocaleDateString('ja-JP')});
+    await loadAll();showToast('購入済にしました ✓');renderAdmin();
+  }catch(e){showErr('失敗: '+e.message);}
+  finally{hideLoading();}
+}
+
+async function deleteItem(id,list){
+  if(!confirm('削除しますか？'))return;
+  showLoading('削除中…');
+  try{
+    await apiPost({action:list==='pending'?'deletePending':'deleteDone',id:String(id)});
+    await loadAll();renderAdmin();showToast('削除しました');
+  }catch(e){showErr('失敗: '+e.message);}
+  finally{hideLoading();}
+}
+
+/* ── 起動 ─── */
+(async()=>{await loadAll();renderStaff();})();
+</script>
+</body>
+</html>
