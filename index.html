@@ -226,7 +226,7 @@ function renderStaff(){
   <div id="staff-content"></div>`;
   renderStaffContent();
 }
-function setStaffTab(t){staffTab=t;renderStaffContent();}
+function setStaffTab(t){staffTab=t;renderStaff();}
 function renderStaffContent(){
   const el=document.getElementById('staff-content');
   if(!el)return;
@@ -251,17 +251,9 @@ function renderRequestForm(){
       <label>品名 <span class="req">*</span></label>
       <input type="text" id="f-name" placeholder="例: 絵の具セット">
     </div>
-    <div class="form-row qty-row">
-      <div>
-        <label>個数 <span class="req">*</span></label>
-        <input type="text" id="f-qty" placeholder="例: 2個">
-      </div>
-      <div>
-        <label>経費の種類 <span class="req">*</span></label>
-        <select id="f-cat">
-          ${CATS.map(c=>`<option value="${c.id}"${c.id==='kyozai'?' selected':''}>${c.label}</option>`).join('')}
-        </select>
-      </div>
+    <div class="form-row">
+      <label>個数 <span class="req">*</span></label>
+      <input type="text" id="f-qty" placeholder="例: 2個">
     </div>
     <div class="form-row">
       <label>購入場所 <span class="opt">(任意)</span></label>
@@ -321,8 +313,9 @@ async function submitItem(){
   if(requester==='__new__')requester=(document.getElementById('f-requester-new').value||'').trim();
   const name=(document.getElementById('f-name').value||'').trim();
   const qty=(document.getElementById('f-qty').value||'').trim();
-  const cat=document.getElementById('f-cat').value;
-  if(!requester||!name||!qty||!cat){showToast('依頼者・品名・個数・経費種類は必須です');return;}
+  const catEl=document.getElementById('f-cat'); const cat=catEl?catEl.value:'zappi';
+  if(!requester||!name||!qty){showToast('依頼者・品名・個数は必須です');return;}
+  if(!cat) cat='zappi';
   let place=document.getElementById('f-place').value;
   if(place==='__new__')place=(document.getElementById('f-place-new').value||'').trim();
   const url=(document.getElementById('f-url').value||'').trim();
