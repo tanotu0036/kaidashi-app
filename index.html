@@ -6,84 +6,102 @@
 <title>買出しリクエスト</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;font-size:15px;color:#4a4a5a;background:#f5f3ff;min-height:100vh}
-.app{max-width:480px;margin:0 auto;padding:0 0 80px;background:#f5f3ff;min-height:100vh}
-.header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid #e8e4f0;background:#faf8ff;position:sticky;top:0;z-index:10}
-.header h1{font-size:16px;font-weight:600;color:#6b5fb5}
-.mode-btn{font-size:12px;padding:5px 12px;border:1px solid #d4cef0;border-radius:20px;background:#f0ecff;color:#7b6fc4;cursor:pointer;white-space:nowrap}
-.mode-btn:hover{background:#e4deff}
-.loading-overlay{position:fixed;inset:0;background:rgba(250,248,255,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;gap:12px}
-.spinner{width:36px;height:36px;border:3px solid #e2ddf2;border-top-color:#9b7fe8;border-radius:50%;animation:spin .7s linear infinite}
+body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;font-size:15px;color:#2a3f5f;background:#eef4fb;min-height:100vh}
+.app{max-width:480px;margin:0 auto;padding:0 0 80px;background:#eef4fb;min-height:100vh}
+.header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid #c5daf0;background:#e0eefa;position:sticky;top:0;z-index:10}
+.header h1{font-size:16px;font-weight:700;color:#1a6fba}
+.mode-btn{font-size:12px;padding:5px 12px;border:1px solid #7ab8e8;border-radius:20px;background:#d0e8f8;color:#1a6fba;cursor:pointer;white-space:nowrap}
+.mode-btn:hover{background:#b8d8f4}
+.loading-overlay{position:fixed;inset:0;background:rgba(220,235,250,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;gap:12px}
+.spinner{width:36px;height:36px;border:3px solid #c5daf0;border-top-color:#2a7fd4;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.loading-text{font-size:13px;color:#9b95b8}
+.loading-text{font-size:13px;color:#4a7fa8}
 .tabs{display:flex;gap:6px;padding:12px 16px 0}
-.tab{flex:1;padding:9px 4px;font-size:13px;font-weight:500;border:1px solid #e2ddf2;border-radius:12px;background:#f0ecff;color:#9b95b8;cursor:pointer;text-align:center;white-space:nowrap}
-.tab.active{background:#fff;border-color:#c8b8f8;color:#6b5fb5;box-shadow:0 1px 6px rgba(160,140,230,.15)}
+.tab{flex:1;padding:9px 4px;font-size:13px;font-weight:500;border:1px solid #b8d4ee;border-radius:12px;background:#d8ecf8;color:#5a8ab8;cursor:pointer;text-align:center;white-space:nowrap}
+.tab.active{background:#fff;border-color:#4a9ae0;color:#1a6fba;box-shadow:0 1px 6px rgba(30,100,200,.12)}
 .section{padding:14px 16px}
-.form-card{background:#fff;border:1px solid #ede9f8;border-radius:16px;padding:16px;box-shadow:0 2px 12px rgba(120,100,200,.06)}
+.form-card{background:#fff;border:1px solid #c8dff0;border-radius:16px;padding:16px;box-shadow:0 2px 12px rgba(30,100,200,.07)}
 .form-row{margin-bottom:12px}
 .form-row:last-child{margin-bottom:0}
-label{display:block;font-size:12px;color:#9b95b8;margin-bottom:4px}
-.req{color:#f08cad}
-.opt{font-size:11px;color:#bbb8cc}
-input[type=text],input[type=url],select,textarea{width:100%;border:1px solid #e2ddf2;border-radius:10px;padding:9px 11px;font-size:14px;background:#faf9ff;color:#4a4a5a;outline:none;-webkit-appearance:none;appearance:none}
-input[type=text]:focus,input[type=url]:focus,select:focus,textarea:focus{border-color:#b3a8e8;background:#fff}
+label{display:block;font-size:12px;color:#5a8ab8;margin-bottom:4px}
+.req{color:#e05a7a}
+.opt{font-size:11px;color:#8ab0cc}
+input[type=text],input[type=url],select,textarea{width:100%;border:1px solid #c0d8ee;border-radius:10px;padding:9px 11px;font-size:14px;background:#f5faff;color:#2a3f5f;outline:none;-webkit-appearance:none;appearance:none}
+input[type=text]:focus,input[type=url]:focus,select:focus,textarea:focus{border-color:#4a9ae0;background:#fff}
 textarea{resize:vertical;min-height:60px}
-.qty-row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .sub-input{margin-top:6px;display:none}
-.submit-btn{width:100%;padding:12px;background:linear-gradient(135deg,#c8b8f8,#f0a8cc);border:none;border-radius:12px;font-size:15px;font-weight:600;color:#fff;cursor:pointer;margin-top:4px}
+.submit-btn{width:100%;padding:12px;background:linear-gradient(135deg,#4a9ae0,#2a7fd4);border:none;border-radius:12px;font-size:15px;font-weight:700;color:#fff;cursor:pointer;margin-top:4px;letter-spacing:.03em}
 .submit-btn:hover{opacity:.9}
 .submit-btn:active{transform:scale(.99)}
 .submit-btn:disabled{opacity:.5;cursor:not-allowed}
-.img-preview{width:100%;max-height:130px;object-fit:cover;border-radius:10px;margin-top:6px;display:none}
-.file-label{display:inline-flex;align-items:center;gap:6px;font-size:13px;padding:7px 13px;border:1px solid #e2ddf2;border-radius:10px;cursor:pointer;background:#f5f3ff;color:#9b95b8}
+/* 画像エリア */
+.img-area{border:2px dashed #b8d4ee;border-radius:12px;padding:12px;background:#f5faff;text-align:center;cursor:pointer;transition:border-color .2s}
+.img-area:hover,.img-area.drag-over{border-color:#4a9ae0;background:#eaf4ff}
+.img-area-text{font-size:13px;color:#7ab0d0;pointer-events:none}
+.img-preview-box{position:relative;display:none;margin-top:8px}
+.img-preview-box img{width:100%;max-height:130px;object-fit:cover;border-radius:10px;display:block}
+.img-clear-btn{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.45);color:#fff;border:none;cursor:pointer;font-size:13px;line-height:22px;text-align:center}
 input[type=file]{display:none}
-/* ソート・フィルタバー */
-.sort-bar{display:flex;gap:6px;padding:10px 16px 0;align-items:center;flex-wrap:wrap}
-.sort-bar label{font-size:12px;color:#9b95b8;margin:0;white-space:nowrap}
-.sort-bar select{width:auto;flex:1;min-width:0;font-size:13px;padding:6px 10px}
+/* ソートバー */
+.sort-bar{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 16px 0}
+.sort-label{font-size:11px;color:#5a8ab8;margin-bottom:3px}
+.sort-bar select{font-size:13px;padding:6px 10px}
 .filter-row{display:flex;gap:6px;padding:6px 16px 0;overflow-x:auto;scrollbar-width:none}
 .filter-row::-webkit-scrollbar{display:none}
-.filter-chip{font-size:12px;padding:4px 11px;border:1px solid #e2ddf2;border-radius:20px;background:#f0ecff;color:#9b95b8;cursor:pointer;white-space:nowrap;flex-shrink:0}
-.filter-chip.active{background:#ede9ff;border-color:#c8b8f8;color:#6b5fb5}
+.filter-chip{font-size:12px;padding:4px 11px;border:1px solid #b8d4ee;border-radius:20px;background:#d8ecf8;color:#5a8ab8;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.filter-chip.active{background:#ddeeff;border-color:#4a9ae0;color:#1a6fba}
 .group-block{margin-bottom:16px}
-.group-label{font-size:11px;font-weight:600;color:#9b95b8;letter-spacing:.06em;margin-bottom:7px;display:flex;align-items:center;gap:5px}
-.item-card{background:#fff;border:1px solid #ede9f8;border-radius:12px;padding:11px 12px;display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;box-shadow:0 1px 6px rgba(120,100,200,.05)}
+.group-label{font-size:11px;font-weight:700;color:#5a8ab8;letter-spacing:.06em;margin-bottom:7px;display:flex;align-items:center;gap:5px}
+/* アイテムカード */
+.item-card{background:#fff;border:1px solid #c8dff0;border-radius:12px;padding:10px 12px;display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;box-shadow:0 1px 6px rgba(30,100,200,.06)}
 .item-card.done{opacity:.5}
-.chk{width:22px;height:22px;flex-shrink:0;cursor:pointer;margin-top:1px;accent-color:#b3a8e8}
+.chk{width:22px;height:22px;flex-shrink:0;cursor:pointer;margin-top:2px;accent-color:#2a7fd4}
+/* 画像スペース（常に確保） */
+.img-slot{width:48px;height:48px;flex-shrink:0;border-radius:10px;overflow:hidden;background:#eef4fb;border:1px solid #d0e4f4;display:flex;align-items:center;justify-content:center}
+.img-slot img{width:100%;height:100%;object-fit:cover}
+.img-slot-empty{font-size:18px;opacity:.3}
 .item-info{flex:1;min-width:0}
-.item-name{font-size:14px;font-weight:600;color:#4a4a5a;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* 品名と個数を縦並び */
+.item-name-row{margin-bottom:3px}
+.item-name{font-size:14px;font-weight:700;color:#2a3f5f;word-break:break-all}
 .item-name.done{text-decoration:line-through;color:#aaa}
-.item-meta{font-size:12px;color:#9b95b8;margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
-.item-thumb{width:46px;height:46px;object-fit:cover;border-radius:10px;flex-shrink:0;border:1px solid #ede9f8}
-.icon-btn{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid #e8e4f4;border-radius:8px;background:transparent;cursor:pointer;color:#bbb8cc;font-size:16px;flex-shrink:0}
-.icon-btn:hover{background:#f5f3ff;color:#9b95b8}
+.item-qty{font-size:14px;font-weight:700;color:#2a3f5f;margin-top:1px}
+.item-qty.done{text-decoration:line-through;color:#aaa}
+.item-meta{font-size:12px;color:#5a8ab8;margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.icon-btn{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid #c8dff0;border-radius:8px;background:transparent;cursor:pointer;color:#8ab0cc;font-size:16px;flex-shrink:0}
+.icon-btn:hover{background:#eef4fb;color:#5a8ab8}
 .actions-col{display:flex;flex-direction:column;gap:4px;align-items:center;flex-shrink:0}
-.small-btn{font-size:11px;padding:4px 9px;border:1px solid #e2ddf2;border-radius:8px;background:#f5f3ff;color:#9b95b8;cursor:pointer;white-space:nowrap}
-.small-btn:hover{background:#ede9ff}
-.rebuy-btn{font-size:11px;padding:4px 9px;border:none;border-radius:8px;background:linear-gradient(135deg,#c8e8f8,#b8e8d8);color:#4a8a9a;cursor:pointer;white-space:nowrap;font-weight:600}
+.small-btn{font-size:11px;padding:4px 9px;border:1px solid #b8d4ee;border-radius:8px;background:#d8ecf8;color:#3a7ab8;cursor:pointer;white-space:nowrap}
+.small-btn:hover{background:#c8e4f4}
+.edit-btn{font-size:11px;padding:4px 9px;border:none;border-radius:8px;background:linear-gradient(135deg,#a0d4f8,#78b8ee);color:#fff;cursor:pointer;white-space:nowrap;font-weight:600}
+.edit-btn:hover{opacity:.85}
+.rebuy-btn{font-size:11px;padding:4px 9px;border:none;border-radius:8px;background:linear-gradient(135deg,#a0e8d8,#78d0b8);color:#1a6050;cursor:pointer;white-space:nowrap;font-weight:600}
 .rebuy-btn:hover{opacity:.85}
+/* 経費バッジ */
 .cat-badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600}
-.bc-kyozai{background:#ddeeff;color:#5588bb}
-.bc-shoumou{background:#ddf5e8;color:#4a9a6a}
-.bc-kyushoku{background:#fff3dd;color:#bb8833}
-.bc-cake{background:#ffe8f0;color:#cc6688}
-.bc-torig{background:#eeeeee;color:#777788}
-.bc-diy{background:#ddfaf0;color:#3a9a80}
-.bc-zappi{background:#ede8ff;color:#7766bb}
-.requester-tag{font-size:11px;padding:2px 8px;border-radius:20px;background:#f0ecff;color:#8878cc;font-weight:500}
-.empty{text-align:center;padding:36px 16px;color:#bbb8cc;font-size:13px}
+.bc-kyozai{background:#d0e8ff;color:#1a60b0}
+.bc-shoumou{background:#d0f0e0;color:#1a7040}
+.bc-kyushoku{background:#fff0d0;color:#a06010}
+.bc-cake{background:#ffe0ec;color:#b03060}
+.bc-torig{background:#e8e8e8;color:#606070}
+.bc-diy{background:#c8f8e8;color:#0a7060}
+.bc-zappi{background:#ddd8ff;color:#5040b0}
+.requester-tag{font-size:11px;padding:2px 8px;border-radius:20px;background:#d8ecf8;color:#2a6aaa;font-weight:500}
+.qty-alert{font-size:12px;font-weight:700;color:#e05a7a}
+/* 経費インライン編集 */
+.cat-select-inline{border:1px solid #7ab8e8;border-radius:8px;font-size:12px;padding:3px 6px;background:#f5faff;color:#2a3f5f;width:auto}
+.empty{text-align:center;padding:36px 16px;color:#8ab0cc;font-size:13px}
 .empty-icon{font-size:36px;display:block;margin-bottom:8px}
-.url-link{font-size:11px;color:#9ab8e8;word-break:break-all;text-decoration:none}
+.url-link{font-size:11px;color:#4a8ad0;word-break:break-all;text-decoration:none}
 .url-link:hover{text-decoration:underline}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#6b5fb5;color:#fff;font-size:13px;padding:10px 22px;border-radius:20px;opacity:0;transition:opacity .3s;white-space:nowrap;pointer-events:none;z-index:200;box-shadow:0 4px 16px rgba(100,80,200,.25)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a6fba;color:#fff;font-size:13px;padding:10px 22px;border-radius:20px;opacity:0;transition:opacity .3s;white-space:nowrap;pointer-events:none;z-index:200;box-shadow:0 4px 16px rgba(20,80,180,.25)}
 .toast.show{opacity:1}
-.err-banner{background:#fff0f3;border:1px solid #f8c8d4;border-radius:10px;padding:10px 14px;margin:12px 16px;font-size:13px;color:#c05070;display:none}
-.qty-alert{font-size:11px;color:#f08cad}
-/* 経費プルダウン編集 */
-.cat-edit-wrap{display:flex;gap:6px;align-items:center}
-.cat-edit-wrap .cat-badge{cursor:default}
-.cat-select-inline{border:1px solid #c8b8f8;border-radius:8px;font-size:12px;padding:3px 6px;background:#faf9ff;color:#4a4a5a;width:auto}
+.err-banner{background:#fff0f4;border:1px solid #f0b8c8;border-radius:10px;padding:10px 14px;margin:10px 16px 0;font-size:13px;color:#b03050;display:none}
+/* 訂正モーダル */
+.modal-overlay{position:fixed;inset:0;background:rgba(20,60,120,.45);z-index:150;display:flex;align-items:flex-end;justify-content:center}
+.modal{background:#fff;border-radius:20px 20px 0 0;padding:20px 16px 32px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto}
+.modal-title{font-size:15px;font-weight:700;color:#1a6fba;margin-bottom:14px}
+.modal-close{float:right;background:none;border:none;font-size:20px;cursor:pointer;color:#8ab0cc;line-height:1}
 </style>
 </head>
 <body>
@@ -95,6 +113,7 @@ input[type=file]{display:none}
   <div id="err-banner" class="err-banner"></div>
   <div id="staff-view"></div>
   <div id="admin-view" style="display:none"></div>
+  <div id="modal-container"></div>
   <div class="toast" id="toast"></div>
   <div class="loading-overlay" id="loading" style="display:none">
     <div class="spinner"></div>
@@ -104,7 +123,6 @@ input[type=file]{display:none}
 
 <script>
 const GAS_URL='https://script.google.com/macros/s/AKfycbwb5ifc8IfKDVOvuLD6oneZiElekMiS1jFx3wqAk4FoMADt3MmyErbuYL8iMhKYOVo-bA/exec';
-
 const CATS=[
   {id:'kyozai',label:'保育教材費'},
   {id:'shoumou',label:'消耗品'},
@@ -118,64 +136,38 @@ const DEFAULT_PLACES=['ダイソー','セリア','ドラッグストア','ホー
 
 let pending=[],done=[],masterRequesters=[],masterPlaces=[];
 let mode='staff',staffTab='request',adminTab='pending';
-let sortKey='place'; // 'place' | 'cat' | 'date' | 'requester'
+let sortKey1='place',sortKey2='cat';
 let filterCat='all',filterPlace='all';
 
 /* ── ローディング ─── */
-function showLoading(msg='処理中…'){
-  document.getElementById('loading-text').textContent=msg;
-  document.getElementById('loading').style.display='flex';
-}
+function showLoading(msg='処理中…'){document.getElementById('loading-text').textContent=msg;document.getElementById('loading').style.display='flex';}
 function hideLoading(){document.getElementById('loading').style.display='none';}
-function showErr(msg){
-  const b=document.getElementById('err-banner');
-  b.textContent='⚠ '+msg;b.style.display='block';
-  setTimeout(()=>b.style.display='none',6000);
-}
-function showToast(msg){
-  const t=document.getElementById('toast');
-  t.textContent=msg;t.classList.add('show');
-  setTimeout(()=>t.classList.remove('show'),2400);
-}
+function showErr(msg){const b=document.getElementById('err-banner');b.textContent='⚠ '+msg;b.style.display='block';setTimeout(()=>b.style.display='none',6000);}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
 
-/* ── API通信（GAS対応: GETはクエリ、POSTはフォームエンコード） ─── */
+/* ── API ─── */
 async function apiGet(){
-  const url=GAS_URL+'?action=getAll&t='+Date.now();
-  const res=await fetch(url,{redirect:'follow'});
-  const text=await res.text();
-  return JSON.parse(text);
+  const res=await fetch(GAS_URL+'?action=getAll&t='+Date.now(),{redirect:'follow'});
+  return JSON.parse(await res.text());
 }
-
 async function apiPost(payload){
-  // GASはapplication/jsonのPOSTをdoPostで受け取れるが
-  // CORSプリフライトを避けるためtext/plainで送る
-  const res=await fetch(GAS_URL,{
-    method:'POST',
-    headers:{'Content-Type':'text/plain;charset=utf-8'},
-    body:JSON.stringify(payload),
-    redirect:'follow'
-  });
+  const res=await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow'});
   const text=await res.text();
-  return JSON.parse(text);
+  try{return JSON.parse(text);}catch(e){console.error('Parse error:',text);throw new Error('レスポンスの解析に失敗');}
 }
-
 async function loadAll(){
   showLoading('データを読み込み中…');
   try{
     const d=await apiGet();
-    pending=d.pending||[];
-    done=d.done||[];
-    masterRequesters=d.masters?.requesters||[];
-    masterPlaces=d.masters?.places||[];
-  }catch(e){
-    console.error(e);
-    showErr('読み込み失敗: '+e.message);
-  }finally{hideLoading();}
+    pending=d.pending||[];done=d.done||[];
+    masterRequesters=d.masters?.requesters||[];masterPlaces=d.masters?.places||[];
+  }catch(e){console.error(e);showErr('読み込み失敗: '+e.message);}
+  finally{hideLoading();}
 }
 
 /* ── ユーティリティ ─── */
 function getCatLabel(id){const c=CATS.find(c=>c.id===id);return c?c.label:id}
-function getCatClass(id){return'bc-'+id}
+function getCatClass(id){return'bc-'+(id||'zappi')}
 function allPlaces(){return[...DEFAULT_PLACES,...masterPlaces.filter(p=>!DEFAULT_PLACES.includes(p))]}
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function shortUrl(u){try{const x=new URL(u);return x.hostname+(x.pathname.length>1?x.pathname.slice(0,20)+'…':'');}catch{return String(u).slice(0,28)+'…'}}
@@ -195,27 +187,57 @@ async function rebuyItem(id){
   showLoading('再購入リクエストを追加中…');
   try{
     await apiPost({action:'rebuy',id:String(id)});
-    await loadAll();
-    showToast('再購入リクエストに追加しました');
+    await loadAll();showToast('再購入リクエストに追加しました');
     if(mode==='staff'){staffTab='mylist';renderStaff();}else renderAdmin();
-  }catch(e){showErr('失敗: '+e.message);}
-  finally{hideLoading();}
+  }catch(e){showErr('失敗: '+e.message);}finally{hideLoading();}
 }
 
-/* ── 経費を直接変更 ─── */
-async function updateCat(id,newCat,fromList){
+/* ── 経費更新 ─── */
+async function updateCat(id,newCat){
   showLoading('更新中…');
   try{
     await apiPost({action:'updateCat',id:String(id),cat:newCat});
-    await loadAll();
-    if(fromList==='pending')renderAdmin();else renderAdmin();
-  }catch(e){showErr('更新失敗: '+e.message);}
-  finally{hideLoading();}
+    await loadAll();renderAdmin();
+  }catch(e){showErr('更新失敗: '+e.message);}finally{hideLoading();}
 }
 
-/* ════════════════════════════════
-   職員ビュー
-════════════════════════════════ */
+/* ════ 画像ヘルパー ════ */
+function setupImgArea(areaId,inputId,previewBoxId,previewImgId){
+  const area=document.getElementById(areaId);
+  const input=document.getElementById(inputId);
+  if(!area||!input)return;
+  area.addEventListener('click',()=>input.click());
+  area.addEventListener('dragover',e=>{e.preventDefault();area.classList.add('drag-over');});
+  area.addEventListener('dragleave',()=>area.classList.remove('drag-over'));
+  area.addEventListener('drop',e=>{e.preventDefault();area.classList.remove('drag-over');const f=e.dataTransfer.files[0];if(f)loadImgFile(f,previewBoxId,previewImgId);});
+  // クリップボードペースト（ページ全体で受け取る）
+  document.addEventListener('paste',e=>{
+    if(!document.getElementById(areaId))return;
+    const items=e.clipboardData?.items;
+    if(!items)return;
+    for(const item of items){if(item.type.startsWith('image/')){loadImgFile(item.getAsFile(),previewBoxId,previewImgId);break;}}
+  });
+  input.addEventListener('change',()=>{if(input.files[0])loadImgFile(input.files[0],previewBoxId,previewImgId);});
+}
+function loadImgFile(file,previewBoxId,previewImgId){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const box=document.getElementById(previewBoxId);
+    const img=document.getElementById(previewImgId);
+    if(box&&img){img.src=e.target.result;box.style.display='block';}
+  };
+  reader.readAsDataURL(file);
+}
+function clearImg(previewBoxId,previewImgId,inputId){
+  const box=document.getElementById(previewBoxId);const img=document.getElementById(previewImgId);const inp=document.getElementById(inputId);
+  if(box)box.style.display='none';if(img)img.src='';if(inp)inp.value='';
+}
+function getImgData(previewImgId){
+  const img=document.getElementById(previewImgId);
+  return(img&&img.src&&img.src.startsWith('data:'))?img.src:'';
+}
+
+/* ════ 職員ビュー ════ */
 function renderStaff(){
   document.getElementById('staff-view').innerHTML=`
   <div class="tabs">
@@ -228,9 +250,8 @@ function renderStaff(){
 }
 function setStaffTab(t){staffTab=t;renderStaff();}
 function renderStaffContent(){
-  const el=document.getElementById('staff-content');
-  if(!el)return;
-  if(staffTab==='request')el.innerHTML=renderRequestForm();
+  const el=document.getElementById('staff-content');if(!el)return;
+  if(staffTab==='request'){el.innerHTML=renderRequestForm();setupImgArea('img-area','f-img','img-preview-box','f-img-preview');}
   else if(staffTab==='mylist')el.innerHTML=renderMyList();
   else el.innerHTML=renderStaffHistory();
 }
@@ -269,10 +290,15 @@ function renderRequestForm(){
       <input type="url" id="f-url" placeholder="https://...">
     </div>
     <div class="form-row">
-      <label>画像 <span class="opt">(任意)</span></label>
-      <label class="file-label" for="f-img">📷 画像を選択</label>
-      <input type="file" id="f-img" accept="image/*" onchange="onImgChange()">
-      <img id="f-img-preview" class="img-preview" alt="">
+      <label>画像 <span class="opt">(任意・クリップボードからペースト可)</span></label>
+      <div class="img-area" id="img-area">
+        <div class="img-area-text">📷 タップして選択 / ドラッグ＆ドロップ / Ctrl+V でペースト</div>
+      </div>
+      <input type="file" id="f-img" accept="image/*">
+      <div class="img-preview-box" id="img-preview-box">
+        <img id="f-img-preview" alt="">
+        <button class="img-clear-btn" onclick="clearImg('img-preview-box','f-img-preview','f-img')">✕</button>
+      </div>
     </div>
     <div class="form-row">
       <label>メモ <span class="opt">(任意)</span></label>
@@ -284,7 +310,7 @@ function renderRequestForm(){
 
 function renderMyList(){
   if(!pending.length)return'<div class="empty"><span class="empty-icon">📭</span>依頼中のアイテムはありません</div>';
-  return`<div class="section">${pending.map(i=>itemCardHTML(i,{cancelBtn:true})).join('')}</div>`;
+  return`<div class="section">${pending.map(i=>itemCardHTML(i,{cancelBtn:true,editBtn:true})).join('')}</div>`;
 }
 function renderStaffHistory(){
   if(!done.length)return'<div class="empty"><span class="empty-icon">🕐</span>購入履歴はありません</div>';
@@ -299,58 +325,106 @@ function onPlaceChange(){
   const s=document.getElementById('f-place'),n=document.getElementById('f-place-new');
   if(!n)return;n.style.display=s.value==='__new__'?'block':'none';if(s.value==='__new__')n.focus();
 }
-function onImgChange(){
-  const file=document.getElementById('f-img').files[0];
-  const preview=document.getElementById('f-img-preview');
-  if(!file){preview.style.display='none';return;}
-  const reader=new FileReader();
-  reader.onload=e=>{preview.src=e.target.result;preview.style.display='block'};
-  reader.readAsDataURL(file);
-}
 
 async function submitItem(){
   let requester=document.getElementById('f-requester').value;
   if(requester==='__new__')requester=(document.getElementById('f-requester-new').value||'').trim();
   const name=(document.getElementById('f-name').value||'').trim();
   const qty=(document.getElementById('f-qty').value||'').trim();
-  const catEl=document.getElementById('f-cat'); const cat=catEl?catEl.value:'zappi';
   if(!requester||!name||!qty){showToast('依頼者・品名・個数は必須です');return;}
-  if(!cat) cat='zappi';
   let place=document.getElementById('f-place').value;
   if(place==='__new__')place=(document.getElementById('f-place-new').value||'').trim();
   const url=(document.getElementById('f-url').value||'').trim();
   const memo=(document.getElementById('f-memo').value||'').trim();
-  const imgEl=document.getElementById('f-img-preview');
-  const img=(imgEl&&imgEl.style.display==='block'&&imgEl.src&&imgEl.src.startsWith('data:'))?imgEl.src:'';
-  const btn=document.getElementById('submit-btn');
-  if(btn)btn.disabled=true;
+  const img=getImgData('f-img-preview');
+  const btn=document.getElementById('submit-btn');if(btn)btn.disabled=true;
   showLoading('リクエストを送信中…');
   try{
-    const item={id:String(Date.now()),requester,name,qty,cat,place,url,memo,img,
-                created:new Date().toLocaleDateString('ja-JP')};
-    await apiPost({action:'addPending',item});
-    await loadAll();
-    showToast('リクエストを送りました ✓');
-    staffTab='mylist';renderStaff();
-  }catch(e){
-    showErr('送信失敗: '+e.message);
-    if(btn)btn.disabled=false;
-  }finally{hideLoading();}
+    await apiPost({action:'addPending',item:{id:String(Date.now()),requester,name,qty,cat:'zappi',place,url,memo,img,created:new Date().toLocaleDateString('ja-JP')}});
+    await loadAll();showToast('リクエストを送りました ✓');staffTab='mylist';renderStaff();
+  }catch(e){showErr('送信失敗: '+e.message);if(btn)btn.disabled=false;}
+  finally{hideLoading();}
 }
 
 async function cancelItem(id){
   if(!confirm('このリクエストを取り消しますか？'))return;
   showLoading('取り消し中…');
-  try{
-    await apiPost({action:'deletePending',id:String(id)});
-    await loadAll();showToast('取り消しました');renderStaff();
-  }catch(e){showErr('失敗: '+e.message);}
-  finally{hideLoading();}
+  try{await apiPost({action:'deletePending',id:String(id)});await loadAll();showToast('取り消しました');renderStaff();}
+  catch(e){showErr('失敗: '+e.message);}finally{hideLoading();}
 }
 
-/* ════════════════════════════════
-   管理者ビュー
-════════════════════════════════ */
+/* ── 訂正モーダル ─── */
+function openEditModal(id){
+  const item=pending.find(i=>i.id===id);if(!item)return;
+  const places=allPlaces();
+  document.getElementById('modal-container').innerHTML=`
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-title">✏️ 依頼内容を訂正</div>
+      <div class="form-row">
+        <label>品名 <span class="req">*</span></label>
+        <input type="text" id="e-name" value="${esc(item.name)}" placeholder="品名">
+      </div>
+      <div class="form-row">
+        <label>個数 <span class="req">*</span></label>
+        <input type="text" id="e-qty" value="${esc(item.qty)}" placeholder="個数">
+      </div>
+      <div class="form-row">
+        <label>購入場所</label>
+        <select id="e-place" onchange="onEditPlaceChange()">
+          <option value="">未定</option>
+          ${places.map(p=>`<option value="${esc(p)}"${item.place===p?' selected':''}>${esc(p)}</option>`).join('')}
+          <option value="__new__">＋ その他（直接入力）</option>
+        </select>
+        <input type="text" class="sub-input" id="e-place-new" placeholder="購入場所を入力">
+      </div>
+      <div class="form-row">
+        <label>参考URL</label>
+        <input type="url" id="e-url" value="${esc(item.url)}" placeholder="https://...">
+      </div>
+      <div class="form-row">
+        <label>画像</label>
+        <div class="img-area" id="e-img-area">
+          <div class="img-area-text">📷 タップして選択 / Ctrl+V でペースト</div>
+        </div>
+        <input type="file" id="e-img" accept="image/*">
+        <div class="img-preview-box" id="e-img-preview-box" ${item.img?'style="display:block"':''}>
+          <img id="e-img-preview" src="${esc(item.img)}" alt="">
+          <button class="img-clear-btn" onclick="clearImg('e-img-preview-box','e-img-preview','e-img')">✕</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>メモ</label>
+        <textarea id="e-memo" placeholder="メモ">${esc(item.memo)}</textarea>
+      </div>
+      <button class="submit-btn" onclick="saveEdit('${id}')">💾 保存する</button>
+    </div>
+  </div>`;
+  setupImgArea('e-img-area','e-img','e-img-preview-box','e-img-preview');
+}
+function onEditPlaceChange(){
+  const s=document.getElementById('e-place'),n=document.getElementById('e-place-new');
+  if(!n)return;n.style.display=s.value==='__new__'?'block':'none';if(s.value==='__new__')n.focus();
+}
+function closeModal(){document.getElementById('modal-container').innerHTML='';}
+async function saveEdit(id){
+  const name=(document.getElementById('e-name').value||'').trim();
+  const qty=(document.getElementById('e-qty').value||'').trim();
+  if(!name||!qty){showToast('品名・個数は必須です');return;}
+  let place=document.getElementById('e-place').value;
+  if(place==='__new__')place=(document.getElementById('e-place-new').value||'').trim();
+  const url=(document.getElementById('e-url').value||'').trim();
+  const memo=(document.getElementById('e-memo').value||'').trim();
+  const img=getImgData('e-img-preview');
+  closeModal();showLoading('更新中…');
+  try{
+    await apiPost({action:'updateItem',id:String(id),fields:{name,qty,place,url,memo,img}});
+    await loadAll();showToast('訂正しました ✓');renderStaff();
+  }catch(e){showErr('更新失敗: '+e.message);}finally{hideLoading();}
+}
+
+/* ════ 管理者ビュー ════ */
 function renderAdmin(){
   document.getElementById('admin-view').innerHTML=`
   <div class="tabs">
@@ -363,103 +437,101 @@ function setAdminTab(t){adminTab=t;filterCat='all';filterPlace='all';renderAdmin
 
 function renderPendingList(){
   if(!pending.length)return'<div class="empty"><span class="empty-icon">✅</span>リクエストはありません</div>';
-
-  // ソートバー
   const sortBar=`<div class="sort-bar">
-    <label>グループ:</label>
-    <select onchange="sortKey=this.value;renderAdmin()" style="flex:1;min-width:0">
-      <option value="place" ${sortKey==='place'?'selected':''}>購入場所</option>
-      <option value="cat"   ${sortKey==='cat'  ?'selected':''}>経費の種類</option>
-      <option value="requester" ${sortKey==='requester'?'selected':''}>依頼者</option>
-      <option value="date"  ${sortKey==='date' ?'selected':''}>日付（新しい順）</option>
-    </select>
+    <div>
+      <div class="sort-label">第1グループ</div>
+      <select onchange="sortKey1=this.value;renderAdmin()">
+        <option value="place"     ${sortKey1==='place'    ?'selected':''}>購入場所</option>
+        <option value="cat"       ${sortKey1==='cat'      ?'selected':''}>経費の種類</option>
+        <option value="requester" ${sortKey1==='requester'?'selected':''}>依頼者</option>
+        <option value="date"      ${sortKey1==='date'     ?'selected':''}>日付順</option>
+      </select>
+    </div>
+    <div>
+      <div class="sort-label">第2グループ</div>
+      <select onchange="sortKey2=this.value;renderAdmin()">
+        <option value="cat"       ${sortKey2==='cat'      ?'selected':''}>経費の種類</option>
+        <option value="place"     ${sortKey2==='place'    ?'selected':''}>購入場所</option>
+        <option value="requester" ${sortKey2==='requester'?'selected':''}>依頼者</option>
+        <option value="none"      ${sortKey2==='none'     ?'selected':''}>なし</option>
+      </select>
+    </div>
   </div>`;
-
-  // フィルタ（経費）
   const cats=[...new Set(pending.map(i=>i.cat))];
   const places=[...new Set(pending.map(i=>i.place||'場所未定'))];
-  const catChips=['all',...cats].map(c=>
-    `<span class="filter-chip ${filterCat===c?'active':''}" onclick="setAdminFilter('cat',${JSON.stringify(c)})">${c==='all'?'全経費':getCatLabel(c)}</span>`
-  ).join('');
-  const placeChips=['all',...places].map(p=>
-    `<span class="filter-chip ${filterPlace===p?'active':''}" onclick="setAdminFilter('place',${JSON.stringify(p)})">${p==='all'?'全店舗':p}</span>`
-  ).join('');
+  const catChips=['all',...cats].map(c=>`<span class="filter-chip ${filterCat===c?'active':''}" onclick="setAdminFilter('cat',${JSON.stringify(c)})">${c==='all'?'全経費':getCatLabel(c)}</span>`).join('');
+  const placeChips=['all',...places].map(p=>`<span class="filter-chip ${filterPlace===p?'active':''}" onclick="setAdminFilter('place',${JSON.stringify(p)})">${p==='all'?'全店舗':p}</span>`).join('');
 
-  // フィルタ適用
-  let items=pending.filter(i=>{
-    const p=i.place||'場所未定';
-    return(filterCat==='all'||i.cat===filterCat)&&(filterPlace==='all'||p===filterPlace);
-  });
+  let items=pending.filter(i=>(filterCat==='all'||i.cat===filterCat)&&(filterPlace==='all'||(i.place||'場所未定')===filterPlace));
 
-  // ソート＆グルーピング
-  let grouped={};
-  if(sortKey==='date'){
-    // 日付順はグループなしで一覧
+  // 2段階グルーピング
+  const keyFn=(key,i)=>key==='place'?(i.place||'場所未定'):key==='cat'?getCatLabel(i.cat):key==='requester'?(i.requester||'不明'):'';
+  
+  let html='';
+  if(sortKey1==='date'){
     items=[...items].sort((a,b)=>Number(b.id)-Number(a.id));
-    grouped={'すべて':items};
+    html=items.map(i=>itemCardHTML(i,{checkBox:true,deleteBtn:true,catEditable:true})).join('');
+    html=`<div class="group-block"><div class="group-label">📅 すべて（新しい順）<span style="font-size:11px;color:#8ab0cc;font-weight:400;margin-left:4px">${items.length}件</span></div>${html}</div>`;
   } else {
-    const keyFn = sortKey==='place' ? i=>(i.place||'場所未定')
-                : sortKey==='cat'   ? i=>getCatLabel(i.cat)
-                :                     i=>(i.requester||'不明');
-    items.forEach(i=>{const k=keyFn(i);if(!grouped[k])grouped[k]=[];grouped[k].push(i);});
+    const g1={};
+    items.forEach(i=>{const k=keyFn(sortKey1,i);if(!g1[k])g1[k]=[];g1[k].push(i);});
+    Object.entries(g1).forEach(([k1,its1])=>{
+      let inner='';
+      if(sortKey2==='none'||sortKey2===sortKey1){
+        inner=its1.map(i=>itemCardHTML(i,{checkBox:true,deleteBtn:true,catEditable:true})).join('');
+      } else {
+        const g2={};
+        its1.forEach(i=>{const k=keyFn(sortKey2,i);if(!g2[k])g2[k]=[];g2[k].push(i);});
+        inner=Object.entries(g2).map(([k2,its2])=>`
+          <div style="margin-left:8px;margin-bottom:10px">
+            <div class="group-label" style="font-size:10px;opacity:.75">${grpIcon(sortKey2)} ${esc(k2)}<span style="font-size:10px;color:#8ab0cc;font-weight:400;margin-left:4px">${its2.length}件</span></div>
+            ${its2.map(i=>itemCardHTML(i,{checkBox:true,deleteBtn:true,catEditable:true})).join('')}
+          </div>`).join('');
+      }
+      html+=`<div class="group-block"><div class="group-label">${grpIcon(sortKey1)} ${esc(k1)}<span style="font-size:11px;color:#8ab0cc;font-weight:400;margin-left:4px">${its1.length}件</span></div>${inner}</div>`;
+    });
   }
-
-  const groupHTML=Object.entries(grouped).map(([grp,its])=>`
-    <div class="group-block">
-      <div class="group-label">${grpIcon()} ${esc(grp)}<span style="font-size:11px;color:#bbb8cc;font-weight:400;margin-left:4px">${its.length}件</span></div>
-      ${its.map(i=>itemCardHTML(i,{checkBox:true,deleteBtn:true,catEditable:true})).join('')}
-    </div>`).join('');
-
   return`${sortBar}
   <div class="filter-row">${catChips}</div>
   <div class="filter-row">${placeChips}</div>
-  <div class="section" style="padding-top:8px">${items.length?groupHTML:'<div class="empty">該当なし</div>'}</div>`;
+  <div class="section" style="padding-top:8px">${items.length?html:'<div class="empty">該当なし</div>'}</div>`;
 }
 
-function grpIcon(){
-  return sortKey==='place'?'📍':sortKey==='cat'?'🏷':sortKey==='requester'?'👤':'📅';
-}
-function setAdminFilter(type,val){
-  if(type==='cat')filterCat=val;else filterPlace=val;
-  renderAdmin();
-}
+function grpIcon(k){return k==='place'?'📍':k==='cat'?'🏷':k==='requester'?'👤':'📅';}
+function setAdminFilter(type,val){if(type==='cat')filterCat=val;else filterPlace=val;renderAdmin();}
 
 function renderDoneList(){
   if(!done.length)return'<div class="empty"><span class="empty-icon">🛍</span>購入済アイテムはありません</div>';
-  return`<div class="section" style="padding-top:10px">
-    ${done.map(i=>itemCardHTML(i,{rebuyBtn:true,deleteBtn:true,isDone:true})).join('')}
-  </div>`;
+  return`<div class="section" style="padding-top:10px">${done.map(i=>itemCardHTML(i,{rebuyBtn:true,deleteBtn:true,isDone:true})).join('')}</div>`;
 }
 
 /* ── 共通カードHTML ─── */
 function itemCardHTML(i,opts={}){
-  const {checkBox,cancelBtn,rebuyBtn,deleteBtn,isDone,catEditable}=opts;
+  const {checkBox,cancelBtn,editBtn,rebuyBtn,deleteBtn,isDone,catEditable}=opts;
   const catBadge=catEditable
-    ? `<div class="cat-edit-wrap">
-        <select class="cat-select-inline" onchange="updateCat('${i.id}',this.value,'pending')" title="経費を変更">
-          ${CATS.map(c=>`<option value="${c.id}"${c.id===i.cat?' selected':''}>${c.label}</option>`).join('')}
-        </select>
-       </div>`
-    : `<span class="cat-badge ${getCatClass(i.cat)}">${getCatLabel(i.cat)}</span>`;
-
+    ?`<select class="cat-select-inline" onchange="updateCat('${i.id}',this.value)">${CATS.map(c=>`<option value="${c.id}"${c.id===(i.cat||'zappi')?' selected':''}>${c.label}</option>`).join('')}</select>`
+    :`<span class="cat-badge ${getCatClass(i.cat)}">${getCatLabel(i.cat||'zappi')}</span>`;
+  const imgSlot=`<div class="img-slot">${i.img?`<img src="${esc(i.img)}" alt="">`:`<span class="img-slot-empty">📷</span>`}</div>`;
   return`<div class="item-card${isDone?' done':''}">
     ${checkBox?`<input type="checkbox" class="chk" onchange="checkItem('${i.id}',this.checked)">`:''}
-    ${i.img?`<img class="item-thumb" src="${esc(i.img)}" alt="">`:''}
+    ${imgSlot}
     <div class="item-info">
-      <div class="item-name${isDone?' done':''}">${esc(i.name)}${i.qty
-        ?` <span style="color:#bbb8cc;font-weight:400;font-size:13px">× ${esc(i.qty)}</span>`
-        :'<span class="qty-alert"> 個数未記入</span>'}</div>
+      <div class="item-name-row">
+        <div class="item-name${isDone?' done':''}">${esc(i.name)}</div>
+        <div class="item-qty${isDone?' done':''}">${i.qty?`× ${esc(i.qty)}`:'<span class="qty-alert">個数未記入</span>'}</div>
+      </div>
       <div class="item-meta">
         ${catBadge}
         ${i.requester?`<span class="requester-tag">👤 ${esc(i.requester)}</span>`:''}
         ${i.place?`<span>📍${esc(i.place)}</span>`:''}
       </div>
       ${i.url?`<a class="url-link" href="${esc(i.url)}" target="_blank">🔗 ${shortUrl(i.url)}</a>`:''}
-      ${i.memo?`<div style="font-size:12px;color:#9b95b8;margin-top:2px">${esc(i.memo)}</div>`:''}
-      <div style="font-size:11px;color:#bbb8cc;margin-top:3px">${esc(isDone?(i.boughtAt||i.created):i.created)}</div>
+      ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
+      <div style="font-size:11px;color:#8ab0cc;margin-top:3px">${esc(isDone?(i.boughtAt||i.created):i.created)}</div>
     </div>
     <div class="actions-col">
       ${cancelBtn?`<button class="small-btn" onclick="cancelItem('${i.id}')">取消</button>`:''}
+      ${editBtn?`<button class="edit-btn" onclick="openEditModal('${i.id}')">訂正</button>`:''}
       ${rebuyBtn?`<button class="rebuy-btn" onclick="rebuyItem('${i.id}')">🔄 再購入</button>`:''}
       ${deleteBtn?`<button class="icon-btn" onclick="deleteItem('${i.id}','${isDone?'done':'pending'}')">🗑</button>`:''}
     </div>
@@ -470,23 +542,20 @@ async function checkItem(id,checked){
   if(!checked)return;
   showLoading('購入済にしています…');
   try{
-    await apiPost({action:'moveToDone',id:String(id),boughtAt:new Date().toLocaleDateString('ja-JP')});
+    const r=await apiPost({action:'moveToDone',id:String(id),boughtAt:new Date().toLocaleDateString('ja-JP')});
+    console.log('moveToDone result:',r);
     await loadAll();showToast('購入済にしました ✓');renderAdmin();
-  }catch(e){showErr('失敗: '+e.message);}
-  finally{hideLoading();}
+  }catch(e){showErr('失敗: '+e.message);}finally{hideLoading();}
 }
-
 async function deleteItem(id,list){
   if(!confirm('削除しますか？'))return;
   showLoading('削除中…');
   try{
     await apiPost({action:list==='pending'?'deletePending':'deleteDone',id:String(id)});
     await loadAll();renderAdmin();showToast('削除しました');
-  }catch(e){showErr('失敗: '+e.message);}
-  finally{hideLoading();}
+  }catch(e){showErr('失敗: '+e.message);}finally{hideLoading();}
 }
 
-/* ── 起動 ─── */
 (async()=>{await loadAll();renderStaff();})();
 </script>
 </body>
