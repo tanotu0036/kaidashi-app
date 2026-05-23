@@ -222,11 +222,29 @@ function setupImgArea(areaId,inputId,previewBoxId,previewImgId){
 function loadImgFile(file,previewBoxId,previewImgId){
   const reader=new FileReader();
   reader.onload=e=>{
-    const box=document.getElementById(previewBoxId);
-    const img=document.getElementById(previewImgId);
-    if(box&&img){img.src=e.target.result;box.style.display='block';}
+    compressImage(e.target.result, 800, 0.7, compressed=>{
+      const box=document.getElementById(previewBoxId);
+      const img=document.getElementById(previewImgId);
+      if(box&&img){img.src=compressed;box.style.display='block';}
+    });
   };
   reader.readAsDataURL(file);
+}
+
+function compressImage(dataUrl, maxSize, quality, callback){
+  const img=new Image();
+  img.onload=()=>{
+    let w=img.width, h=img.height;
+    if(w>maxSize||h>maxSize){
+      if(w>h){h=Math.round(h*maxSize/w);w=maxSize;}
+      else{w=Math.round(w*maxSize/h);h=maxSize;}
+    }
+    const canvas=document.createElement('canvas');
+    canvas.width=w;canvas.height=h;
+    canvas.getContext('2d').drawImage(img,0,0,w,h);
+    callback(canvas.toDataURL('image/jpeg',quality));
+  };
+  img.src=dataUrl;
 }
 function clearImg(previewBoxId,previewImgId,inputId){
   const box=document.getElementById(previewBoxId);const img=document.getElementById(previewImgId);const inp=document.getElementById(inputId);
