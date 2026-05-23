@@ -215,11 +215,13 @@ async function rebuyItem(id){
 
 /* ── 経費更新 ─── */
 async function updateCat(id,newCat){
-  showLoading('更新中…');
-  try{
-    await apiPost({action:'updateCat',id:String(id),cat:newCat});
-    await loadAll();renderAdmin();
-  }catch(e){showErr('更新失敗: '+e.message);}finally{hideLoading();}
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const oldCat=pending[idx].cat;
+  pending[idx]={...pending[idx],cat:newCat};
+  renderAdmin();
+  try{await apiPost({action:'updateCat',id:String(id),cat:newCat});}
+  catch(e){pending[idx]={...pending[idx],cat:oldCat};renderAdmin();showErr('更新失敗: '+e.message);}
 }
 
 /* ════ 画像ヘルパー ════ */
