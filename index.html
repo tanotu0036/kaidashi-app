@@ -76,6 +76,8 @@ input[type=file]{display:none}
 .edit-btn{font-size:12px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#a0d4f8,#78b8ee);color:#fff;cursor:pointer;white-space:nowrap;font-weight:700;min-width:48px;text-align:center;line-height:1.3}
 .edit-btn:hover{opacity:.85}
 .rebuy-btn{font-size:13px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#a0e8d8,#78d0b8);color:#1a6050;cursor:pointer;white-space:nowrap;font-weight:700;min-width:52px;text-align:center;line-height:1.3}
+.hold-btn{font-size:12px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#f8d88a,#f0b840);color:#7a5000;cursor:pointer;white-space:nowrap;font-weight:700;min-width:48px;text-align:center;line-height:1.3}
+.hold-btn:hover{opacity:.85}
 .rebuy-btn:hover{opacity:.85}
 /* 経費バッジ */
 .cat-badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600}
@@ -122,7 +124,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const GAS_URL='https://script.google.com/macros/s/AKfycbyg-Q16rAr2oBSl14YJ_Sf3rzz8k-Y5_ZwrTpP5WuVxS4UoPjKEw3ZPo6RWgq4FPS9o/exec';
+const GAS_URL='https://script.google.com/macros/s/AKfycbw4C-p0YmVGTxKFSgJYcwM97Pz1X6RCNhNjbUeQlZr49lqHwbltN7I_I5at_3OVpSOv0A/exec';
 const CATS=[
   {id:'kyozai',label:'保育教材費'},
   {id:'shoumou',label:'消耗品'},
@@ -137,6 +139,8 @@ const DEFAULT_PLACES=['ダイソー','セリア','ドラッグストア','ホー
 let pending=[],done=[],masterRequesters=[],masterPlaces=[];
 let mode='staff',staffTab='request',adminTab='pending';
 let sortKey1='place',sortKey2='cat';
+let hold=[];
+let holdSort1='date',holdSort2='none';
 let staffListSort1='date',staffListSort2='none';
 let doneSort1='date',doneSort2='none';
 let filterCat='all',filterPlace='all';
@@ -161,7 +165,7 @@ async function loadAll(){
   showLoading('データを読み込み中…');
   try{
     const d=await apiGet();
-    pending=d.pending||[];done=d.done||[];
+    pending=d.pending||[];done=d.done||[];hold=d.hold||[];
     masterRequesters=d.masters?.requesters||[];masterPlaces=d.masters?.places||[];
   }catch(e){console.error(e);showErr('読み込み失敗: '+e.message);}
   finally{hideLoading();renderModeBtn();}
@@ -458,10 +462,11 @@ function renderAdmin(){
   document.getElementById('admin-view').innerHTML=`
   <div class="tabs">
     <button class="tab ${adminTab==='pending'?'active':''}" onclick="setAdminTab('pending')">要購入 (${pending.length})</button>
+    <button class="tab ${adminTab==='hold'?'active':''}" onclick="setAdminTab('hold')">保留 (${hold.length})</button>
     <button class="tab ${adminTab==='done'?'active':''}" onclick="setAdminTab('done')">購入済 (${done.length})</button>
     <button class="tab ${adminTab==='master'?'active':''}" onclick="setAdminTab('master')">マスタ</button>
   </div>
-  ${adminTab==='pending'?renderPendingList():adminTab==='done'?renderDoneList():renderMasterTab()}`;
+  ${adminTab==='pending'?renderPendingList():adminTab==='hold'?renderHoldList():adminTab==='done'?renderDoneList():renderMasterTab()}`;
 }
 function setAdminTab(t){adminTab=t;filterCat='all';filterPlace='all';renderAdmin();}
 
@@ -538,8 +543,8 @@ function sortBar2(v1,v2){
     {value:'none',label:'なし（第2のみ）'},
   ];
   const opts2=[{value:'none',label:'なし'},...opts.filter(o=>o.value!=='none')];
-  const cur1=v1==='staffListSort1'?staffListSort1:v1==='doneSort1'?doneSort1:sortKey1;
-  const cur2=v2==='staffListSort2'?staffListSort2:v2==='doneSort2'?doneSort2:sortKey2;
+  const cur1=v1==='staffListSort1'?staffListSort1:v1==='doneSort1'?doneSort1:v1==='holdSort1'?holdSort1:sortKey1;
+  const cur2=v2==='staffListSort2'?staffListSort2:v2==='doneSort2'?doneSort2:v2==='holdSort2'?holdSort2:sortKey2;
   return`<div class="sort-bar">
     <div><div class="sort-label">第1グループ</div>
       <select onchange="setSortVar('${v1}',this.value)">
@@ -561,6 +566,8 @@ function setSortVar(varName,val){
   else if(varName==='staffListSort2')staffListSort2=val;
   else if(varName==='doneSort1')doneSort1=val;
   else if(varName==='doneSort2')doneSort2=val;
+  else if(varName==='holdSort1')holdSort1=val;
+  else if(varName==='holdSort2')holdSort2=val;
   if(mode==='admin')renderAdmin();else renderStaff();
 }
 
@@ -591,6 +598,11 @@ function groupedCards(items,s1,s2,cardOpts){
     html+=`<div class="group-block"><div class="group-label">${grpIcon(s1)} ${esc(k1)}<span style="font-size:11px;color:#8ab0cc;font-weight:400;margin-left:4px">${its1.length}件</span></div>${inner}</div>`;
   });
   return html;
+}
+
+function renderHoldList(){
+  if(!hold.length)return'<div class="empty"><span class="empty-icon">⏸</span>保留中のアイテムはありません</div>';
+  return`<div class="section" style="padding-top:10px">${sortBar2('holdSort1','holdSort2')}${groupedCards(hold,holdSort1,holdSort2,{holdToPublicBtn:true,deleteBtn:true,isDone:true})}</div>`;
 }
 
 function renderDoneList(){
@@ -644,7 +656,7 @@ async function deleteMaster(type, value){
 
 /* ── 共通カードHTML ─── */
 function itemCardHTML(i,opts={}){
-  const {checkBox,cancelBtn,editBtn,rebuyBtn,deleteBtn,isDone,catEditable}=opts;
+  const {checkBox,cancelBtn,editBtn,rebuyBtn,holdBtn,holdToPublicBtn,deleteBtn,isDone,catEditable}=opts;
   const catBadge=catEditable
     ?`<select class="cat-select-inline" onchange="updateCat('${i.id}',this.value)">${CATS.map(c=>`<option value="${c.id}"${c.id===(i.cat||'zappi')?' selected':''}>${c.label}</option>`).join('')}</select>`
     :`<span class="cat-badge ${getCatClass(i.cat)}">${getCatLabel(i.cat||'zappi')}</span>`;
@@ -669,10 +681,29 @@ function itemCardHTML(i,opts={}){
     <div class="actions-col">
       ${cancelBtn?`<button class="small-btn" onclick="cancelItem('${i.id}')">取消</button>`:''}
       ${editBtn?`<button class="edit-btn" onclick="openEditModal('${i.id}')">訂正</button>`:''}
+      ${holdBtn?`<button class="hold-btn" onclick="holdItem('${i.id}')">保留</button>`:''}
+      ${holdToPublicBtn?`<button class="edit-btn" onclick="holdToPublic('${i.id}')">要購入へ</button>`:''}
       ${rebuyBtn?`<button class="rebuy-btn" onclick="rebuyItem('${i.id}')">🔄 再購入</button>`:''}
-      ${deleteBtn?`<button class="icon-btn" onclick="deleteItem('${i.id}','${isDone?'done':'pending'}')">🗑</button>`:''}
+      ${deleteBtn?`<button class="icon-btn" onclick="deleteItem('${i.id}','${isDone?'done':holdToPublicBtn?'hold':'pending'}')">🗑</button>`:''}
     </div>
   </div>`;
+}
+
+async function holdItem(id){
+  if(!confirm('この商品を保留にしますか？'))return;
+  showLoading('保留にしています…');
+  try{
+    await apiPost({action:'moveToHold',id:String(id),heldAt:new Date().toLocaleDateString('ja-JP')});
+    await loadAll();showToast('保留にしました');renderAdmin();
+  }catch(e){showErr('失敗: '+e.message);}finally{hideLoading();}
+}
+
+async function holdToPublic(id){
+  showLoading('要購入に戻しています…');
+  try{
+    await apiPost({action:'holdToPublic',id:String(id)});
+    await loadAll();showToast('要購入に戻しました');renderAdmin();
+  }catch(e){showErr('失敗: '+e.message);}finally{hideLoading();}
 }
 
 async function checkItem(id,checked){
@@ -688,7 +719,7 @@ async function deleteItem(id,list){
   if(!confirm('削除しますか？'))return;
   showLoading('削除中…');
   try{
-    await apiPost({action:list==='pending'?'deletePending':'deleteDone',id:String(id)});
+    await apiPost({action:list==='pending'?'deletePending':list==='hold'?'deleteHold':'deleteDone',id:String(id)});
     await loadAll();renderAdmin();showToast('削除しました');
   }catch(e){showErr('失敗: '+e.message);}finally{hideLoading();}
 }
