@@ -163,14 +163,14 @@ async function apiPost(payload){
   const text=await res.text();
   try{return JSON.parse(text);}catch(e){console.error('Parse error:',text);throw new Error('レスポンスの解析に失敗');}
 }
-async function loadAll(){
-  showLoading('データを読み込み中…');
+async function loadAll(silent=false){
+  if(!silent)showLoading('データを読み込み中…');
   try{
     const d=await apiGet();
     pending=d.pending||[];done=d.done||[];hold=d.hold||[];
     masterRequesters=d.masters?.requesters||[];masterPlaces=d.masters?.places||[];
-  }catch(e){console.error(e);showErr('読み込み失敗: '+e.message);}
-  finally{hideLoading();renderModeBtn();}
+  }catch(e){console.error(e);if(!silent)showErr('読み込み失敗: '+e.message);}
+  finally{if(!silent)hideLoading();renderModeBtn();}
 }
 
 /* ── ユーティリティ ─── */
@@ -197,16 +197,20 @@ function toggleMode(){
   document.getElementById('staff-view').style.display=mode==='staff'?'block':'none';
   document.getElementById('admin-view').style.display=mode==='admin'?'block':'none';
   if(mode==='admin')renderAdmin();else renderStaff();
+  loadAll(true).then(()=>{if(mode==='admin')renderAdmin();else renderStaff();});
 }
 
 /* ── 再購入 ─── */
 async function rebuyItem(id){
-  showLoading('再購入リクエストを追加中…');
-  try{
-    await apiPost({action:'rebuy',id:String(id)});
-    await loadAll();showToast('再購入リクエストに追加しました');
-    if(mode==='staff'){staffTab='mylist';renderStaff();}else renderAdmin();
-  }catch(e){showErr('失敗: '+e.message);}finally{hideLoading();}
+  const src=done.find(i=>i.id===id);
+  if(!src)return;
+  const newItem={...src,id:String(Date.now()),qty:'',created:new Date().toLocaleDateString('ja-JP')};
+  delete newItem.boughtAt;
+  pending.unshift(newItem);
+  if(mode==='staff'){staffTab='mylist';renderStaff();}else renderAdmin();
+  showToast('再購入リクエストに追加しました');
+  try{await apiPost({action:'rebuy',id:String(id)});}
+  catch(e){pending.shift();if(mode==='staff')renderStaff();else renderAdmin();showErr('失敗: '+e.message);}
 }
 
 /* ── 経費更新 ─── */
@@ -283,7 +287,10 @@ function renderStaff(){
   <div id="staff-content"></div>`;
   renderStaffContent();
 }
-function setStaffTab(t){staffTab=t;renderStaff();}
+function setStaffTab(t){
+  staffTab=t;renderStaff();
+  loadAll(true).then(()=>renderStaff());
+}
 function renderStaffContent(){
   const el=document.getElementById('staff-content');if(!el)return;
   if(staffTab==='request'){el.innerHTML=renderRequestForm();setupImgArea('img-area','f-img','img-preview-box','f-img-preview');}
@@ -373,19 +380,27 @@ async function submitItem(){
   const memo=(document.getElementById('f-memo').value||'').trim();
   const img=getImgData('f-img-preview');
   const btn=document.getElementById('submit-btn');if(btn)btn.disabled=true;
-  showLoading('リクエストを送信中…');
   try{
-    await apiPost({action:'addPending',item:{id:String(Date.now()),requester,name,qty,cat:'zappi',place,url,memo,img,created:new Date().toLocaleDateString('ja-JP')}});
-    await loadAll();showToast('リクエストを送りました ✓');staffTab='mylist';renderStaff();
-  }catch(e){showErr('送信失敗: '+e.message);if(btn)btn.disabled=false;}
-  finally{hideLoading();}
+    const newItem={id:String(Date.now()),requester,name,qty,cat:'zappi',place,url,memo,img,created:new Date().toLocaleDateString('ja-JP')};
+    pending.unshift(newItem);
+    // mastersも即時更新
+    if(requester&&!masterRequesters.includes(requester))masterRequesters.push(requester);
+    if(place&&!masterPlaces.includes(place)&&!['ダイソー','セリア','ドラッグストア','ホームセンター','文房具店','Amazon'].includes(place))masterPlaces.push(place);
+    showToast('リクエストを送りました ✓');staffTab='mylist';renderStaff();
+    apiPost({action:'addPending',item:newItem}).catch(e=>showErr('送信失敗: '+e.message));
+  }catch(e){showErr('送信失敗: '+e.message);}
+  finally{if(btn)btn.disabled=false;}
 }
 
 async function cancelItem(id){
   if(!confirm('このリクエストを取り消しますか？'))return;
-  showLoading('取り消し中…');
-  try{await apiPost({action:'deletePending',id:String(id)});await loadAll();showToast('取り消しました');renderStaff();}
-  catch(e){showErr('失敗: '+e.message);}finally{hideLoading();}
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const item=pending[idx];
+  pending.splice(idx,1);
+  renderStaff();showToast('取り消しました');
+  try{await apiPost({action:'deletePending',id:String(id)});}
+  catch(e){pending.splice(idx,0,item);renderStaff();showErr('失敗: '+e.message);}
 }
 
 /* ── 訂正モーダル ─── */
@@ -470,7 +485,10 @@ function renderAdmin(){
   </div>
   ${adminTab==='pending'?renderPendingList():adminTab==='hold'?renderHoldList():adminTab==='done'?renderDoneList():renderMasterTab()}`;
 }
-function setAdminTab(t){adminTab=t;filterCat='all';filterPlace='all';renderAdmin();}
+function setAdminTab(t){
+  adminTab=t;filterCat='all';filterPlace='all';renderAdmin();
+  loadAll(true).then(()=>renderAdmin());
+}
 
 function renderPendingList(){
   if(!pending.length)return'<div class="empty"><span class="empty-icon">✅</span>リクエストはありません</div>';
@@ -695,46 +713,58 @@ function itemCardHTML(i,opts={}){
 
 async function holdItem(id){
   if(!confirm('この商品を保留にしますか？'))return;
-  showLoading('保留にしています…');
-  try{
-    await apiPost({action:'moveToHold',id:String(id),heldAt:new Date().toLocaleDateString('ja-JP')});
-    await loadAll();showToast('保留にしました');renderAdmin();
-  }catch(e){showErr('失敗: '+e.message);}finally{hideLoading();}
+  const heldAt=new Date().toLocaleDateString('ja-JP');
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const item={...pending[idx],heldAt};
+  pending.splice(idx,1);hold.unshift(item);
+  renderAdmin();showToast('保留にしました');
+  try{await apiPost({action:'moveToHold',id:String(id),heldAt});}
+  catch(e){pending.splice(idx,0,item);hold.shift();renderAdmin();showErr('失敗: '+e.message);}
 }
 
 async function holdToPublic(id){
-  showLoading('要購入に戻しています…');
-  try{
-    await apiPost({action:'holdToPublic',id:String(id)});
-    await loadAll();showToast('要購入に戻しました');renderAdmin();
-  }catch(e){showErr('失敗: '+e.message);}finally{hideLoading();}
+  const idx=hold.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const item={...hold[idx]};
+  hold.splice(idx,1);pending.unshift(item);
+  renderAdmin();showToast('要購入に戻しました');
+  try{await apiPost({action:'holdToPublic',id:String(id)});}
+  catch(e){hold.splice(idx,0,item);pending.shift();renderAdmin();showErr('失敗: '+e.message);}
 }
 
 async function doneToPublic(id){
   if(!confirm('購入済みから要購入に戻しますか？'))return;
-  showLoading('要購入に戻しています…');
-  try{
-    await apiPost({action:'doneToPublic',id:String(id)});
-    await loadAll();showToast('要購入に戻しました');renderAdmin();
-  }catch(e){showErr('失敗: '+e.message);}finally{hideLoading();}
+  const idx=done.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const item={...done[idx]};
+  done.splice(idx,1);pending.unshift(item);
+  renderAdmin();showToast('要購入に戻しました');
+  try{await apiPost({action:'doneToPublic',id:String(id)});}
+  catch(e){done.splice(idx,0,item);pending.shift();renderAdmin();showErr('失敗: '+e.message);}
 }
 
 async function checkItem(id,checked){
   if(!checked)return;
-  showLoading('購入済にしています…');
-  try{
-    const r=await apiPost({action:'moveToDone',id:String(id),boughtAt:new Date().toLocaleDateString('ja-JP')});
-    console.log('moveToDone result:',r);
-    await loadAll();showToast('購入済にしました ✓');renderAdmin();
-  }catch(e){showErr('失敗: '+e.message);}finally{hideLoading();}
+  const boughtAt=new Date().toLocaleDateString('ja-JP');
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const item={...pending[idx],boughtAt};
+  pending.splice(idx,1);done.unshift(item);
+  renderAdmin();showToast('購入済にしました ✓');
+  try{await apiPost({action:'moveToDone',id:String(id),boughtAt});}
+  catch(e){pending.splice(idx,0,item);done.shift();renderAdmin();showErr('失敗: '+e.message);}
 }
 async function deleteItem(id,list){
   if(!confirm('削除しますか？'))return;
-  showLoading('削除中…');
-  try{
-    await apiPost({action:list==='pending'?'deletePending':list==='hold'?'deleteHold':'deleteDone',id:String(id)});
-    await loadAll();renderAdmin();showToast('削除しました');
-  }catch(e){showErr('失敗: '+e.message);}finally{hideLoading();}
+  const arr=list==='pending'?pending:list==='hold'?hold:done;
+  const idx=arr.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const item=arr[idx];
+  arr.splice(idx,1);
+  renderAdmin();showToast('削除しました');
+  try{await apiPost({action:list==='pending'?'deletePending':list==='hold'?'deleteHold':'deleteDone',id:String(id)});}
+  catch(e){arr.splice(idx,0,item);renderAdmin();showErr('失敗: '+e.message);}
 }
 
 (async()=>{await loadAll();renderStaff();})();
