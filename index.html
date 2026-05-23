@@ -78,6 +78,8 @@ input[type=file]{display:none}
 .rebuy-btn{font-size:13px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#a0e8d8,#78d0b8);color:#1a6050;cursor:pointer;white-space:nowrap;font-weight:700;min-width:52px;text-align:center;line-height:1.3}
 .hold-btn{font-size:12px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#f8d88a,#f0b840);color:#7a5000;cursor:pointer;white-space:nowrap;font-weight:700;min-width:48px;text-align:center;line-height:1.3}
 .hold-btn:hover{opacity:.85}
+.revert-btn{font-size:11px;padding:4px 9px;border:1px solid #b8d4ee;border-radius:8px;background:#d8ecf8;color:#1a6fba;cursor:pointer;white-space:nowrap;font-weight:600}
+.revert-btn:hover{background:#c0ddf4}
 .rebuy-btn:hover{opacity:.85}
 /* 経費バッジ */
 .cat-badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600}
@@ -124,7 +126,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const GAS_URL='https://script.google.com/macros/s/AKfycbw4C-p0YmVGTxKFSgJYcwM97Pz1X6RCNhNjbUeQlZr49lqHwbltN7I_I5at_3OVpSOv0A/exec';
+const GAS_URL='https://script.google.com/macros/s/AKfycbw9_Xt-bkfoPbMOSoIchNklw8Gad8hnMMOFKtb-mx0FZfG9QKI8DXHk6VBIJKm_VPfwow/exec';
 const CATS=[
   {id:'kyozai',label:'保育教材費'},
   {id:'shoumou',label:'消耗品'},
@@ -505,7 +507,7 @@ function renderPendingList(){
   let html='';
   if(sortKey1==='date'){
     items=[...items].sort((a,b)=>Number(b.id)-Number(a.id));
-    html=items.map(i=>itemCardHTML(i,{checkBox:true,deleteBtn:true,catEditable:true})).join('');
+    html=items.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true})).join('');
     html=`<div class="group-block"><div class="group-label">📅 すべて（新しい順）<span style="font-size:11px;color:#8ab0cc;font-weight:400;margin-left:4px">${items.length}件</span></div>${html}</div>`;
   } else {
     const g1={};
@@ -513,14 +515,14 @@ function renderPendingList(){
     Object.entries(g1).forEach(([k1,its1])=>{
       let inner='';
       if(sortKey2==='none'||sortKey2===sortKey1){
-        inner=its1.map(i=>itemCardHTML(i,{checkBox:true,deleteBtn:true,catEditable:true})).join('');
+        inner=its1.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true})).join('');
       } else {
         const g2={};
         its1.forEach(i=>{const k=keyFn(sortKey2,i);if(!g2[k])g2[k]=[];g2[k].push(i);});
         inner=Object.entries(g2).map(([k2,its2])=>`
           <div style="margin-left:8px;margin-bottom:10px">
             <div class="group-label" style="font-size:10px;opacity:.75">${grpIcon(sortKey2)} ${esc(k2)}<span style="font-size:10px;color:#8ab0cc;font-weight:400;margin-left:4px">${its2.length}件</span></div>
-            ${its2.map(i=>itemCardHTML(i,{checkBox:true,deleteBtn:true,catEditable:true})).join('')}
+            ${its2.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true})).join('')}
           </div>`).join('');
       }
       html+=`<div class="group-block"><div class="group-label">${grpIcon(sortKey1)} ${esc(k1)}<span style="font-size:11px;color:#8ab0cc;font-weight:400;margin-left:4px">${its1.length}件</span></div>${inner}</div>`;
@@ -574,25 +576,26 @@ function setSortVar(varName,val){
 function groupedCards(items,s1,s2,cardOpts){
   if(!items.length)return'';
   const keyFn=(key,i)=>key==='place'?(i.place||'場所未定'):key==='cat'?getCatLabel(i.cat||'zappi'):key==='requester'?(i.requester||'不明'):'';
-  let html='';
+  const card=i=>itemCardHTML(i,cardOpts);
   if(s1==='date'||s1==='none'){
-    const sorted=[...items].sort((a,b)=>Number(b.id)-Number(a.id));
-    return sorted.map(i=>itemCardHTML(i,cardOpts)).join('');
+    return[...items].sort((a,b)=>Number(b.id)-Number(a.id)).map(card).join('');
   }
+  let html='';
   const g1={};
   items.forEach(i=>{const k=keyFn(s1,i);if(!g1[k])g1[k]=[];g1[k].push(i);});
   Object.entries(g1).forEach(([k1,its1])=>{
     let inner='';
-    if(s2==='none'||s2===s1||s2==='date'){
-      if(s2==='date')its1=[...its1].sort((a,b)=>Number(b.id)-Number(a.id));
-      inner=its1.map(i=>itemCardHTML(i,cardOpts)).join('');
+    if(s2==='none'||s2===s1){
+      inner=its1.map(card).join('');
+    } else if(s2==='date'){
+      inner=[...its1].sort((a,b)=>Number(b.id)-Number(a.id)).map(card).join('');
     } else {
       const g2={};
       its1.forEach(i=>{const k=keyFn(s2,i);if(!g2[k])g2[k]=[];g2[k].push(i);});
       inner=Object.entries(g2).map(([k2,its2])=>`
         <div style="margin-left:8px;margin-bottom:10px">
           <div class="group-label" style="font-size:10px;opacity:.8">${grpIcon(s2)} ${esc(k2)}<span style="font-size:10px;color:#8ab0cc;font-weight:400;margin-left:4px">${its2.length}件</span></div>
-          ${its2.map(i=>itemCardHTML(i,cardOpts)).join('')}
+          ${its2.map(card).join('')}
         </div>`).join('');
     }
     html+=`<div class="group-block"><div class="group-label">${grpIcon(s1)} ${esc(k1)}<span style="font-size:11px;color:#8ab0cc;font-weight:400;margin-left:4px">${its1.length}件</span></div>${inner}</div>`;
@@ -607,7 +610,7 @@ function renderHoldList(){
 
 function renderDoneList(){
   if(!done.length)return'<div class="empty"><span class="empty-icon">🛍</span>購入済アイテムはありません</div>';
-  return`<div class="section" style="padding-top:10px">${sortBar2('doneSort1','doneSort2')}${groupedCards(done,doneSort1,doneSort2,{rebuyBtn:true,deleteBtn:true,isDone:true})}</div>`;
+  return`<div class="section" style="padding-top:10px">${sortBar2('doneSort1','doneSort2')}${groupedCards(done,doneSort1,doneSort2,{doneToPublicBtn:true,rebuyBtn:true,deleteBtn:true,isDone:true})}</div>`;
 }
 
 /* ── マスタ管理タブ ─── */
@@ -656,7 +659,7 @@ async function deleteMaster(type, value){
 
 /* ── 共通カードHTML ─── */
 function itemCardHTML(i,opts={}){
-  const {checkBox,cancelBtn,editBtn,rebuyBtn,holdBtn,holdToPublicBtn,deleteBtn,isDone,catEditable}=opts;
+  const {checkBox,cancelBtn,editBtn,rebuyBtn,holdBtn,holdToPublicBtn,doneToPublicBtn,deleteBtn,isDone,catEditable}=opts;
   const catBadge=catEditable
     ?`<select class="cat-select-inline" onchange="updateCat('${i.id}',this.value)">${CATS.map(c=>`<option value="${c.id}"${c.id===(i.cat||'zappi')?' selected':''}>${c.label}</option>`).join('')}</select>`
     :`<span class="cat-badge ${getCatClass(i.cat)}">${getCatLabel(i.cat||'zappi')}</span>`;
@@ -683,6 +686,7 @@ function itemCardHTML(i,opts={}){
       ${editBtn?`<button class="edit-btn" onclick="openEditModal('${i.id}')">訂正</button>`:''}
       ${holdBtn?`<button class="hold-btn" onclick="holdItem('${i.id}')">保留</button>`:''}
       ${holdToPublicBtn?`<button class="edit-btn" onclick="holdToPublic('${i.id}')">要購入へ</button>`:''}
+      ${doneToPublicBtn?`<button class="revert-btn" onclick="doneToPublic('${i.id}')">要購入へ</button>`:''}
       ${rebuyBtn?`<button class="rebuy-btn" onclick="rebuyItem('${i.id}')">🔄 再購入</button>`:''}
       ${deleteBtn?`<button class="icon-btn" onclick="deleteItem('${i.id}','${isDone?'done':holdToPublicBtn?'hold':'pending'}')">🗑</button>`:''}
     </div>
@@ -702,6 +706,15 @@ async function holdToPublic(id){
   showLoading('要購入に戻しています…');
   try{
     await apiPost({action:'holdToPublic',id:String(id)});
+    await loadAll();showToast('要購入に戻しました');renderAdmin();
+  }catch(e){showErr('失敗: '+e.message);}finally{hideLoading();}
+}
+
+async function doneToPublic(id){
+  if(!confirm('購入済みから要購入に戻しますか？'))return;
+  showLoading('要購入に戻しています…');
+  try{
+    await apiPost({action:'doneToPublic',id:String(id)});
     await loadAll();showToast('要購入に戻しました');renderAdmin();
   }catch(e){showErr('失敗: '+e.message);}finally{hideLoading();}
 }
