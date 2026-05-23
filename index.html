@@ -605,7 +605,7 @@ function groupedCards(items,s1,s2,cardOpts){
 
 function renderHoldList(){
   if(!hold.length)return'<div class="empty"><span class="empty-icon">⏸</span>保留中のアイテムはありません</div>';
-  return`<div class="section" style="padding-top:10px">${sortBar2('holdSort1','holdSort2')}${groupedCards(hold,holdSort1,holdSort2,{holdToPublicBtn:true,deleteBtn:true,isDone:true})}</div>`;
+  return`<div class="section" style="padding-top:10px">${sortBar2('holdSort1','holdSort2')}${groupedCards(hold,holdSort1,holdSort2,{holdToPublicBtn:true,deleteBtn:true,isDone:false})}</div>`;
 }
 
 function renderDoneList(){
