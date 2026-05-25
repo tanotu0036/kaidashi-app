@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>買出しリクエスト</title>
+<title>買出しリクエスト画面</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;font-size:15px;color:#2a3f5f;background:#eef4fb;min-height:100vh}
@@ -111,7 +111,7 @@ input[type=file]{display:none}
 <body>
 <div class="app">
   <div class="header">
-    <h1 id="header-title">🛒 買出しリクエスト</h1>
+    <h1 id="header-title">🛒 買出しリクエスト画面</h1>
     <button class="mode-btn" id="mode-toggle" onclick="toggleMode()">⚙ 管理者</button>
   </div>
   <div id="err-banner" class="err-banner"></div>
@@ -178,6 +178,19 @@ function getCatLabel(id){const c=CATS.find(c=>c.id===id);return c?c.label:id}
 function getCatClass(id){return'bc-'+(id||'zappi')}
 function allPlaces(){return[...DEFAULT_PLACES,...masterPlaces.filter(p=>!DEFAULT_PLACES.includes(p))]}
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function fmtDate(s){
+  if(!s)return'';
+  const d=new Date(s);
+  if(isNaN(d.getTime())){
+    // "2026/5/22"や"2026年5月22日"形式をパース
+    const m=String(s).match(/(\d{4})[^\d](\d{1,2})[^\d](\d{1,2})/);
+    if(!m)return s;
+    const d2=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));
+    if(isNaN(d2.getTime()))return s;
+    return d2.toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+  }
+  return d.toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+}
 function shortUrl(u){try{const x=new URL(u);return x.hostname+(x.pathname.length>1?x.pathname.slice(0,20)+'…':'');}catch{return String(u).slice(0,28)+'…'}}
 
 /* ── モード切替 ─── */
@@ -192,7 +205,7 @@ function renderModeBtn(){
 }
 function toggleMode(){
   mode=mode==='staff'?'admin':'staff';
-  document.getElementById('header-title').textContent=mode==='staff'?'🛒 買出しリクエスト':'📋 買出し管理';
+  document.getElementById('header-title').textContent=mode==='staff'?'🛒 買出しリクエスト画面':'📋 買出し管理画面';
   renderModeBtn();
   document.getElementById('staff-view').style.display=mode==='staff'?'block':'none';
   document.getElementById('admin-view').style.display=mode==='admin'?'block':'none';
@@ -377,7 +390,7 @@ async function submitItem(){
   const img=getImgData('f-img-preview');
   const btn=document.getElementById('submit-btn');if(btn)btn.disabled=true;
   try{
-    const newItem={id:String(Date.now()),requester,name,qty,cat:'zappi',place,url,memo,img,created:new Date().toLocaleDateString('ja-JP')};
+    const newItem={id:String(Date.now()),requester,name,qty,cat:'zappi',place,url,memo,img,created:new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'})};
     pending.unshift(newItem);
     // mastersも即時更新
     if(requester&&!masterRequesters.includes(requester))masterRequesters.push(requester);
@@ -464,7 +477,7 @@ async function submitRebuy(srcId){
   const src=done.find(i=>i.id===srcId);
   if(!src)return;
   const newItem={...src,id:String(Date.now()),requester,qty,place,memo,
-                 created:new Date().toLocaleDateString('ja-JP')};
+                 created:new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'})};
   delete newItem.boughtAt;delete newItem.heldAt;
 
   // mastersも即時更新
@@ -785,7 +798,7 @@ function itemCardHTML(i,opts={}){
       </div>
       ${i.url?`<a class="url-link" href="${esc(i.url)}" target="_blank">🔗 ${shortUrl(i.url)}</a>`:''}
       ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
-      <div style="font-size:11px;color:#8ab0cc;margin-top:3px">${esc(isDone?(i.boughtAt||i.created):i.created)}</div>
+      <div style="font-size:11px;color:#8ab0cc;margin-top:3px">${fmtDate(isDone?(i.boughtAt||i.created):i.created)}</div>
     </div>
     <div class="actions-col">
       ${cancelBtn?`<button class="small-btn" onclick="cancelItem('${i.id}')">取消</button>`:''}
@@ -801,7 +814,7 @@ function itemCardHTML(i,opts={}){
 
 async function holdItem(id){
   if(!confirm('この商品を保留にしますか？'))return;
-  const heldAt=new Date().toLocaleDateString('ja-JP');
+  const heldAt=new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
   const idx=pending.findIndex(i=>i.id===id);
   if(idx<0)return;
   const item={...pending[idx],heldAt};
@@ -834,7 +847,7 @@ async function doneToPublic(id){
 
 async function checkItem(id,checked){
   if(!checked)return;
-  const boughtAt=new Date().toLocaleDateString('ja-JP');
+  const boughtAt=new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
   const idx=pending.findIndex(i=>i.id===id);
   if(idx<0)return;
   const item={...pending[idx],boughtAt};
