@@ -201,16 +201,10 @@ function toggleMode(){
 }
 
 /* ── 再購入 ─── */
-async function rebuyItem(id){
+function rebuyItem(id){
   const src=done.find(i=>i.id===id);
   if(!src)return;
-  const newItem={...src,id:String(Date.now()),qty:'',created:new Date().toLocaleDateString('ja-JP')};
-  delete newItem.boughtAt;
-  pending.unshift(newItem);
-  if(mode==='staff'){staffTab='mylist';renderStaff();}else renderAdmin();
-  showToast('再購入リクエストに追加しました');
-  try{await apiPost({action:'rebuy',id:String(id)});}
-  catch(e){pending.shift();if(mode==='staff')renderStaff();else renderAdmin();showErr('失敗: '+e.message);}
+  openRebuyModal(src);
 }
 
 /* ── 経費更新 ─── */
@@ -406,6 +400,92 @@ async function cancelItem(id){
 }
 
 /* ── 訂正モーダル ─── */
+function openRebuyModal(src){
+  const places=allPlaces();
+  document.getElementById('modal-container').innerHTML=`
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-title">🔄 再購入リクエスト</div>
+      <div style="background:#eef4fb;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:#5a8ab8">
+        <strong style="color:#2a3f5f">${esc(src.name)}</strong>
+        ${src.place?`・📍${esc(src.place)}`:''}
+        ${src.cat?`・<span class="cat-badge ${getCatClass(src.cat)}">${getCatLabel(src.cat)}</span>`:''}
+      </div>
+      <div class="form-row">
+        <label>依頼者 <span class="req">*</span></label>
+        <select id="rb-requester" onchange="onRebuyRequesterChange()">
+          <option value="">選択または入力</option>
+          ${masterRequesters.map(r=>`<option value="${esc(r)}"${src.requester===r?' selected':''}>${esc(r)}</option>`).join('')}
+          <option value="__new__">＋ 新しい名前を入力</option>
+        </select>
+        <input type="text" class="sub-input" id="rb-requester-new" placeholder="名前を入力">
+      </div>
+      <div class="form-row">
+        <label>個数 <span class="req">*</span></label>
+        <input type="text" id="rb-qty" placeholder="例: 2個" value="${esc(src.qty)}">
+      </div>
+      <div class="form-row">
+        <label>購入場所</label>
+        <select id="rb-place" onchange="onRebuyPlaceChange()">
+          <option value="">未定</option>
+          ${places.map(p=>`<option value="${esc(p)}"${src.place===p?' selected':''}>${esc(p)}</option>`).join('')}
+          <option value="__new__">＋ その他（直接入力）</option>
+        </select>
+        <input type="text" class="sub-input" id="rb-place-new" placeholder="購入場所を入力">
+      </div>
+      <div class="form-row">
+        <label>メモ</label>
+        <textarea id="rb-memo" placeholder="メモ">${esc(src.memo)}</textarea>
+      </div>
+      <button class="submit-btn" onclick="submitRebuy('${src.id}')">📨 再購入リクエストを送る</button>
+    </div>
+  </div>`;
+}
+
+function onRebuyRequesterChange(){
+  const s=document.getElementById('rb-requester'),n=document.getElementById('rb-requester-new');
+  if(!n)return;n.style.display=s.value==='__new__'?'block':'none';if(s.value==='__new__')n.focus();
+}
+function onRebuyPlaceChange(){
+  const s=document.getElementById('rb-place'),n=document.getElementById('rb-place-new');
+  if(!n)return;n.style.display=s.value==='__new__'?'block':'none';if(s.value==='__new__')n.focus();
+}
+
+async function submitRebuy(srcId){
+  let requester=document.getElementById('rb-requester').value;
+  if(requester==='__new__')requester=(document.getElementById('rb-requester-new').value||'').trim();
+  const qty=(document.getElementById('rb-qty').value||'').trim();
+  if(!requester||!qty){showToast('依頼者と個数は必須です');return;}
+  let place=document.getElementById('rb-place').value;
+  if(place==='__new__')place=(document.getElementById('rb-place-new').value||'').trim();
+  const memo=(document.getElementById('rb-memo').value||'').trim();
+
+  const src=done.find(i=>i.id===srcId);
+  if(!src)return;
+  const newItem={...src,id:String(Date.now()),requester,qty,place,memo,
+                 created:new Date().toLocaleDateString('ja-JP')};
+  delete newItem.boughtAt;delete newItem.heldAt;
+
+  // mastersも即時更新
+  if(requester&&!masterRequesters.includes(requester))masterRequesters.push(requester);
+  if(place&&!masterPlaces.includes(place)&&!['ダイソー','セリア','ドラッグストア','ホームセンター','文房具店','Amazon'].includes(place))masterPlaces.push(place);
+
+  pending.unshift(newItem);
+  closeModal();
+  showToast('再購入リクエストを送りました ✓');
+  if(mode==='staff'){staffTab='mylist';renderStaff();}else renderAdmin();
+
+  try{
+    await apiPost({action:'addPending',item:newItem});
+    if(requester)await apiPost({action:'saveMasterDirect',masterType:'requester',value:requester}).catch(()=>{});
+  }catch(e){
+    pending.shift();
+    if(mode==='staff')renderStaff();else renderAdmin();
+    showErr('送信失敗: '+e.message);
+  }
+}
+
 function openEditModal(id){
   const item=pending.find(i=>i.id===id);if(!item)return;
   const places=allPlaces();
