@@ -549,11 +549,17 @@ async function saveEdit(id){
   const url=(document.getElementById('e-url').value||'').trim();
   const memo=(document.getElementById('e-memo').value||'').trim();
   const img=getImgData('e-img-preview');
-  closeModal();showLoading('更新中…');
-  try{
-    await apiPost({action:'updateItem',id:String(id),fields:{name,qty,place,url,memo,img}});
-    await loadAll();showToast('訂正しました ✓');staffTab='mylist';renderStaff();
-  }catch(e){showErr('更新失敗: '+e.message);}finally{hideLoading();}
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0){closeModal();return;}
+  const oldItem={...pending[idx]};
+  const fields={name,qty,place,url,memo,img};
+  pending[idx]={...pending[idx],...fields};
+  if(place&&!masterPlaces.includes(place)&&!['ダイソー','セリア','ドラッグストア','ホームセンター','文房具店','Amazon'].includes(place))masterPlaces.push(place);
+  closeModal();
+  showToast('訂正しました ✓');
+  staffTab='mylist';renderStaff();
+  try{await apiPost({action:'updateItem',id:String(id),fields});}
+  catch(e){pending[idx]=oldItem;renderStaff();showErr('更新失敗: '+e.message);}
 }
 
 /* ════ 管理者ビュー ════ */
