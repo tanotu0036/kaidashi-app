@@ -6,103 +6,106 @@
 <title>買出しリクエスト画面</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;font-size:15px;color:#331122;background:#fff5fb;min-height:100vh}
-.app{max-width:480px;margin:0 auto;padding:0 0 80px;background:#fff5fb;min-height:100vh}
-.header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid #ffb8e0;background:#ff6eb4;position:sticky;top:0;z-index:10}
-.header h1{font-size:16px;font-weight:700;color:#fff}
-.mode-btn{font-size:12px;padding:5px 12px;border:1px solid rgba(255,255,255,.4);border-radius:20px;background:rgba(255,255,255,.25);color:#fff;cursor:pointer;white-space:nowrap}
-.mode-btn:hover{background:rgba(255,255,255,.35)}
-.loading-overlay{position:fixed;inset:0;background:rgba(255,240,250,.88);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;gap:12px}
-.spinner{width:36px;height:36px;border:3px solid #ffb8e0;border-top-color:#ff6eb4;border-radius:50%;animation:spin .7s linear infinite}
+body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;font-size:15px;color:#2a3f5f;background:#eef4fb;min-height:100vh}
+.app{max-width:480px;margin:0 auto;padding:0 0 80px;background:#eef4fb;min-height:100vh}
+.header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid #c5daf0;background:#e0eefa;position:sticky;top:0;z-index:10}
+.header h1{font-size:16px;font-weight:700;color:#1a6fba}
+.mode-btn{font-size:12px;padding:5px 12px;border:1px solid #7ab8e8;border-radius:20px;background:#d0e8f8;color:#1a6fba;cursor:pointer;white-space:nowrap}
+.mode-btn:hover{background:#b8d8f4}
+.loading-overlay{position:fixed;inset:0;background:rgba(220,235,250,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;gap:12px}
+.spinner{width:36px;height:36px;border:3px solid #c5daf0;border-top-color:#2a7fd4;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
-.loading-text{font-size:13px;color:#cc5599}
-.tabs{display:flex;gap:5px;padding:12px 12px 0}
-.tab{flex:1;padding:9px 4px;font-size:12px;font-weight:500;border:1px solid #ffb8e0;border-radius:12px;background:#ffe8f6;color:#cc5599;cursor:pointer;text-align:center;white-space:nowrap}
-.tab.active{background:#ff6eb4;border-color:#ff6eb4;color:#fff;font-weight:700;box-shadow:0 2px 8px rgba(255,110,180,.3)}
+.loading-text{font-size:13px;color:#4a7fa8}
+.tabs{display:flex;gap:6px;padding:12px 16px 0}
+.tab{flex:1;padding:9px 4px;font-size:13px;font-weight:500;border:1px solid #b8d4ee;border-radius:12px;background:#d8ecf8;color:#5a8ab8;cursor:pointer;text-align:center;white-space:nowrap}
+.tab.active{background:#fff;border-color:#4a9ae0;color:#1a6fba;box-shadow:0 1px 6px rgba(30,100,200,.12)}
 .section{padding:14px 16px}
-.form-card{background:#fff;border:1px solid #ffd0ee;border-radius:16px;padding:16px;box-shadow:0 2px 12px rgba(255,110,180,.08)}
+.form-card{background:#fff;border:1px solid #c8dff0;border-radius:16px;padding:16px;box-shadow:0 2px 12px rgba(30,100,200,.07)}
 .form-row{margin-bottom:12px}
 .form-row:last-child{margin-bottom:0}
-label{display:block;font-size:12px;color:#cc5599;margin-bottom:4px}
-.req{color:#ff3377}
-.opt{font-size:11px;color:#ffaacc}
-input[type=text],input[type=url],select,textarea{width:100%;border:1px solid #ffc0e0;border-radius:10px;padding:9px 11px;font-size:14px;background:#fff8fc;color:#331122;outline:none;-webkit-appearance:none;appearance:none}
-input[type=text]:focus,input[type=url]:focus,select:focus,textarea:focus{border-color:#ff6eb4;background:#fff}
+label{display:block;font-size:12px;color:#5a8ab8;margin-bottom:4px}
+.req{color:#e05a7a}
+.opt{font-size:11px;color:#8ab0cc}
+input[type=text],input[type=url],select,textarea{width:100%;border:1px solid #c0d8ee;border-radius:10px;padding:9px 11px;font-size:14px;background:#f5faff;color:#2a3f5f;outline:none;-webkit-appearance:none;appearance:none}
+input[type=text]:focus,input[type=url]:focus,select:focus,textarea:focus{border-color:#4a9ae0;background:#fff}
 textarea{resize:vertical;min-height:60px}
 .sub-input{margin-top:6px;display:none}
-.submit-btn{width:100%;padding:12px;background:linear-gradient(135deg,#ff6eb4,#ff9de0);border:none;border-radius:12px;font-size:15px;font-weight:700;color:#fff;cursor:pointer;margin-top:4px}
+.submit-btn{width:100%;padding:12px;background:linear-gradient(135deg,#4a9ae0,#2a7fd4);border:none;border-radius:12px;font-size:15px;font-weight:700;color:#fff;cursor:pointer;margin-top:4px;letter-spacing:.03em}
 .submit-btn:hover{opacity:.9}
 .submit-btn:active{transform:scale(.99)}
 .submit-btn:disabled{opacity:.5;cursor:not-allowed}
 /* 画像エリア */
-.img-area{border:2px dashed #ffb8e0;border-radius:12px;padding:12px;background:#fff8fc;text-align:center;cursor:pointer;transition:border-color .2s}
-.img-area:hover,.img-area.drag-over{border-color:#ff6eb4;background:#fff0f8}
-.img-area-text{font-size:13px;color:#ffaacc;pointer-events:none}
+.img-area{border:2px dashed #b8d4ee;border-radius:12px;padding:12px;background:#f5faff;text-align:center;cursor:pointer;transition:border-color .2s}
+.img-area:hover,.img-area.drag-over{border-color:#4a9ae0;background:#eaf4ff}
+.img-area-text{font-size:13px;color:#7ab0d0;pointer-events:none}
 .img-preview-box{position:relative;display:none;margin-top:8px}
 .img-preview-box img{width:100%;max-height:130px;object-fit:cover;border-radius:10px;display:block}
 .img-clear-btn{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.45);color:#fff;border:none;cursor:pointer;font-size:13px;line-height:22px;text-align:center}
 input[type=file]{display:none}
 /* ソートバー */
 .sort-bar{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 16px 0}
-.sort-label{font-size:11px;color:#cc5599;margin-bottom:3px}
+.sort-label{font-size:11px;color:#5a8ab8;margin-bottom:3px}
 .sort-bar select{font-size:13px;padding:6px 10px}
+.filter-row{display:flex;gap:6px;padding:6px 16px 0;overflow-x:auto;scrollbar-width:none}
+.filter-row::-webkit-scrollbar{display:none}
+.filter-chip{font-size:12px;padding:4px 11px;border:1px solid #b8d4ee;border-radius:20px;background:#d8ecf8;color:#5a8ab8;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.filter-chip.active{background:#ddeeff;border-color:#4a9ae0;color:#1a6fba}
 .group-block{margin-bottom:16px}
-.group-label{font-size:11px;font-weight:700;color:#cc5599;letter-spacing:.06em;margin-bottom:7px;display:flex;align-items:center;gap:5px;padding:0 2px}
-/* アイテムカード - 4色ローテーション */
-.item-card{border-radius:12px;padding:11px 12px;display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;border:1px solid transparent}
-.item-card:nth-child(4n+1){background:#fff8e8;border-color:#ffe4a0}
-.item-card:nth-child(4n+2){background:#e8f4ff;border-color:#a8d8ff}
-.item-card:nth-child(4n+3){background:#f0ffe8;border-color:#b8f0a0}
-.item-card:nth-child(4n+0){background:#f8e8ff;border-color:#e0a8ff}
+.group-label{font-size:11px;font-weight:700;color:#5a8ab8;letter-spacing:.06em;margin-bottom:7px;display:flex;align-items:center;gap:5px}
+/* アイテムカード */
+.item-card{background:#fff;border:1px solid #c8dff0;border-radius:12px;padding:10px 12px;display:flex;align-items:flex-start;gap:8px;margin-bottom:8px;box-shadow:0 1px 6px rgba(30,100,200,.06)}
 .item-card.done{opacity:.5}
-.chk{width:22px;height:22px;flex-shrink:0;cursor:pointer;margin-top:2px;accent-color:#ff6eb4}
+.chk{width:22px;height:22px;flex-shrink:0;cursor:pointer;margin-top:2px;accent-color:#2a7fd4}
 /* 画像スペース（常に確保） */
-.img-slot{width:48px;height:48px;flex-shrink:0;border-radius:10px;overflow:hidden;background:rgba(255,110,180,.08);border:1px solid #ffd0ee;display:flex;align-items:center;justify-content:center}
+.img-slot{width:48px;height:48px;flex-shrink:0;border-radius:10px;overflow:hidden;background:#eef4fb;border:1px solid #d0e4f4;display:flex;align-items:center;justify-content:center}
 .img-slot img{width:100%;height:100%;object-fit:cover}
-.img-slot-empty{font-size:18px;opacity:.35}
+.img-slot-empty{font-size:18px;opacity:.3}
 .item-info{flex:1;min-width:0}
-.item-name{font-size:14px;font-weight:700;color:#331122;word-break:break-all}
+/* 品名と個数を縦並び */
+.item-name-row{margin-bottom:3px}
+.item-name{font-size:14px;font-weight:700;color:#2a3f5f;word-break:break-all}
 .item-name.done{text-decoration:line-through;color:#aaa}
-.item-qty{font-size:14px;font-weight:700;color:#331122;margin-top:1px}
+.item-qty{font-size:14px;font-weight:700;color:#2a3f5f;margin-top:1px}
 .item-qty.done{text-decoration:line-through;color:#aaa}
-.item-meta{font-size:12px;margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
-.icon-btn{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid #ffd0ee;border-radius:8px;background:transparent;cursor:pointer;color:#ffaacc;font-size:16px;flex-shrink:0}
-.icon-btn:hover{background:#fff0f8;color:#cc5599}
+.item-meta{font-size:12px;color:#5a8ab8;margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.icon-btn{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid #c8dff0;border-radius:8px;background:transparent;cursor:pointer;color:#8ab0cc;font-size:16px;flex-shrink:0}
+.icon-btn:hover{background:#eef4fb;color:#5a8ab8}
 .actions-col{display:flex;flex-direction:column;gap:4px;align-items:center;flex-shrink:0}
-.small-btn{font-size:11px;padding:4px 9px;border:1px solid #ffb8e0;border-radius:8px;background:#fff0f8;color:#cc5599;cursor:pointer;white-space:nowrap}
-.small-btn:hover{background:#ffe0f4}
-.edit-btn{font-size:12px;padding:10px 10px;border:none;border-radius:10px;background:#ff6eb4;color:#fff;cursor:pointer;white-space:nowrap;font-weight:700;min-width:48px;text-align:center;line-height:1.3}
+.small-btn{font-size:11px;padding:4px 9px;border:1px solid #b8d4ee;border-radius:8px;background:#d8ecf8;color:#3a7ab8;cursor:pointer;white-space:nowrap}
+.small-btn:hover{background:#c8e4f4}
+.edit-btn{font-size:12px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#a0d4f8,#78b8ee);color:#fff;cursor:pointer;white-space:nowrap;font-weight:700;min-width:48px;text-align:center;line-height:1.3}
 .edit-btn:hover{opacity:.85}
-.hold-btn{font-size:12px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#ffcc44,#ffaa22);color:#7a4400;cursor:pointer;white-space:nowrap;font-weight:700;min-width:48px;text-align:center;line-height:1.3}
-.hold-btn:hover{opacity:.85}
 .rebuy-btn{font-size:13px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#a0e8d8,#78d0b8);color:#1a6050;cursor:pointer;white-space:nowrap;font-weight:700;min-width:52px;text-align:center;line-height:1.3}
+.hold-btn{font-size:12px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#f8d88a,#f0b840);color:#7a5000;cursor:pointer;white-space:nowrap;font-weight:700;min-width:48px;text-align:center;line-height:1.3}
+.hold-btn:hover{opacity:.85}
+.revert-btn{font-size:11px;padding:4px 9px;border:1px solid #b8d4ee;border-radius:8px;background:#d8ecf8;color:#1a6fba;cursor:pointer;white-space:nowrap;font-weight:600}
+.revert-btn:hover{background:#c0ddf4}
 .rebuy-btn:hover{opacity:.85}
-.revert-btn{font-size:11px;padding:4px 9px;border:1px solid #ffb8e0;border-radius:8px;background:#fff0f8;color:#cc5599;cursor:pointer;white-space:nowrap;font-weight:600}
-.revert-btn:hover{background:#ffe0f4}
 /* 経費バッジ */
 .cat-badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600}
-.bc-kyozai{background:#ddeeff;color:#1155aa}
-.bc-shoumou{background:#ddffee;color:#117744}
-.bc-kyushoku{background:#fff3cc;color:#996600}
-.bc-cake{background:#ffe0ec;color:#aa2255}
-.bc-torig{background:#eeeeee;color:#666677}
-.bc-diy{background:#ccffe8;color:#006633}
-.bc-zappi{background:#eedeff;color:#663399}
-.requester-tag{font-size:11px;padding:2px 8px;border-radius:20px;background:#ffe8f6;color:#cc3388;font-weight:500}
-.qty-alert{font-size:12px;font-weight:700;color:#ff3377}
-.cat-select-inline{border:1px solid #ffb8e0;border-radius:8px;font-size:12px;padding:3px 6px;background:#fff8fc;color:#331122;width:auto}
-.empty{text-align:center;padding:36px 16px;color:#ffaacc;font-size:13px}
+.bc-kyozai{background:#d0e8ff;color:#1a60b0}
+.bc-shoumou{background:#d0f0e0;color:#1a7040}
+.bc-kyushoku{background:#fff0d0;color:#a06010}
+.bc-cake{background:#ffe0ec;color:#b03060}
+.bc-torig{background:#e8e8e8;color:#606070}
+.bc-diy{background:#c8f8e8;color:#0a7060}
+.bc-zappi{background:#ddd8ff;color:#5040b0}
+.requester-tag{font-size:11px;padding:2px 8px;border-radius:20px;background:#d8ecf8;color:#2a6aaa;font-weight:500}
+.qty-alert{font-size:12px;font-weight:700;color:#e05a7a}
+/* 経費インライン編集 */
+.cat-select-inline{border:1px solid #7ab8e8;border-radius:8px;font-size:12px;padding:3px 6px;background:#f5faff;color:#2a3f5f;width:auto}
+.empty{text-align:center;padding:36px 16px;color:#8ab0cc;font-size:13px}
 .empty-icon{font-size:36px;display:block;margin-bottom:8px}
-.url-link{font-size:11px;color:#cc66aa;word-break:break-all;text-decoration:none}
+.url-link{font-size:11px;color:#4a8ad0;word-break:break-all;text-decoration:none}
 .url-link:hover{text-decoration:underline}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#ff6eb4;color:#fff;font-size:13px;padding:10px 22px;border-radius:20px;opacity:0;transition:opacity .3s;white-space:nowrap;pointer-events:none;z-index:200;box-shadow:0 4px 16px rgba(255,110,180,.35)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a6fba;color:#fff;font-size:13px;padding:10px 22px;border-radius:20px;opacity:0;transition:opacity .3s;white-space:nowrap;pointer-events:none;z-index:200;box-shadow:0 4px 16px rgba(20,80,180,.25)}
 .toast.show{opacity:1}
-.err-banner{background:#fff0f4;border:1px solid #ffb8cc;border-radius:10px;padding:10px 14px;margin:10px 16px 0;font-size:13px;color:#cc3355;display:none}
-/* モーダル */
-.modal-overlay{position:fixed;inset:0;background:rgba(200,50,120,.35);z-index:150;display:flex;align-items:flex-end;justify-content:center}
+.err-banner{background:#fff0f4;border:1px solid #f0b8c8;border-radius:10px;padding:10px 14px;margin:10px 16px 0;font-size:13px;color:#b03050;display:none}
+/* 訂正モーダル */
+.modal-overlay{position:fixed;inset:0;background:rgba(20,60,120,.45);z-index:150;display:flex;align-items:flex-end;justify-content:center}
 .modal{background:#fff;border-radius:20px 20px 0 0;padding:20px 16px 32px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto}
-.modal-title{font-size:15px;font-weight:700;color:#ff6eb4;margin-bottom:14px}
-.modal-close{float:right;background:none;border:none;font-size:20px;cursor:pointer;color:#ffaacc;line-height:1}
+.modal-title{font-size:15px;font-weight:700;color:#1a6fba;margin-bottom:14px}
+.modal-close{float:right;background:none;border:none;font-size:20px;cursor:pointer;color:#8ab0cc;line-height:1}
 </style>
 </head>
 <body>
