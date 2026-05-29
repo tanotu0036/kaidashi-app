@@ -93,6 +93,19 @@ input[type=file]{display:none}
 .modal{background:#fff;border-radius:20px 20px 0 0;padding:20px 16px 32px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto}
 .modal-title{font-size:15px;font-weight:700;color:#1a6fba;margin-bottom:14px}
 .modal-close{float:right;background:none;border:none;font-size:20px;cursor:pointer;color:#8ab0cc;line-height:1}
+
+/* ドラムロールピッカー */
+.drum-wrap{display:flex;align-items:center;justify-content:center;gap:12px;margin:8px 0}
+.drum-unit-input{width:70px;border:1px solid #c0d8ee;border-radius:10px;padding:8px;font-size:15px;text-align:center;background:#f5faff;color:#2a3f5f}
+.drum-picker{position:relative;width:80px;height:130px;overflow:hidden;border-radius:12px;border:1px solid #c0d8ee;background:#f5faff;cursor:grab}
+.drum-picker::before,.drum-picker::after{content:'';position:absolute;left:0;right:0;height:42px;z-index:2;pointer-events:none}
+.drum-picker::before{top:0;background:linear-gradient(to bottom,rgba(238,244,251,.95),rgba(238,244,251,0))}
+.drum-picker::after{bottom:0;background:linear-gradient(to top,rgba(238,244,251,.95),rgba(238,244,251,0))}
+.drum-highlight{position:absolute;top:50%;left:0;right:0;height:42px;transform:translateY(-50%);border-top:2px solid #4a9ae0;border-bottom:2px solid #4a9ae0;border-radius:4px;pointer-events:none;z-index:1}
+.drum-list{position:absolute;top:0;left:0;right:0;transition:transform .15s cubic-bezier(.25,.46,.45,.94)}
+.drum-item{height:42px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#8ab0cc;user-select:none}
+.drum-item.selected{color:#1a6fba;font-size:26px}
+.drum-label{font-size:12px;color:#5a8ab8;text-align:center;margin-top:2px}
 </style>
 </head>
 <body>
@@ -871,40 +884,43 @@ async function moveToDoneFull(id){
 }
 
 function openPartialBuyModal(id, originalNum, originalQty){
+  const unit=String(originalQty).replace(/\d+/,'').trim()||'個';
   document.getElementById('modal-container').innerHTML=`
   <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
     <div class="modal">
       <button class="modal-close" onclick="closeModal()">✕</button>
       <div class="modal-title">🛍 購入数を入力</div>
-      <div style="background:#eef4fb;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:#2a3f5f">
+      <div style="background:#eef4fb;border-radius:10px;padding:10px 12px;margin-bottom:16px;font-size:13px;color:#2a3f5f">
         依頼数：<strong>${originalQty}</strong>
       </div>
       <div class="form-row">
-        <label>購入できた数</label>
-        <input type="number" id="bought-num" min="1" max="${originalNum}" value="${originalNum}"
-          style="font-size:18px;font-weight:700;text-align:center;padding:12px">
+        <label style="text-align:center;display:block;margin-bottom:8px">購入できた数</label>
+        <div class="drum-wrap">
+          <div>
+            <div class="drum-picker" id="drum-picker">
+              <div class="drum-highlight"></div>
+              <div class="drum-list" id="drum-list"></div>
+            </div>
+            <div class="drum-label">数量</div>
+          </div>
+          <div>
+            <input type="text" class="drum-unit-input" id="drum-unit" value="${unit}" placeholder="個">
+            <div class="drum-label">単位</div>
+          </div>
+        </div>
       </div>
-      <div style="font-size:12px;color:#8ab0cc;margin:6px 0 14px;text-align:center" id="remaining-label">
-        残り：0個 → 要購入に残ります
+      <div style="font-size:13px;color:#4a8ad0;margin:4px 0 16px;text-align:center;font-weight:500" id="remaining-label">
+        残り：${originalNum-1}${unit} → 要購入に残ります
       </div>
       <button class="submit-btn" onclick="confirmPartialBuy('${id}',${originalNum},'${originalQty}')">✓ 購入済みにする</button>
     </div>
   </div>`;
-  // 入力値変更時に残り数を更新
-  const inp=document.getElementById('bought-num');
-  if(inp){
-    inp.addEventListener('input',()=>{
-      const v=parseInt(inp.value)||0;
-      const rem=Math.max(0,originalNum-v);
-      const lbl=document.getElementById('remaining-label');
-      if(lbl)lbl.textContent=rem>0?`残り：${rem}個 → 要購入に残ります`:`全数購入（要購入から削除）`;
-    });
-  }
+  // ドラムロール初期化
+  initDrum('drum-picker','drum-list', ${originalNum}, 1, ${originalNum-1}, '${unit}');
 }
 
 async function confirmPartialBuy(id, originalNum, originalQty){
-  const inp=document.getElementById('bought-num');
-  const boughtNum=parseInt(inp?.value)||originalNum;
+  const boughtNum=window._drumValue||originalNum;
   if(boughtNum<=0){showToast('1以上の数を入力してください');return;}
   const remaining=originalNum-boughtNum;
   const boughtAt=new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
@@ -967,6 +983,73 @@ async function deleteItem(id,list){
 }
 
 (async()=>{await loadAll();renderStaff();})();
+
+/* ── ドラムロール ── */
+function initDrum(pickerId, listId, max, initVal, initRemain, unit){
+  const list=document.getElementById(listId);
+  const picker=document.getElementById(pickerId);
+  if(!list||!picker)return;
+
+  const ITEM_H=42;
+  const items=[];
+  for(let i=1;i<=max;i++)items.push(i);
+
+  // リスト生成（前後にパディング用ダミー）
+  const pad=1;
+  let innerHtml='';
+  for(let p=0;p<pad;p++) innerHtml+=`<div class="drum-item" style="height:${ITEM_H}px"></div>`;
+  items.forEach((v,i)=>{ innerHtml+=`<div class="drum-item${v===initVal?' selected':''}" data-val="${v}" style="height:${ITEM_H}px">${v}</div>`; });
+  for(let p=0;p<pad;p++) innerHtml+=`<div class="drum-item" style="height:${ITEM_H}px"></div>`;
+  list.innerHTML=innerHtml;
+
+  let currentIdx=initVal-1; // 0-indexed
+  window._drumValue=initVal;
+
+  function scrollTo(idx, animate){
+    idx=Math.max(0,Math.min(items.length-1,idx));
+    currentIdx=idx;
+    window._drumValue=items[idx];
+    const offset=-(idx*ITEM_H);
+    list.style.transition=animate?'transform .2s cubic-bezier(.25,.46,.45,.94)':'none';
+    list.style.transform=`translateY(${offset}px)`;
+    // selected更新
+    list.querySelectorAll('.drum-item[data-val]').forEach(el=>{
+      el.classList.toggle('selected',parseInt(el.dataset.val)===items[idx]);
+    });
+    // 残り数更新
+    const rem=max-items[idx];
+    const unitVal=document.getElementById('drum-unit')?.value||unit;
+    const lbl=document.getElementById('remaining-label');
+    if(lbl)lbl.textContent=rem>0?`残り：${rem}${unitVal} → 要購入に残ります`:`全数購入（要購入から削除）`;
+  }
+
+  // 初期位置
+  scrollTo(initVal-1, false);
+
+  // タッチ・マウスドラッグ
+  let startY=0, startIdx=0, dragging=false;
+
+  function onStart(y){startY=y;startIdx=currentIdx;dragging=true;}
+  function onMove(y){
+    if(!dragging)return;
+    const diff=Math.round((startY-y)/ITEM_H);
+    scrollTo(startIdx+diff, false);
+  }
+  function onEnd(){dragging=false;}
+
+  picker.addEventListener('touchstart',e=>{onStart(e.touches[0].clientY);},{passive:true});
+  picker.addEventListener('touchmove',e=>{onMove(e.touches[0].clientY);e.preventDefault();},{passive:false});
+  picker.addEventListener('touchend',()=>onEnd());
+  picker.addEventListener('mousedown',e=>{onStart(e.clientY);});
+  window.addEventListener('mousemove',e=>{if(dragging)onMove(e.clientY);});
+  window.addEventListener('mouseup',()=>onEnd());
+
+  // ホイール
+  picker.addEventListener('wheel',e=>{
+    e.preventDefault();
+    scrollTo(currentIdx+(e.deltaY>0?1:-1),true);
+  },{passive:false});
+}
 </script>
 </body>
 </html>
