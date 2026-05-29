@@ -910,13 +910,13 @@ function openPartialBuyModal(id, originalNum, originalQty){
         </div>
       </div>
       <div style="font-size:13px;color:#4a8ad0;margin:4px 0 16px;text-align:center;font-weight:500" id="remaining-label">
-        残り：${originalNum-1}${unit} → 要購入に残ります
+        残り：待機中
       </div>
       <button class="submit-btn" onclick="confirmPartialBuy('${id}',${originalNum},'${originalQty}')">✓ 購入済みにする</button>
     </div>
   </div>`;
-  // ドラムロール初期化
-  initDrum('drum-picker','drum-list', ${originalNum}, 1, ${originalNum-1}, '${unit}');
+  // ドラムロール初期化（テンプレートリテラルの外で実行）
+  setTimeout(()=>initDrum('drum-picker','drum-list', originalNum, 1, originalNum-1, unit), 50);
 }
 
 async function confirmPartialBuy(id, originalNum, originalQty){
