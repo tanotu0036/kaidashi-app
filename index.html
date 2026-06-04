@@ -110,7 +110,7 @@ input[type=file]{display:none}
 /* 画像拡大ライトボックス */
 .lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;display:flex;align-items:center;justify-content:center;cursor:pointer;animation:lb-in .2s ease}
 @keyframes lb-in{from{opacity:0}to{opacity:1}}
-.lightbox img{max-width:92vw;max-height:88vh;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.5);object-fit:contain}
+.lightbox img{max-width:92vw;max-height:88vh;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.5);object-fit:contain;transition:transform .05s linear;will-change:transform}
 .lightbox-close{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.2);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid rgba(255,255,255,.3)}
 </style>
 </head>
@@ -990,13 +990,86 @@ async function deleteItem(id,list){
 
 (async()=>{await loadAll();renderStaff();})();
 
-/* ── ライトボックス ── */
+/* ── ライトボックス（ピンチ拡縮対応） ── */
 function openLightbox(src){
   const lb=document.createElement('div');
   lb.className='lightbox';
-  lb.innerHTML=`<div class="lightbox-close">✕</div><img src="${src}" alt="">`;
-  lb.addEventListener('click',()=>lb.remove());
+  lb.innerHTML=`<div class="lightbox-close" id="lb-close">✕</div><img src="${src}" alt="" id="lb-img" style="touch-action:none;cursor:zoom-in">`;
   document.body.appendChild(lb);
+
+  const img=document.getElementById('lb-img');
+  const closeBtn=document.getElementById('lb-close');
+  let scale=1, minScale=0.5, maxScale=5;
+  let lastDist=0, isDragging=false;
+  let startX=0,startY=0,translateX=0,translateY=0,lastTX=0,lastTY=0;
+
+  function applyTransform(){
+    img.style.transform=`translate(${translateX}px,${translateY}px) scale(${scale})`;
+  }
+
+  // ピンチ
+  img.addEventListener('touchstart',e=>{
+    if(e.touches.length===2){
+      lastDist=Math.hypot(
+        e.touches[0].clientX-e.touches[1].clientX,
+        e.touches[0].clientY-e.touches[1].clientY
+      );
+    } else if(e.touches.length===1){
+      isDragging=true;
+      startX=e.touches[0].clientX-lastTX;
+      startY=e.touches[0].clientY-lastTY;
+    }
+    e.stopPropagation();
+  },{passive:true});
+
+  img.addEventListener('touchmove',e=>{
+    if(e.touches.length===2){
+      const dist=Math.hypot(
+        e.touches[0].clientX-e.touches[1].clientX,
+        e.touches[0].clientY-e.touches[1].clientY
+      );
+      if(lastDist>0){
+        scale=Math.min(maxScale,Math.max(minScale,scale*(dist/lastDist)));
+        applyTransform();
+      }
+      lastDist=dist;
+    } else if(e.touches.length===1&&isDragging){
+      translateX=e.touches[0].clientX-startX;
+      translateY=e.touches[0].clientY-startY;
+      applyTransform();
+    }
+    e.preventDefault();
+  },{passive:false});
+
+  img.addEventListener('touchend',e=>{
+    lastDist=0;
+    if(e.touches.length===0){
+      isDragging=false;
+      lastTX=translateX;lastTY=translateY;
+    }
+  },{passive:true});
+
+  // ダブルタップでリセット
+  let lastTap=0;
+  img.addEventListener('touchend',e=>{
+    const now=Date.now();
+    if(now-lastTap<300){
+      scale=1;translateX=0;translateY=0;lastTX=0;lastTY=0;
+      applyTransform();
+    }
+    lastTap=now;
+  },{passive:true});
+
+  // PCマウスホイールでズーム
+  img.addEventListener('wheel',e=>{
+    e.preventDefault();
+    scale=Math.min(maxScale,Math.max(minScale,scale+(e.deltaY<0?0.15:-0.15)));
+    applyTransform();
+  },{passive:false});
+
+  // 閉じる（背景クリック or ✕ボタン）
+  closeBtn.addEventListener('click',e=>{e.stopPropagation();lb.remove();});
+  lb.addEventListener('click',e=>{if(e.target===lb)lb.remove();});
 }
 
 /* ── ドラムロール ── */
