@@ -106,6 +106,12 @@ input[type=file]{display:none}
 .drum-item{height:42px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#8ab0cc;user-select:none}
 .drum-item.selected{color:#1a6fba;font-size:26px}
 .drum-label{font-size:12px;color:#5a8ab8;text-align:center;margin-top:2px}
+
+/* 画像拡大ライトボックス */
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;display:flex;align-items:center;justify-content:center;cursor:pointer;animation:lb-in .2s ease}
+@keyframes lb-in{from{opacity:0}to{opacity:1}}
+.lightbox img{max-width:92vw;max-height:88vh;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.5);object-fit:contain}
+.lightbox-close{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.2);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid rgba(255,255,255,.3)}
 </style>
 </head>
 <body>
@@ -782,7 +788,7 @@ function itemCardHTML(i,opts={}){
   const catBadge=catEditable
     ?`<select class="cat-select-inline" onchange="updateCat('${i.id}',this.value)">${CATS.map(c=>`<option value="${c.id}"${c.id===(i.cat||'zappi')?' selected':''}>${c.label}</option>`).join('')}</select>`
     :`<span class="cat-badge ${getCatClass(i.cat)}">${getCatLabel(i.cat||'zappi')}</span>`;
-  const imgSlot=`<div class="img-slot">${i.img?`<img src="${esc(i.img)}" alt="">`:`<span class="img-slot-empty">📷</span>`}</div>`;
+  const imgSlot=`<div class="img-slot">${i.img?`<img src="${esc(i.img)}" alt="" onclick="openLightbox('${esc(i.img)}')" style="cursor:zoom-in">`:`<span class="img-slot-empty">📷</span>`}</div>`;
   return`<div class="item-card${isDone?' done':''}">
     ${checkBox?`<input type="checkbox" class="chk" onchange="checkItem('${i.id}',this.checked)">`:''}
     ${imgSlot}
@@ -983,6 +989,15 @@ async function deleteItem(id,list){
 }
 
 (async()=>{await loadAll();renderStaff();})();
+
+/* ── ライトボックス ── */
+function openLightbox(src){
+  const lb=document.createElement('div');
+  lb.className='lightbox';
+  lb.innerHTML=`<div class="lightbox-close">✕</div><img src="${src}" alt="">`;
+  lb.addEventListener('click',()=>lb.remove());
+  document.body.appendChild(lb);
+}
 
 /* ── ドラムロール ── */
 function initDrum(pickerId, listId, max, initVal, initRemain, unit){
