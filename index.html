@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>買出しリクエスト画面</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;font-size:15px;color:#2a4a55;background:#f9f6f0;min-height:100vh}
+.app{max-width:480px;margin:0 auto;padding:0 0 80px;background:#f9f6f0;min-height:100vh}
+.header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid #e8f0f2;background:#8fb8c8;position:sticky;top:0;z-index:10}
+.header h1{font-size:16px;font-weight:700;color:#fff}
+.mode-btn{font-size:12px;padding:5px 12px;border:1px solid rgba(255,255,255,.4);border-radius:20px;background:rgba(255,255,255,.25);color:#fff;cursor:pointer;white-space:nowrap}
+.mode-btn:hover{background:rgba(255,255,255,.35)}
+.loading-overlay{position:fixed;inset:0;background:rgba(249,246,240,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;gap:12px}
+.spinner{width:36px;height:36px;border:3px solid #e8f0f2;border-top-color:#8fb8c8;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:13px;color:#5a8a9c}
+.tabs{display:flex;gap:6px;padding:12px 16px 0}
+.tab{flex:1;padding:9px 4px;font-size:13px;font-weight:600;border:none;border-radius:12px;background:#e3eef2;color:#5a8a9c;cursor:pointer;text-align:center;white-space:nowrap}
+.tab.active{background:#8fb8c8;color:#fff;box-shadow:0 1px 6px rgba(143,184,200,.3)}
+.section{padding:14px 16px}
+.form-card{background:#fffdf8;border:1px solid #e8f0f2;border-radius:16px;padding:16px;box-shadow:0 2px 12px rgba(143,184,200,.1)}
+.form-row{margin-bottom:12px}
+.form-row:last-child{margin-bottom:0}
+label{display:block;font-size:12px;color:#5a8a9c;margin-bottom:4px}
+.req{color:#c0664a}
+.opt{font-size:11px;color:#a8c4cc}
+input[type=text],input[type=url],input[type=number],select,textarea{width:100%;border:1px solid #d4e6ec;border-radius:10px;padding:9px 11px;font-size:14px;background:#fbf9f2;color:#2a4a55;outline:none;-webkit-appearance:none;appearance:none}
+input[type=text]:focus,input[type=url]:focus,input[type=number]:focus,select:focus,textarea:focus{border-color:#8fb8c8;background:#fff}
+textarea{resize:vertical;min-height:60px}
+.sub-input{margin-top:6px;display:none}
+.submit-btn{width:100%;padding:12px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4);border:none;border-radius:12px;font-size:15px;font-weight:700;color:#fff;cursor:pointer;margin-top:4px}
+.submit-btn:hover{opacity:.9}
+.submit-btn:active{transform:scale(.99)}
+.submit-btn:disabled{opacity:.5;cursor:not-allowed}
+.img-area{border:2px dashed #c8dfe6;border-radius:12px;padding:12px;background:#fbf9f2;text-align:center;cursor:pointer;transition:border-color .2s}
+.img-area:hover,.img-area.drag-over{border-color:#8fb8c8;background:#eef6f8}
+.img-area-text{font-size:13px;color:#a8c4cc;pointer-events:none}
+.img-preview-box{position:relative;display:none;margin-top:8px}
+.img-preview-box img{width:100%;max-height:130px;object-fit:cover;border-radius:10px;display:block}
+.img-clear-btn{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.45);color:#fff;border:none;cursor:pointer;font-size:13px;line-height:22px;text-align:center}
+input[type=file]{display:none}
+.sort-bar{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 16px 0}
+.sort-label{font-size:11px;color:#5a8a9c;margin-bottom:3px}
+.sort-bar select{font-size:13px;padding:6px 10px}
+.group-block{margin-bottom:16px}
+.group-label{font-size:11px;font-weight:700;color:#5a8a9c;letter-spacing:.06em;margin-bottom:7px;display:flex;align-items:center;gap:5px}
+.item-card{background:#fffdf8;border:1px solid #e8f0f2;border-radius:12px;padding:11px 12px;display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;box-shadow:0 1px 6px rgba(143,184,200,.08)}
+.item-card.done{}
+.chk{width:22px;height:22px;flex-shrink:0;cursor:pointer;margin-top:2px;accent-color:#8fb8c8}
+.img-slot{width:48px;height:48px;flex-shrink:0;border-radius:10px;overflow:hidden;background:#e3eef2;border:1px solid #d4e6ec;display:flex;align-items:center;justify-content:center}
+.img-slot img{width:100%;height:100%;object-fit:cover}
+.img-slot-empty{font-size:18px;opacity:.35;color:#5a8a9c}
+.item-info{flex:1;min-width:0}
+.item-name{font-size:14px;font-weight:700;color:#2a4a55;word-break:break-all}
+.item-name.done{}
+.item-qty{font-size:14px;font-weight:700;color:#2a4a55;margin-top:1px}
+.item-qty.done{}
+.item-meta{font-size:12px;color:#5a8a9c;margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.icon-btn{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid #e8f0f2;border-radius:8px;background:transparent;cursor:pointer;color:#a8c4cc;font-size:16px;flex-shrink:0}
+.icon-btn:hover{background:#eef6f8;color:#5a8a9c}
+.actions-col{display:flex;flex-direction:column;gap:4px;align-items:center;flex-shrink:0}
+.small-btn{font-size:11px;padding:4px 9px;border:none;border-radius:8px;background:#e3eef2;color:#5a8a9c;cursor:pointer;white-space:nowrap;font-weight:600}
+.small-btn:hover{background:#d4e6ec}
+.edit-btn{font-size:12px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4);color:#fff;cursor:pointer;white-space:nowrap;font-weight:700;min-width:48px;text-align:center;line-height:1.3}
+.edit-btn:hover{opacity:.85}
+.hold-btn{font-size:12px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#d4a843,#c4943a);color:#fff;cursor:pointer;white-space:nowrap;font-weight:700;min-width:48px;text-align:center;line-height:1.3}
+.hold-btn:hover{opacity:.85}
+.rebuy-btn{font-size:13px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#d4937a,#c47a5f);color:#fff;cursor:pointer;white-space:nowrap;font-weight:700;min-width:52px;text-align:center;line-height:1.3}
+.rebuy-btn:hover{opacity:.85}
+.revert-btn{font-size:11px;padding:4px 9px;border:none;border-radius:8px;background:#e3eef2;color:#5a8a9c;cursor:pointer;white-space:nowrap;font-weight:600}
+.revert-btn:hover{background:#d4e6ec}
+.cat-badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600}
+.bc-kyozai{background:#d8e8ee;color:#3a7a92}
+.bc-shoumou{background:#d0e8d8;color:#1a6a40}
+.bc-kyushoku{background:#f0ddc8;color:#a3602a}
+.bc-cake{background:#f0ddd0;color:#a3603f}
+.bc-torig{background:#e6e2d4;color:#6a6858}
+.bc-diy{background:#c8e8dc;color:#0a6a50}
+.bc-zappi{background:#e2dce8;color:#5a4a70}
+.requester-tag{font-size:11px;padding:2px 8px;border-radius:20px;background:#f0e6d8;color:#9a7a55;font-weight:500}
+.qty-alert{font-size:12px;font-weight:700;color:#c0664a}
+.cat-select-inline{border:1px solid #c8dfe6;border-radius:8px;font-size:12px;padding:3px 6px;background:#fbf9f2;color:#2a4a55;width:auto}
+.empty{text-align:center;padding:36px 16px;color:#a8c4cc;font-size:13px}
+.empty-icon{font-size:36px;display:block;margin-bottom:8px}
+.url-link{font-size:11px;color:#6fa0b4;word-break:break-all;text-decoration:none}
+.url-link:hover{text-decoration:underline}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#8fb8c8;color:#fff;font-size:13px;padding:10px 22px;border-radius:20px;opacity:0;transition:opacity .3s;white-space:nowrap;pointer-events:none;z-index:200;box-shadow:0 4px 16px rgba(143,184,200,.35)}
+.toast.show{opacity:1}
+.err-banner{background:#fbe8e2;border:1px solid #e0b09c;border-radius:10px;padding:10px 14px;margin:10px 16px 0;font-size:13px;color:#a3502f;display:none}
+.modal-overlay{position:fixed;inset:0;background:rgba(42,74,85,.45);z-index:150;display:flex;align-items:flex-end;justify-content:center}
+.modal{background:#fffdf8;border-radius:20px 20px 0 0;padding:20px 16px 32px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto}
+.modal-title{font-size:15px;font-weight:700;color:#8fb8c8;margin-bottom:14px}
+.modal-close{float:right;background:none;border:none;font-size:20px;cursor:pointer;color:#a8c4cc;line-height:1}
+/* ドラムロールピッカー */
+.drum-wrap{display:flex;align-items:center;justify-content:center;gap:12px;margin:8px 0}
+.drum-unit-input{width:70px;border:1px solid #d4e6ec;border-radius:10px;padding:8px;font-size:15px;text-align:center;background:#fbf9f2;color:#2a4a55}
+.drum-picker{position:relative;width:80px;height:130px;overflow:hidden;border-radius:12px;border:1px solid #d4e6ec;background:#fbf9f2;cursor:grab}
+.drum-picker::before,.drum-picker::after{content:'';position:absolute;left:0;right:0;height:42px;z-index:2;pointer-events:none}
+.drum-picker::before{top:0;background:linear-gradient(to bottom,rgba(249,246,240,.95),rgba(249,246,240,0))}
+.drum-picker::after{bottom:0;background:linear-gradient(to top,rgba(249,246,240,.95),rgba(249,246,240,0))}
+.drum-highlight{position:absolute;top:50%;left:0;right:0;height:42px;transform:translateY(-50%);border-top:2px solid #8fb8c8;border-bottom:2px solid #8fb8c8;border-radius:4px;pointer-events:none;z-index:1}
+.drum-list{position:absolute;top:0;left:0;right:0;transition:transform .15s cubic-bezier(.25,.46,.45,.94)}
+.drum-item{height:42px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#a8c4cc;user-select:none}
+.drum-item.selected{color:#8fb8c8;font-size:26px}
+.drum-label{font-size:12px;color:#5a8a9c;text-align:center;margin-top:2px}
+/* 画像拡大ライトボックス */
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;display:flex;align-items:center;justify-content:center;cursor:pointer;animation:lb-in .2s ease}
+@keyframes lb-in{from{opacity:0}to{opacity:1}}
+.lightbox img{max-width:92vw;max-height:88vh;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.5);object-fit:contain;transition:transform .05s linear;will-change:transform}
+.lightbox-close{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.2);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid rgba(255,255,255,.3)}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <h1 id="header-title">🛒 買出しリクエスト画面</h1>
+    <button class="mode-btn" id="mode-toggle" onclick="toggleMode()">⚙ 管理者</button>
+  </div>
+  <div id="err-banner" class="err-banner"></div>
+  <div id="staff-view"></div>
+  <div id="admin-view" style="display:none"></div>
+  <div id="modal-container"></div>
+  <div class="toast" id="toast"></div>
+  <div class="loading-overlay" id="loading" style="display:none">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loading-text">読み込み中…</div>
+  </div>
+</div>
+
+<script>
+const GAS_URL='https://script.google.com/macros/s/AKfycbzH_IODJ4GQaTMG0Chi0t3lcf3R5fPBccOcVh6PrGrfhuYtz9aMHcLn57d6Gm5GGKMQ3A/exec';
+const CATS=[
+  {id:'kyozai',label:'保育教材費'},
+  {id:'shoumou',label:'消耗品'},
+  {id:'kyushoku',label:'給食費'},
+  {id:'cake',label:'誕生日ケーキ'},
+  {id:'torig',label:'トリグ（お米）'},
+  {id:'diy',label:'DIY'},
+  {id:'zappi',label:'雑費'},
+];
+const DEFAULT_PLACES=['ダイソー','セリア','ドラッグストア','ホームセンター','文房具店','Amazon'];
+
+let pending=[],done=[],masterRequesters=[],masterPlaces=[];
+let mode='staff',staffTab='request',adminTab='pending';
+let sortKey1='place',sortKey2='cat';
+let hold=[];
+let holdSort1='date',holdSort2='none';
+let staffListSort1='date',staffListSort2='none';
+let doneSort1='date',doneSort2='none';
+let filterCat='all',filterPlace='all';
+
+/* ── ローディング ─── */
+function showLoading(msg='処理中…'){document.getElementById('loading-text').textContent=msg;document.getElementById('loading').style.display='flex';}
+function hideLoading(){document.getElementById('loading').style.display='none';}
+function showErr(msg){const b=document.getElementById('err-banner');b.textContent='⚠ '+msg;b.style.display='block';setTimeout(()=>b.style.display='none',6000);}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
+
+/* ── API ─── */
+async function apiGet(){
+  const res=await fetch(GAS_URL+'?action=getAll&t='+Date.now(),{redirect:'follow'});
+  return JSON.parse(await res.text());
+}
+async function apiPost(payload){
+  const res=await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow'});
+  const text=await res.text();
+  try{return JSON.parse(text);}catch(e){console.error('Parse error:',text);throw new Error('レスポンスの解析に失敗');}
+}
+async function loadAll(silent=false){
+  if(!silent)showLoading('データを読み込み中…');
+  try{
+    const d=await apiGet();
+    pending=d.pending||[];done=d.done||[];hold=d.hold||[];
+    masterRequesters=d.masters?.requesters||[];masterPlaces=d.masters?.places||[];
+  }catch(e){console.error(e);if(!silent)showErr('読み込み失敗: '+e.message);}
+  finally{if(!silent)hideLoading();renderModeBtn();}
+}
+
+/* ── ユーティリティ ─── */
+function getCatLabel(id){const c=CATS.find(c=>c.id===id);return c?c.label:id}
+function getCatClass(id){return'bc-'+(id||'zappi')}
+function allPlaces(){return[...DEFAULT_PLACES,...masterPlaces.filter(p=>!DEFAULT_PLACES.includes(p))]}
+function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function fmtDate(s){
+  if(!s)return'';
+  const d=new Date(s);
+  if(isNaN(d.getTime())){
+    // "2026/5/22"や"2026年5月22日"形式をパース
+    const m=String(s).match(/(\d{4})[^\d](\d{1,2})[^\d](\d{1,2})/);
+    if(!m)return s;
+    const d2=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));
+    if(isNaN(d2.getTime()))return s;
+    return d2.toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+  }
+  return d.toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+}
+function shortUrl(u){try{const x=new URL(u);return x.hostname+(x.pathname.length>1?x.pathname.slice(0,20)+'…':'');}catch{return String(u).slice(0,28)+'…'}}
+
+/* ── モード切替 ─── */
+function renderModeBtn(){
+  const btn=document.getElementById('mode-toggle');
+  if(!btn)return;
+  if(mode==='staff'){
+    btn.innerHTML=`⚙ 管理者${pending.length>0?` <span style="background:#e05a7a;color:#fff;border-radius:20px;font-size:11px;padding:1px 7px;font-weight:700;margin-left:2px">${pending.length}</span>`:''}`;
+  } else {
+    btn.innerHTML='👤 職員';
+  }
+}
+function toggleMode(){
+  mode=mode==='staff'?'admin':'staff';
+  document.getElementById('header-title').textContent=mode==='staff'?'🛒 買出しリクエスト画面':'📋 買出し管理画面';
+  renderModeBtn();
+  document.getElementById('staff-view').style.display=mode==='staff'?'block':'none';
+  document.getElementById('admin-view').style.display=mode==='admin'?'block':'none';
+  if(mode==='admin')renderAdmin();else renderStaff();
+  loadAll(true).then(()=>{if(mode==='admin')renderAdmin();else renderStaff();});
+}
+
+/* ── 再購入 ─── */
+function rebuyItem(id){
+  const src=done.find(i=>i.id===id);
+  if(!src)return;
+  openRebuyModal(src);
+}
+
+/* ── 経費更新 ─── */
+async function updateCat(id,newCat){
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const oldCat=pending[idx].cat;
+  pending[idx]={...pending[idx],cat:newCat};
+  renderAdmin();
+  try{await apiPost({action:'updateCat',id:String(id),cat:newCat});}
+  catch(e){pending[idx]={...pending[idx],cat:oldCat};renderAdmin();showErr('更新失敗: '+e.message);}
+}
+
+/* ════ 画像ヘルパー ════ */
+function setupImgArea(areaId,inputId,previewBoxId,previewImgId){
+  const area=document.getElementById(areaId);
+  const input=document.getElementById(inputId);
+  if(!area||!input)return;
+  area.addEventListener('click',()=>input.click());
+  area.addEventListener('dragover',e=>{e.preventDefault();area.classList.add('drag-over');});
+  area.addEventListener('dragleave',()=>area.classList.remove('drag-over'));
+  area.addEventListener('drop',e=>{e.preventDefault();area.classList.remove('drag-over');const f=e.dataTransfer.files[0];if(f)loadImgFile(f,previewBoxId,previewImgId);});
+  // クリップボードペースト（ページ全体で受け取る）
+  document.addEventListener('paste',e=>{
+    if(!document.getElementById(areaId))return;
+    const items=e.clipboardData?.items;
+    if(!items)return;
+    for(const item of items){if(item.type.startsWith('image/')){loadImgFile(item.getAsFile(),previewBoxId,previewImgId);break;}}
+  });
+  input.addEventListener('change',()=>{if(input.files[0])loadImgFile(input.files[0],previewBoxId,previewImgId);});
+}
+function loadImgFile(file,previewBoxId,previewImgId){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    compressImage(e.target.result, 800, 0.7, compressed=>{
+      const box=document.getElementById(previewBoxId);
+      const img=document.getElementById(previewImgId);
+      if(box&&img){img.src=compressed;box.style.display='block';}
+    });
+  };
+  reader.readAsDataURL(file);
+}
+
+function compressImage(dataUrl, maxSize, quality, callback){
+  const img=new Image();
+  img.onload=()=>{
+    let w=img.width, h=img.height;
+    if(w>maxSize||h>maxSize){
+      if(w>h){h=Math.round(h*maxSize/w);w=maxSize;}
+      else{w=Math.round(w*maxSize/h);h=maxSize;}
+    }
+    const canvas=document.createElement('canvas');
+    canvas.width=w;canvas.height=h;
+    canvas.getContext('2d').drawImage(img,0,0,w,h);
+    callback(canvas.toDataURL('image/jpeg',quality));
+  };
+  img.src=dataUrl;
+}
+function clearImg(previewBoxId,previewImgId,inputId){
+  const box=document.getElementById(previewBoxId);const img=document.getElementById(previewImgId);const inp=document.getElementById(inputId);
+  if(box)box.style.display='none';if(img)img.src='';if(inp)inp.value='';
+}
+function getImgData(previewImgId){
+  const img=document.getElementById(previewImgId);
+  return(img&&img.src&&img.src.startsWith('data:'))?img.src:'';
+}
+
+/* ════ 職員ビュー ════ */
+function renderStaff(){
+  document.getElementById('staff-view').innerHTML=`
+  <div class="tabs">
+    <button class="tab ${staffTab==='request'?'active':''}" onclick="setStaffTab('request')">リクエスト</button>
+    <button class="tab ${staffTab==='mylist'?'active':''}" onclick="setStaffTab('mylist')">依頼中 (${pending.length})</button>
+    <button class="tab ${staffTab==='history'?'active':''}" onclick="setStaffTab('history')">購入履歴 (${done.length})</button>
+  </div>
+  <div id="staff-content"></div>`;
+  renderStaffContent();
+}
+function setStaffTab(t){
+  staffTab=t;renderStaff();
+  loadAll(true).then(()=>renderStaff());
+}
+function renderStaffContent(){
+  const el=document.getElementById('staff-content');if(!el)return;
+  if(staffTab==='request'){el.innerHTML=renderRequestForm();setupImgArea('img-area','f-img','img-preview-box','f-img-preview');}
+  else if(staffTab==='mylist')el.innerHTML=renderMyList();
+  else el.innerHTML=renderStaffHistory();
+}
+
+function renderRequestForm(){
+  const places=allPlaces();
+  return`<div class="section"><div class="form-card">
+    <div class="form-row">
+      <label>依頼者 <span class="req">*</span></label>
+      <select id="f-requester" onchange="onRequesterChange()">
+        <option value="">選択または入力</option>
+        ${masterRequesters.map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join('')}
+        <option value="__new__">＋ 新しい名前を入力</option>
+      </select>
+      <input type="text" class="sub-input" id="f-requester-new" placeholder="名前を入力">
+    </div>
+    <div class="form-row">
+      <label>品名 <span class="req">*</span></label>
+      <input type="text" id="f-name" placeholder="例: 絵の具セット">
+    </div>
+    <div class="form-row">
+      <label>個数 <span class="req">*</span></label>
+      <input type="text" id="f-qty" placeholder="例: 2個・3袋・1本">
+    </div>
+    <div class="form-row">
+      <label>購入場所 <span class="opt">(任意)</span></label>
+      <select id="f-place" onchange="onPlaceChange()">
+        <option value="">未定</option>
+        ${places.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('')}
+        <option value="__new__">＋ その他（直接入力）</option>
+      </select>
+      <input type="text" class="sub-input" id="f-place-new" placeholder="購入場所を入力">
+    </div>
+    <div class="form-row">
+      <label>参考URL <span class="opt">(任意)</span></label>
+      <input type="url" id="f-url" placeholder="https://...">
+    </div>
+    <div class="form-row">
+      <label>画像 <span class="opt">(任意・クリップボードからペースト可)</span></label>
+      <div class="img-area" id="img-area">
+        <div class="img-area-text">📷 タップして選択 / ドラッグ＆ドロップ / Ctrl+V でペースト</div>
+      </div>
+      <input type="file" id="f-img" accept="image/*">
+      <div class="img-preview-box" id="img-preview-box">
+        <img id="f-img-preview" alt="">
+        <button class="img-clear-btn" onclick="clearImg('img-preview-box','f-img-preview','f-img')">✕</button>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>メモ <span class="opt">(任意)</span></label>
+      <textarea id="f-memo" placeholder="サイズ、色、銘柄など"></textarea>
+    </div>
+    <button class="submit-btn" id="submit-btn" onclick="submitItem()">📨 リクエストを送る</button>
+  </div></div>`;
+}
+
+function renderMyList(){
+  if(!pending.length)return'<div class="empty"><span class="empty-icon">📭</span>依頼中のアイテムはありません</div>';
+  return`<div class="section">${sortBar2('staffListSort1','staffListSort2')}${groupedCards(pending,staffListSort1,staffListSort2,{cancelBtn:true,editBtn:true})}</div>`;
+}
+function renderStaffHistory(){
+  if(!done.length)return'<div class="empty"><span class="empty-icon">🕐</span>購入履歴はありません</div>';
+  return`<div class="section">${sortBar2('doneSort1','doneSort2')}${groupedCards(done,doneSort1,doneSort2,{rebuyBtn:true,isDone:true})}</div>`;
+}
+
+function onRequesterChange(){
+  const s=document.getElementById('f-requester'),n=document.getElementById('f-requester-new');
+  if(!n)return;n.style.display=s.value==='__new__'?'block':'none';if(s.value==='__new__')n.focus();
+}
+function onPlaceChange(){
+  const s=document.getElementById('f-place'),n=document.getElementById('f-place-new');
+  if(!n)return;n.style.display=s.value==='__new__'?'block':'none';if(s.value==='__new__')n.focus();
+}
+
+async function submitItem(){
+  let requester=document.getElementById('f-requester').value;
+  if(requester==='__new__')requester=(document.getElementById('f-requester-new').value||'').trim();
+  const name=(document.getElementById('f-name').value||'').trim();
+  const qty=(document.getElementById('f-qty').value||'').trim();
+  if(!requester||!name||!qty){showToast('依頼者・品名・個数は必須です');return;}
+  let place=document.getElementById('f-place').value;
+  if(place==='__new__')place=(document.getElementById('f-place-new').value||'').trim();
+  const url=(document.getElementById('f-url').value||'').trim();
+  const memo=(document.getElementById('f-memo').value||'').trim();
+  const img=getImgData('f-img-preview');
+  const btn=document.getElementById('submit-btn');if(btn)btn.disabled=true;
+  try{
+    const newItem={id:String(Date.now()),requester,name,qty,cat:'zappi',place,url,memo,img,created:new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'})};
+    pending.unshift(newItem);
+    // mastersも即時更新
+    if(requester&&!masterRequesters.includes(requester))masterRequesters.push(requester);
+    if(place&&!masterPlaces.includes(place)&&!['ダイソー','セリア','ドラッグストア','ホームセンター','文房具店','Amazon'].includes(place))masterPlaces.push(place);
+    showToast('リクエストを送りました ✓');staffTab='mylist';renderStaff();
+    apiPost({action:'addPending',item:newItem}).catch(e=>showErr('送信失敗: '+e.message));
+  }catch(e){showErr('送信失敗: '+e.message);}
+  finally{if(btn)btn.disabled=false;}
+}
+
+async function cancelItem(id){
+  if(!confirm('このリクエストを取り消しますか？'))return;
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const item=pending[idx];
+  pending.splice(idx,1);
+  renderStaff();showToast('取り消しました');
+  try{await apiPost({action:'deletePending',id:String(id)});}
+  catch(e){pending.splice(idx,0,item);renderStaff();showErr('失敗: '+e.message);}
+}
+
+/* ── 訂正モーダル ─── */
+function openRebuyModal(src){
+  const places=allPlaces();
+  document.getElementById('modal-container').innerHTML=`
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-title">🔄 再購入リクエスト</div>
+      <div style="background:#eef4fb;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:#5a8ab8">
+        <strong style="color:#2a3f5f">${esc(src.name)}</strong>
+        ${src.place?`・📍${esc(src.place)}`:''}
+        ${src.cat?`・<span class="cat-badge ${getCatClass(src.cat)}">${getCatLabel(src.cat)}</span>`:''}
+      </div>
+      <div class="form-row">
+        <label>依頼者 <span class="req">*</span></label>
+        <select id="rb-requester" onchange="onRebuyRequesterChange()">
+          <option value="">選択または入力</option>
+          ${masterRequesters.map(r=>`<option value="${esc(r)}"${src.requester===r?' selected':''}>${esc(r)}</option>`).join('')}
+          <option value="__new__">＋ 新しい名前を入力</option>
+        </select>
+        <input type="text" class="sub-input" id="rb-requester-new" placeholder="名前を入力">
+      </div>
+      <div class="form-row">
+        <label>個数 <span class="req">*</span></label>
+        <input type="text" id="rb-qty" placeholder="例: 2個" value="${esc(src.qty)}">
+      </div>
+      <div class="form-row">
+        <label>購入場所</label>
+        <select id="rb-place" onchange="onRebuyPlaceChange()">
+          <option value="">未定</option>
+          ${places.map(p=>`<option value="${esc(p)}"${src.place===p?' selected':''}>${esc(p)}</option>`).join('')}
+          <option value="__new__">＋ その他（直接入力）</option>
+        </select>
+        <input type="text" class="sub-input" id="rb-place-new" placeholder="購入場所を入力">
+      </div>
+      <div class="form-row">
+        <label>メモ</label>
+        <textarea id="rb-memo" placeholder="メモ">${esc(src.memo)}</textarea>
+      </div>
+      <button class="submit-btn" onclick="submitRebuy('${src.id}')">📨 再購入リクエストを送る</button>
+    </div>
+  </div>`;
+}
+
+function onRebuyRequesterChange(){
+  const s=document.getElementById('rb-requester'),n=document.getElementById('rb-requester-new');
+  if(!n)return;n.style.display=s.value==='__new__'?'block':'none';if(s.value==='__new__')n.focus();
+}
+function onRebuyPlaceChange(){
+  const s=document.getElementById('rb-place'),n=document.getElementById('rb-place-new');
+  if(!n)return;n.style.display=s.value==='__new__'?'block':'none';if(s.value==='__new__')n.focus();
+}
+
+async function submitRebuy(srcId){
+  let requester=document.getElementById('rb-requester').value;
+  if(requester==='__new__')requester=(document.getElementById('rb-requester-new').value||'').trim();
+  const qty=(document.getElementById('rb-qty').value||'').trim();
+  if(!requester||!qty){showToast('依頼者と個数は必須です');return;}
+  let place=document.getElementById('rb-place').value;
+  if(place==='__new__')place=(document.getElementById('rb-place-new').value||'').trim();
+  const memo=(document.getElementById('rb-memo').value||'').trim();
+
+  const src=done.find(i=>i.id===srcId);
+  if(!src)return;
+  const newItem={...src,id:String(Date.now()),requester,qty,place,memo,
+                 created:new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'})};
+  delete newItem.boughtAt;delete newItem.heldAt;
+
+  // mastersも即時更新
+  if(requester&&!masterRequesters.includes(requester))masterRequesters.push(requester);
+  if(place&&!masterPlaces.includes(place)&&!['ダイソー','セリア','ドラッグストア','ホームセンター','文房具店','Amazon'].includes(place))masterPlaces.push(place);
+
+  pending.unshift(newItem);
+  closeModal();
+  showToast('再購入リクエストを送りました ✓');
+  if(mode==='staff'){staffTab='mylist';renderStaff();}else renderAdmin();
+
+  try{
+    await apiPost({action:'addPending',item:newItem});
+    if(requester)await apiPost({action:'saveMasterDirect',masterType:'requester',value:requester}).catch(()=>{});
+  }catch(e){
+    pending.shift();
+    if(mode==='staff')renderStaff();else renderAdmin();
+    showErr('送信失敗: '+e.message);
+  }
+}
+
+function openEditModal(id){
+  const item=pending.find(i=>i.id===id);if(!item)return;
+  const places=allPlaces();
+  document.getElementById('modal-container').innerHTML=`
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-title">✏️ 依頼内容を訂正</div>
+      <div class="form-row">
+        <label>品名 <span class="req">*</span></label>
+        <input type="text" id="e-name" value="${esc(item.name)}" placeholder="品名">
+      </div>
+      <div class="form-row">
+        <label>個数 <span class="req">*</span></label>
+        <input type="text" id="e-qty" value="${esc(item.qty)}" placeholder="個数">
+      </div>
+      <div class="form-row">
+        <label>購入場所</label>
+        <select id="e-place" onchange="onEditPlaceChange()">
+          <option value="">未定</option>
+          ${places.map(p=>`<option value="${esc(p)}"${item.place===p?' selected':''}>${esc(p)}</option>`).join('')}
+          <option value="__new__">＋ その他（直接入力）</option>
+        </select>
+        <input type="text" class="sub-input" id="e-place-new" placeholder="購入場所を入力">
+      </div>
+      <div class="form-row">
+        <label>参考URL</label>
+        <input type="url" id="e-url" value="${esc(item.url)}" placeholder="https://...">
+      </div>
+      <div class="form-row">
+        <label>画像</label>
+        <div class="img-area" id="e-img-area">
+          <div class="img-area-text">📷 タップして選択 / Ctrl+V でペースト</div>
+        </div>
+        <input type="file" id="e-img" accept="image/*">
+        <div class="img-preview-box" id="e-img-preview-box" ${item.img?'style="display:block"':''}>
+          <img id="e-img-preview" src="${esc(item.img)}" alt="">
+          <button class="img-clear-btn" onclick="clearImg('e-img-preview-box','e-img-preview','e-img')">✕</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>メモ</label>
+        <textarea id="e-memo" placeholder="メモ">${esc(item.memo)}</textarea>
+      </div>
+      <button class="submit-btn" onclick="saveEdit('${id}')">💾 保存する</button>
+    </div>
+  </div>`;
+  setupImgArea('e-img-area','e-img','e-img-preview-box','e-img-preview');
+}
+function onEditPlaceChange(){
+  const s=document.getElementById('e-place'),n=document.getElementById('e-place-new');
+  if(!n)return;n.style.display=s.value==='__new__'?'block':'none';if(s.value==='__new__')n.focus();
+}
+function closeModal(){document.getElementById('modal-container').innerHTML='';}
+async function saveEdit(id){
+  const name=(document.getElementById('e-name').value||'').trim();
+  const qty=(document.getElementById('e-qty').value||'').trim();
+  if(!name||!qty){showToast('品名・個数は必須です');return;}
+  let place=document.getElementById('e-place').value;
+  if(place==='__new__')place=(document.getElementById('e-place-new').value||'').trim();
+  const url=(document.getElementById('e-url').value||'').trim();
+  const memo=(document.getElementById('e-memo').value||'').trim();
+  const img=getImgData('e-img-preview');
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0){closeModal();return;}
+  const oldItem={...pending[idx]};
+  const fields={name,qty,place,url,memo,img};
+  pending[idx]={...pending[idx],...fields};
+  if(place&&!masterPlaces.includes(place)&&!['ダイソー','セリア','ドラッグストア','ホームセンター','文房具店','Amazon'].includes(place))masterPlaces.push(place);
+  closeModal();
+  showToast('訂正しました ✓');
+  staffTab='mylist';renderStaff();
+  try{await apiPost({action:'updateItem',id:String(id),fields});}
+  catch(e){pending[idx]=oldItem;renderStaff();showErr('更新失敗: '+e.message);}
+}
+
+/* ════ 管理者ビュー ════ */
+function renderAdmin(){
+  document.getElementById('admin-view').innerHTML=`
+  <div class="tabs">
+    <button class="tab ${adminTab==='pending'?'active':''}" onclick="setAdminTab('pending')">要購入 (${pending.length})</button>
+    <button class="tab ${adminTab==='hold'?'active':''}" onclick="setAdminTab('hold')">保留 (${hold.length})</button>
+    <button class="tab ${adminTab==='done'?'active':''}" onclick="setAdminTab('done')">購入済 (${done.length})</button>
+    <button class="tab ${adminTab==='master'?'active':''}" onclick="setAdminTab('master')">マスタ</button>
+  </div>
+  ${adminTab==='pending'?renderPendingList():adminTab==='hold'?renderHoldList():adminTab==='done'?renderDoneList():renderMasterTab()}`;
+}
+function setAdminTab(t){
+  adminTab=t;filterCat='all';filterPlace='all';renderAdmin();
+  loadAll(true).then(()=>renderAdmin());
+}
+
+function renderPendingList(){
+  if(!pending.length)return'<div class="empty"><span class="empty-icon">✅</span>リクエストはありません</div>';
+  const sortBar=`<div class="sort-bar">
+    <div>
+      <div class="sort-label">第1グループ</div>
+      <select onchange="sortKey1=this.value;renderAdmin()">
+        <option value="place"     ${sortKey1==='place'    ?'selected':''}>購入場所</option>
+        <option value="cat"       ${sortKey1==='cat'      ?'selected':''}>経費の種類</option>
+        <option value="requester" ${sortKey1==='requester'?'selected':''}>依頼者</option>
+        <option value="date"      ${sortKey1==='date'     ?'selected':''}>日付順</option>
+      </select>
+    </div>
+    <div>
+      <div class="sort-label">第2グループ</div>
+      <select onchange="sortKey2=this.value;renderAdmin()">
+        <option value="cat"       ${sortKey2==='cat'      ?'selected':''}>経費の種類</option>
+        <option value="place"     ${sortKey2==='place'    ?'selected':''}>購入場所</option>
+        <option value="requester" ${sortKey2==='requester'?'selected':''}>依頼者</option>
+        <option value="none"      ${sortKey2==='none'     ?'selected':''}>なし</option>
+      </select>
+    </div>
+  </div>`;
+  const cats=[...new Set(pending.map(i=>i.cat))];
+  const places=[...new Set(pending.map(i=>i.place||'場所未定'))];
+  const catChips='';
+  const placeChips='';
+
+  let items=pending.filter(i=>(filterCat==='all'||i.cat===filterCat)&&(filterPlace==='all'||(i.place||'場所未定')===filterPlace));
+
+  // 2段階グルーピング
+  const keyFn=(key,i)=>key==='place'?(i.place||'場所未定'):key==='cat'?getCatLabel(i.cat):key==='requester'?(i.requester||'不明'):'';
+  
+  let html='';
+  if(sortKey1==='date'){
+    items=[...items].sort((a,b)=>Number(b.id)-Number(a.id));
+    html=items.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true})).join('');
+    html=`<div class="group-block"><div class="group-label">📅 すべて（新しい順）<span style="font-size:11px;color:#8ab0cc;font-weight:400;margin-left:4px">${items.length}件</span></div>${html}</div>`;
+  } else {
+    const g1={};
+    items.forEach(i=>{const k=keyFn(sortKey1,i);if(!g1[k])g1[k]=[];g1[k].push(i);});
+    Object.entries(g1).forEach(([k1,its1])=>{
+      let inner='';
+      if(sortKey2==='none'||sortKey2===sortKey1){
+        inner=its1.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true})).join('');
+      } else {
+        const g2={};
+        its1.forEach(i=>{const k=keyFn(sortKey2,i);if(!g2[k])g2[k]=[];g2[k].push(i);});
+        inner=Object.entries(g2).map(([k2,its2])=>`
+          <div style="margin-left:8px;margin-bottom:10px">
+            <div class="group-label" style="font-size:10px;opacity:.75">${grpIcon(sortKey2)} ${esc(k2)}<span style="font-size:10px;color:#8ab0cc;font-weight:400;margin-left:4px">${its2.length}件</span></div>
+            ${its2.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true})).join('')}
+          </div>`).join('');
+      }
+      html+=`<div class="group-block"><div class="group-label">${grpIcon(sortKey1)} ${esc(k1)}<span style="font-size:11px;color:#8ab0cc;font-weight:400;margin-left:4px">${its1.length}件</span></div>${inner}</div>`;
+    });
+  }
+  return`${sortBar}
+
+  <div class="section" style="padding-top:8px">${items.length?html:'<div class="empty">該当なし</div>'}</div>`;
+}
+
+function grpIcon(k){return k==='place'?'📍':k==='cat'?'🏷':k==='requester'?'👤':'📅';}
+function setAdminFilter(type,val){if(type==='cat')filterCat=val;else filterPlace=val;renderAdmin();}
+
+function sortBar2(v1,v2){
+  const opts=[
+    {value:'date',label:'日付順'},
+    {value:'place',label:'購入場所'},
+    {value:'cat',label:'経費の種類'},
+    {value:'requester',label:'依頼者'},
+    {value:'none',label:'なし（第2のみ）'},
+  ];
+  const opts2=[{value:'none',label:'なし'},...opts.filter(o=>o.value!=='none')];
+  const cur1=v1==='staffListSort1'?staffListSort1:v1==='doneSort1'?doneSort1:v1==='holdSort1'?holdSort1:sortKey1;
+  const cur2=v2==='staffListSort2'?staffListSort2:v2==='doneSort2'?doneSort2:v2==='holdSort2'?holdSort2:sortKey2;
+  return`<div class="sort-bar">
+    <div><div class="sort-label">第1グループ</div>
+      <select onchange="setSortVar('${v1}',this.value)">
+        ${opts.map(o=>`<option value="${o.value}"${cur1===o.value?' selected':''}>${o.label}</option>`).join('')}
+      </select>
+    </div>
+    <div><div class="sort-label">第2グループ</div>
+      <select onchange="setSortVar('${v2}',this.value)">
+        ${opts2.map(o=>`<option value="${o.value}"${cur2===o.value?' selected':''}>${o.label}</option>`).join('')}
+      </select>
+    </div>
+  </div>`;
+}
+
+function setSortVar(varName,val){
+  if(varName==='sortKey1')sortKey1=val;
+  else if(varName==='sortKey2')sortKey2=val;
+  else if(varName==='staffListSort1')staffListSort1=val;
+  else if(varName==='staffListSort2')staffListSort2=val;
+  else if(varName==='doneSort1')doneSort1=val;
+  else if(varName==='doneSort2')doneSort2=val;
+  else if(varName==='holdSort1')holdSort1=val;
+  else if(varName==='holdSort2')holdSort2=val;
+  if(mode==='admin')renderAdmin();else renderStaff();
+}
+
+function groupedCards(items,s1,s2,cardOpts){
+  if(!items.length)return'';
+  const keyFn=(key,i)=>key==='place'?(i.place||'場所未定'):key==='cat'?getCatLabel(i.cat||'zappi'):key==='requester'?(i.requester||'不明'):'';
+  const card=i=>itemCardHTML(i,cardOpts);
+  if(s1==='date'||s1==='none'){
+    return[...items].sort((a,b)=>Number(b.id)-Number(a.id)).map(card).join('');
+  }
+  let html='';
+  const g1={};
+  items.forEach(i=>{const k=keyFn(s1,i);if(!g1[k])g1[k]=[];g1[k].push(i);});
+  Object.entries(g1).forEach(([k1,its1])=>{
+    let inner='';
+    if(s2==='none'||s2===s1){
+      inner=its1.map(card).join('');
+    } else if(s2==='date'){
+      inner=[...its1].sort((a,b)=>Number(b.id)-Number(a.id)).map(card).join('');
+    } else {
+      const g2={};
+      its1.forEach(i=>{const k=keyFn(s2,i);if(!g2[k])g2[k]=[];g2[k].push(i);});
+      inner=Object.entries(g2).map(([k2,its2])=>`
+        <div style="margin-left:8px;margin-bottom:10px">
+          <div class="group-label" style="font-size:10px;opacity:.8">${grpIcon(s2)} ${esc(k2)}<span style="font-size:10px;color:#8ab0cc;font-weight:400;margin-left:4px">${its2.length}件</span></div>
+          ${its2.map(card).join('')}
+        </div>`).join('');
+    }
+    html+=`<div class="group-block"><div class="group-label">${grpIcon(s1)} ${esc(k1)}<span style="font-size:11px;color:#8ab0cc;font-weight:400;margin-left:4px">${its1.length}件</span></div>${inner}</div>`;
+  });
+  return html;
+}
+
+function renderHoldList(){
+  if(!hold.length)return'<div class="empty"><span class="empty-icon">⏸</span>保留中のアイテムはありません</div>';
+  return`<div class="section" style="padding-top:10px">${sortBar2('holdSort1','holdSort2')}${groupedCards(hold,holdSort1,holdSort2,{holdToPublicBtn:true,deleteBtn:true,isDone:false})}</div>`;
+}
+
+function renderDoneList(){
+  if(!done.length)return'<div class="empty"><span class="empty-icon">🛍</span>購入済アイテムはありません</div>';
+  return`<div class="section" style="padding-top:10px">${sortBar2('doneSort1','doneSort2')}${groupedCards(done,doneSort1,doneSort2,{doneToPublicBtn:true,rebuyBtn:true,deleteBtn:true,isDone:true})}</div>`;
+}
+
+/* ── マスタ管理タブ ─── */
+function renderMasterTab(){
+  const rRows=masterRequesters.map((r,idx)=>
+    `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #eef4fb">
+      <span style="font-size:14px;color:#2a3f5f">👤 ${esc(r)}</span>
+      <button class="icon-btn" data-type="requester" data-idx="${idx}" onclick="deleteMasterByIdx(this)" title="削除">🗑</button>
+    </div>`).join('');
+  const pRows=masterPlaces.map((p,idx)=>
+    `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #eef4fb">
+      <span style="font-size:14px;color:#2a3f5f">📍 ${esc(p)}</span>
+      <button class="icon-btn" data-type="place" data-idx="${idx}" onclick="deleteMasterByIdx(this)" title="削除">🗑</button>
+    </div>`).join('');
+  return`<div class="section">
+    <div class="form-card" style="margin-bottom:14px">
+      <div style="font-size:13px;font-weight:700;color:#1a6fba;margin-bottom:10px">👤 依頼者マスタ</div>
+      ${masterRequesters.length===0?'<div style="font-size:13px;color:#8ab0cc">登録された依頼者はいません</div>':rRows}
+    </div>
+    <div class="form-card">
+      <div style="font-size:13px;font-weight:700;color:#1a6fba;margin-bottom:10px">📍 購入場所マスタ（カスタム登録分）</div>
+      ${masterPlaces.length===0?'<div style="font-size:13px;color:#8ab0cc">カスタム登録された場所はありません</div>':pRows}
+    </div>
+  </div>`;
+}
+
+function deleteMasterByIdx(btn){
+  const type=btn.dataset.type;
+  const idx=parseInt(btn.dataset.idx);
+  const value=type==='requester'?masterRequesters[idx]:masterPlaces[idx];
+  if(!value)return;
+  deleteMaster(type,value);
+}
+
+async function deleteMaster(type, value){
+  if(!confirm(`「${value}」を削除しますか？`))return;
+  showLoading('削除中…');
+  try{
+    await apiPost({action:'deleteMaster',masterType:type,value:value});
+    await loadAll();
+    showToast(`「${value}」を削除しました`);
+    renderAdmin();
+  }catch(e){showErr('削除失敗: '+e.message);}
+  finally{hideLoading();}
+}
+
+/* ── 共通カードHTML ─── */
+function itemCardHTML(i,opts={}){
+  const {checkBox,cancelBtn,editBtn,rebuyBtn,holdBtn,holdToPublicBtn,doneToPublicBtn,deleteBtn,isDone,catEditable}=opts;
+  const catBadge=catEditable
+    ?`<select class="cat-select-inline" onchange="updateCat('${i.id}',this.value)">${CATS.map(c=>`<option value="${c.id}"${c.id===(i.cat||'zappi')?' selected':''}>${c.label}</option>`).join('')}</select>`
+    :`<span class="cat-badge ${getCatClass(i.cat)}">${getCatLabel(i.cat||'zappi')}</span>`;
+  const imgSlot=`<div class="img-slot">${i.img?`<img src="${esc(i.img)}" alt="" onclick="openLightbox('${esc(i.img)}')" style="cursor:zoom-in">`:`<span class="img-slot-empty">📷</span>`}</div>`;
+  return`<div class="item-card${isDone?' done':''}">
+    ${checkBox?`<input type="checkbox" class="chk" onchange="checkItem('${i.id}',this.checked)">`:''}
+    ${imgSlot}
+    <div class="item-info">
+      <div class="item-name-row">
+        <div class="item-name${isDone?' done':''}">${esc(i.name)}</div>
+        <div class="item-qty${isDone?' done':''}">${
+  (isDone&&i.requestedQty&&i.boughtQty&&i.requestedQty!==i.boughtQty)
+    ? `依頼 ${esc(i.requestedQty)} → 購入 ${esc(i.boughtQty)}<span style="font-size:11px;color:#e05a7a;margin-left:4px">（残り${String(parseInt(i.requestedQty)||0)-String(parseInt(i.boughtQty)||0)}個）</span>`
+    : i.qty?`× ${esc(i.qty)}`:'<span class="qty-alert">個数未記入</span>'
+}</div>
+      </div>
+      <div class="item-meta">
+        ${catBadge}
+        ${i.requester?`<span class="requester-tag">👤 ${esc(i.requester)}</span>`:''}
+        ${i.place?`<span>📍${esc(i.place)}</span>`:''}
+      </div>
+      ${i.url?`<a class="url-link" href="${esc(i.url)}" target="_blank">🔗 ${shortUrl(i.url)}</a>`:''}
+      ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
+      <div style="font-size:11px;color:#8ab0cc;margin-top:3px">${fmtDate(isDone?(i.boughtAt||i.created):i.created)}</div>
+    </div>
+    <div class="actions-col">
+      ${cancelBtn?`<button class="small-btn" onclick="cancelItem('${i.id}')">取消</button>`:''}
+      ${editBtn?`<button class="edit-btn" onclick="openEditModal('${i.id}')">訂正</button>`:''}
+      ${holdBtn?`<button class="hold-btn" onclick="holdItem('${i.id}')">保留</button>`:''}
+      ${holdToPublicBtn?`<button class="edit-btn" onclick="holdToPublic('${i.id}')">要購入へ</button>`:''}
+      ${doneToPublicBtn?`<button class="revert-btn" onclick="doneToPublic('${i.id}')">要購入へ</button>`:''}
+      ${rebuyBtn?`<button class="rebuy-btn" onclick="rebuyItem('${i.id}')">🔄 再購入</button>`:''}
+      ${deleteBtn?`<button class="icon-btn" onclick="deleteItem('${i.id}','${isDone?'done':holdToPublicBtn?'hold':'pending'}')">🗑</button>`:''}
+    </div>
+  </div>`;
+}
+
+async function holdItem(id){
+  if(!confirm('この商品を保留にしますか？'))return;
+  const heldAt=new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const item={...pending[idx],heldAt};
+  pending.splice(idx,1);hold.unshift(item);
+  renderAdmin();showToast('保留にしました');
+  try{await apiPost({action:'moveToHold',id:String(id),heldAt});}
+  catch(e){pending.splice(idx,0,item);hold.shift();renderAdmin();showErr('失敗: '+e.message);}
+}
+
+async function holdToPublic(id){
+  const idx=hold.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const item={...hold[idx]};
+  hold.splice(idx,1);pending.unshift(item);
+  renderAdmin();showToast('要購入に戻しました');
+  try{await apiPost({action:'holdToPublic',id:String(id)});}
+  catch(e){hold.splice(idx,0,item);pending.shift();renderAdmin();showErr('失敗: '+e.message);}
+}
+
+async function doneToPublic(id){
+  if(!confirm('購入済みから要購入に戻しますか？'))return;
+  const idx=done.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const item={...done[idx]};
+  done.splice(idx,1);pending.unshift(item);
+  renderAdmin();showToast('要購入に戻しました');
+  try{await apiPost({action:'doneToPublic',id:String(id)});}
+  catch(e){done.splice(idx,0,item);pending.shift();renderAdmin();showErr('失敗: '+e.message);}
+}
+
+async function checkItem(id,checked){
+  if(!checked)return;
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const item=pending[idx];
+  const originalQty=item.qty||'';
+
+  // 個数が数値かどうか確認
+  const numMatch=String(originalQty).match(/(\d+)/);
+  const originalNum=numMatch?parseInt(numMatch[1]):null;
+
+  if(originalNum&&originalNum>1){
+    // 一部購入ダイアログ表示
+    openPartialBuyModal(id, originalNum, originalQty);
+    // チェックボックスを戻す
+    const chk=document.querySelector(`input[onchange*="'${id}'"]`);
+    if(chk)setTimeout(()=>chk.checked=false,10);
+  } else {
+    // 1個 or 数値不明 → 通常通り全部購入済みへ
+    await moveToDoneFull(id);
+  }
+}
+
+async function moveToDoneFull(id){
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const boughtAt=new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+  const item={...pending[idx],boughtAt,boughtQty:pending[idx].qty,requestedQty:pending[idx].qty};
+  pending.splice(idx,1);done.unshift(item);
+  renderAdmin();showToast('購入済にしました ✓');
+  try{await apiPost({action:'moveToDone',id:String(id),boughtAt,boughtQty:item.qty,requestedQty:item.qty});}
+  catch(e){pending.splice(idx,0,item);done.shift();renderAdmin();showErr('失敗: '+e.message);}
+}
+
+function openPartialBuyModal(id, originalNum, originalQty){
+  const unit=String(originalQty).replace(/\d+/,'').trim()||'個';
+  document.getElementById('modal-container').innerHTML=`
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-title">🛍 購入数を入力</div>
+      <div style="background:#eef4fb;border-radius:10px;padding:10px 12px;margin-bottom:16px;font-size:13px;color:#2a3f5f">
+        依頼数：<strong>${originalQty}</strong>
+      </div>
+      <div class="form-row">
+        <label style="text-align:center;display:block;margin-bottom:8px">購入できた数</label>
+        <div class="drum-wrap">
+          <div>
+            <div class="drum-picker" id="drum-picker">
+              <div class="drum-highlight"></div>
+              <div class="drum-list" id="drum-list"></div>
+            </div>
+            <div class="drum-label">数量</div>
+          </div>
+          <div>
+            <input type="text" class="drum-unit-input" id="drum-unit" value="${unit}" placeholder="個">
+            <div class="drum-label">単位</div>
+          </div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:#4a8ad0;margin:4px 0 16px;text-align:center;font-weight:500" id="remaining-label">
+        残り：待機中
+      </div>
+      <button class="submit-btn" onclick="confirmPartialBuy('${id}',${originalNum},'${originalQty}')">✓ 購入済みにする</button>
+    </div>
+  </div>`;
+  // ドラムロール初期化（テンプレートリテラルの外で実行）
+  setTimeout(()=>initDrum('drum-picker','drum-list', originalNum, 1, originalNum-1, unit), 50);
+}
+
+async function confirmPartialBuy(id, originalNum, originalQty){
+  const boughtNum=window._drumValue||originalNum;
+  if(boughtNum<=0){showToast('1以上の数を入力してください');return;}
+  const remaining=originalNum-boughtNum;
+  const boughtAt=new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0){closeModal();return;}
+  const srcItem=pending[idx];
+  const unit=String(originalQty).replace(/\d+/,'').trim()||'個';
+
+  // 購入済みアイテム（依頼数・購入数を両方保持）
+  const doneItem={
+    ...srcItem,
+    boughtAt,
+    requestedQty:originalQty,
+    boughtQty:`${boughtNum}${unit}`,
+    qty:`${boughtNum}${unit}`
+  };
+
+  if(remaining>0){
+    // 残りを要購入に残す（個数更新）
+    pending[idx]={...srcItem,qty:`${remaining}${unit}`};
+    done.unshift(doneItem);
+    closeModal();
+    renderAdmin();
+    showToast(`${boughtNum}${unit}購入済み・残り${remaining}${unit}を要購入に残しました`);
+    try{
+      await apiPost({action:'partialBuy',id:String(id),boughtAt,
+        boughtQty:`${boughtNum}${unit}`,requestedQty:originalQty,
+        remainingQty:`${remaining}${unit}`});
+    }catch(e){
+      // ロールバック
+      pending[idx]=srcItem;done.shift();
+      renderAdmin();showErr('失敗: '+e.message);
+    }
+  } else {
+    // 全数購入
+    pending.splice(idx,1);
+    done.unshift(doneItem);
+    closeModal();
+    renderAdmin();
+    showToast('全数購入済みにしました ✓');
+    try{
+      await apiPost({action:'moveToDone',id:String(id),boughtAt,
+        boughtQty:`${boughtNum}${unit}`,requestedQty:originalQty});
+    }catch(e){
+      pending.splice(idx,0,srcItem);done.shift();
+      renderAdmin();showErr('失敗: '+e.message);
+    }
+  }
+}
+async function deleteItem(id,list){
+  if(!confirm('削除しますか？'))return;
+  const arr=list==='pending'?pending:list==='hold'?hold:done;
+  const idx=arr.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const item=arr[idx];
+  arr.splice(idx,1);
+  renderAdmin();showToast('削除しました');
+  try{await apiPost({action:list==='pending'?'deletePending':list==='hold'?'deleteHold':'deleteDone',id:String(id)});}
+  catch(e){arr.splice(idx,0,item);renderAdmin();showErr('失敗: '+e.message);}
+}
+
+(async()=>{await loadAll();renderStaff();})();
+
+/* ── ライトボックス（ピンチ拡縮対応） ── */
+function openLightbox(src){
+  const lb=document.createElement('div');
+  lb.className='lightbox';
+  lb.innerHTML=`<div class="lightbox-close" id="lb-close">✕</div><img src="${src}" alt="" id="lb-img" style="touch-action:none;cursor:zoom-in">`;
+  document.body.appendChild(lb);
+
+  const img=document.getElementById('lb-img');
+  const closeBtn=document.getElementById('lb-close');
+  let scale=1, minScale=0.5, maxScale=5;
+  let lastDist=0, isDragging=false;
+  let startX=0,startY=0,translateX=0,translateY=0,lastTX=0,lastTY=0;
+
+  function applyTransform(){
+    img.style.transform=`translate(${translateX}px,${translateY}px) scale(${scale})`;
+  }
+
+  // ピンチ
+  img.addEventListener('touchstart',e=>{
+    if(e.touches.length===2){
+      lastDist=Math.hypot(
+        e.touches[0].clientX-e.touches[1].clientX,
+        e.touches[0].clientY-e.touches[1].clientY
+      );
+    } else if(e.touches.length===1){
+      isDragging=true;
+      startX=e.touches[0].clientX-lastTX;
+      startY=e.touches[0].clientY-lastTY;
+    }
+    e.stopPropagation();
+  },{passive:true});
+
+  img.addEventListener('touchmove',e=>{
+    if(e.touches.length===2){
+      const dist=Math.hypot(
+        e.touches[0].clientX-e.touches[1].clientX,
+        e.touches[0].clientY-e.touches[1].clientY
+      );
+      if(lastDist>0){
+        scale=Math.min(maxScale,Math.max(minScale,scale*(dist/lastDist)));
+        applyTransform();
+      }
+      lastDist=dist;
+    } else if(e.touches.length===1&&isDragging){
+      translateX=e.touches[0].clientX-startX;
+      translateY=e.touches[0].clientY-startY;
+      applyTransform();
+    }
+    e.preventDefault();
+  },{passive:false});
+
+  img.addEventListener('touchend',e=>{
+    lastDist=0;
+    if(e.touches.length===0){
+      isDragging=false;
+      lastTX=translateX;lastTY=translateY;
+    }
+  },{passive:true});
+
+  // ダブルタップでリセット
+  let lastTap=0;
+  img.addEventListener('touchend',e=>{
+    const now=Date.now();
+    if(now-lastTap<300){
+      scale=1;translateX=0;translateY=0;lastTX=0;lastTY=0;
+      applyTransform();
+    }
+    lastTap=now;
+  },{passive:true});
+
+  // PCマウスホイールでズーム
+  img.addEventListener('wheel',e=>{
+    e.preventDefault();
+    scale=Math.min(maxScale,Math.max(minScale,scale+(e.deltaY<0?0.15:-0.15)));
+    applyTransform();
+  },{passive:false});
+
+  // 閉じる（背景クリック or ✕ボタン）
+  closeBtn.addEventListener('click',e=>{e.stopPropagation();lb.remove();});
+  lb.addEventListener('click',e=>{if(e.target===lb)lb.remove();});
+}
+
+/* ── ドラムロール ── */
+function initDrum(pickerId, listId, max, initVal, initRemain, unit){
+  const list=document.getElementById(listId);
+  const picker=document.getElementById(pickerId);
+  if(!list||!picker)return;
+
+  const ITEM_H=42;
+  const items=[];
+  for(let i=1;i<=max;i++)items.push(i);
+
+  // リスト生成（前後にパディング用ダミー）
+  const pad=1;
+  let innerHtml='';
+  for(let p=0;p<pad;p++) innerHtml+=`<div class="drum-item" style="height:${ITEM_H}px"></div>`;
+  items.forEach((v,i)=>{ innerHtml+=`<div class="drum-item${v===initVal?' selected':''}" data-val="${v}" style="height:${ITEM_H}px">${v}</div>`; });
+  for(let p=0;p<pad;p++) innerHtml+=`<div class="drum-item" style="height:${ITEM_H}px"></div>`;
+  list.innerHTML=innerHtml;
+
+  let currentIdx=initVal-1; // 0-indexed
+  window._drumValue=initVal;
+
+  function scrollTo(idx, animate){
+    idx=Math.max(0,Math.min(items.length-1,idx));
+    currentIdx=idx;
+    window._drumValue=items[idx];
+    const offset=-(idx*ITEM_H);
+    list.style.transition=animate?'transform .2s cubic-bezier(.25,.46,.45,.94)':'none';
+    list.style.transform=`translateY(${offset}px)`;
+    // selected更新
+    list.querySelectorAll('.drum-item[data-val]').forEach(el=>{
+      el.classList.toggle('selected',parseInt(el.dataset.val)===items[idx]);
+    });
+    // 残り数更新
+    const rem=max-items[idx];
+    const unitVal=document.getElementById('drum-unit')?.value||unit;
+    const lbl=document.getElementById('remaining-label');
+    if(lbl)lbl.textContent=rem>0?`残り：${rem}${unitVal} → 要購入に残ります`:`全数購入（要購入から削除）`;
+  }
+
+  // 初期位置
+  scrollTo(initVal-1, false);
+
+  // タッチ・マウスドラッグ
+  let startY=0, startIdx=0, dragging=false;
+
+  function onStart(y){startY=y;startIdx=currentIdx;dragging=true;}
+  function onMove(y){
+    if(!dragging)return;
+    const diff=Math.round((startY-y)/ITEM_H);
+    scrollTo(startIdx+diff, false);
+  }
+  function onEnd(){dragging=false;}
+
+  picker.addEventListener('touchstart',e=>{onStart(e.touches[0].clientY);},{passive:true});
+  picker.addEventListener('touchmove',e=>{onMove(e.touches[0].clientY);e.preventDefault();},{passive:false});
+  picker.addEventListener('touchend',()=>onEnd());
+  picker.addEventListener('mousedown',e=>{onStart(e.clientY);});
+  window.addEventListener('mousemove',e=>{if(dragging)onMove(e.clientY);});
+  window.addEventListener('mouseup',()=>onEnd());
+
+  // ホイール
+  picker.addEventListener('wheel',e=>{
+    e.preventDefault();
+    scrollTo(currentIdx+(e.deltaY>0?1:-1),true);
+  },{passive:false});
+}
+</script>
+</body>
+</html>
