@@ -165,7 +165,7 @@ input[type=file]{display:none}
 
 <script>
 const APP_VERSION='2026-06-20-01'; // 更新時にこの値を変えると新バージョン検知に使えます
-const GAS_URL='https://script.google.com/macros/s/AKfycbxhMOfpvb9Wqz7riGkJiMdRBw6AtKIfIAqbJbnoauhUcQEAUpe0ShdrApRGsPxynHnf9w/exec';
+const GAS_URL='https://script.google.com/macros/s/AKfycbypAbUfpGQdbOg_wek9H2duvsUgIdlgQikT4MmIGN5jp8T0HyB3LBI7Np2veUoCi0zVWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 const CATS=[
   {id:'kyozai',label:'保育教材費'},
@@ -324,15 +324,19 @@ async function updateCat(id,newCat){
 }
 
 async function updatePlace(id,newPlace){
-  const idx=pending.findIndex(i=>i.id===id);
+  // pending・done・holdのどれかを探す
+  let arr=pending, arrName='pending';
+  let idx=pending.findIndex(i=>i.id===id);
+  if(idx<0){idx=done.findIndex(i=>i.id===id);arr=done;arrName='done';}
+  if(idx<0){idx=hold.findIndex(i=>i.id===id);arr=hold;arrName='hold';}
   if(idx<0)return;
-  const oldPlace=pending[idx].place;
-  pending[idx]={...pending[idx],place:newPlace};
-  // カスタム場所をmasterに追加
+  const oldPlace=arr[idx].place;
+  arr[idx]={...arr[idx],place:newPlace};
   if(newPlace&&!allPlaces().includes(newPlace))masterPlaces.push(newPlace);
   renderAdmin();
-  try{await apiPost({action:'updateItem',id:String(id),fields:{place:newPlace}});}
-  catch(e){pending[idx]={...pending[idx],place:oldPlace};renderAdmin();showErr('更新失敗: '+e.message);}
+  const action=arrName==='pending'?'updateItem':arrName==='done'?'updateDoneItem':'updateHoldItem';
+  try{await apiPost({action:'updateItem',id:String(id),fields:{place:newPlace},sheet:arrName});}
+  catch(e){arr[idx]={...arr[idx],place:oldPlace};renderAdmin();showErr('更新失敗: '+e.message);}
 }
 
 /* ════ 画像ヘルパー ════ */
@@ -730,7 +734,7 @@ function renderPendingList(){
   let html='';
   if(sortKey1==='date'){
     items=[...items].sort((a,b)=>Number(b.id)-Number(a.id));
-    html=items.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true})).join('');
+    html=items.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true,placeEditable:true})).join('');
     html=`<div class="group-block"><div class="group-label">📅 すべて（新しい順）<span style="font-size:11px;color:#8ab0cc;font-weight:400;margin-left:4px">${items.length}件</span></div>${html}</div>`;
   } else {
     const g1={};
@@ -738,14 +742,14 @@ function renderPendingList(){
     Object.entries(g1).forEach(([k1,its1])=>{
       let inner='';
       if(sortKey2==='none'||sortKey2===sortKey1){
-        inner=its1.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true})).join('');
+        inner=its1.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true,placeEditable:true})).join('');
       } else {
         const g2={};
         its1.forEach(i=>{const k=keyFn(sortKey2,i);if(!g2[k])g2[k]=[];g2[k].push(i);});
         inner=Object.entries(g2).map(([k2,its2])=>`
           <div style="margin-left:8px;margin-bottom:10px">
             <div class="group-label" style="font-size:10px;opacity:.75">${grpIcon(sortKey2)} ${esc(k2)}<span style="font-size:10px;color:#8ab0cc;font-weight:400;margin-left:4px">${its2.length}件</span></div>
-            ${its2.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true})).join('')}
+            ${its2.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true,placeEditable:true})).join('')}
           </div>`).join('');
       }
       html+=`<div class="group-block"><div class="group-label">${grpIcon(sortKey1)} ${esc(k1)}<span style="font-size:11px;color:#8ab0cc;font-weight:400;margin-left:4px">${its1.length}件</span></div>${inner}</div>`;
@@ -828,12 +832,12 @@ function groupedCards(items,s1,s2,cardOpts){
 
 function renderHoldList(){
   if(!hold.length)return'<div class="empty"><span class="empty-icon">⏸</span>保留中のアイテムはありません</div>';
-  return`<div class="section" style="padding-top:10px">${sortBar2('holdSort1','holdSort2')}${groupedCards(hold,holdSort1,holdSort2,{holdToPublicBtn:true,deleteBtn:true,isDone:false})}</div>`;
+  return`<div class="section" style="padding-top:10px">${sortBar2('holdSort1','holdSort2')}${groupedCards(hold,holdSort1,holdSort2,{holdToPublicBtn:true,deleteBtn:true,isDone:false,placeEditable:true})}</div>`;
 }
 
 function renderDoneList(){
   if(!done.length)return'<div class="empty"><span class="empty-icon">🛍</span>購入済アイテムはありません</div>';
-  return`<div class="section" style="padding-top:10px">${sortBar2('doneSort1','doneSort2')}${groupedCards(done,doneSort1,doneSort2,{doneToPublicBtn:true,rebuyBtn:true,deleteBtn:true,isDone:true})}</div>`;
+  return`<div class="section" style="padding-top:10px">${sortBar2('doneSort1','doneSort2')}${groupedCards(done,doneSort1,doneSort2,{doneToPublicBtn:true,rebuyBtn:true,deleteBtn:true,isDone:true,placeEditable:true})}</div>`;
 }
 
 /* ── マスタ管理タブ ─── */
