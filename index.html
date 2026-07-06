@@ -323,6 +323,32 @@ async function updateCat(id,newCat){
   catch(e){pending[idx]={...pending[idx],cat:oldCat};renderAdmin();showErr('更新失敗: '+e.message);}
 }
 
+function onPlaceSelectChange(id){
+  const sel=document.getElementById('ps-'+id);
+  const inp=document.getElementById('pn-'+id);
+  if(!sel||!inp)return;
+  if(sel.value==='__new__'){
+    inp.style.display='block';
+    sel.style.display='none';
+    inp.focus();
+  } else {
+    updatePlace(id,sel.value);
+  }
+}
+function onPlaceNewBlur(id){
+  const inp=document.getElementById('pn-'+id);
+  const sel=document.getElementById('ps-'+id);
+  if(!inp)return;
+  const val=inp.value.trim();
+  if(val){
+    updatePlace(id,val);
+  } else {
+    // キャンセル：元に戻す
+    if(sel)sel.style.display='block';
+    inp.style.display='none';
+  }
+}
+
 async function updatePlace(id,newPlace){
   // pending・done・holdのどれかを探す
   let arr=pending, arrName='pending';
@@ -891,11 +917,17 @@ function itemCardHTML(i,opts={}){
     ?`<select class="cat-select-inline" onchange="updateCat('${i.id}',this.value)">${CATS.map(c=>`<option value="${c.id}"${c.id===(i.cat||'zappi')?' selected':''}>${c.label}</option>`).join('')}</select>`
     :`<span class="cat-badge ${getCatClass(i.cat)}">${getCatLabel(i.cat||'zappi')}</span>`;
   const placeBadge=placeEditable
-    ?`<select class="cat-select-inline" onchange="updatePlace('${i.id}',this.value)" style="max-width:110px">
-        <option value="">📍 場所未定</option>
-        ${allPlaces().map(p=>`<option value="${esc(p)}"${i.place===p?' selected':''}>${esc(p)}</option>`).join('')}
-        ${i.place&&!allPlaces().includes(i.place)?`<option value="${esc(i.place)}" selected>${esc(i.place)}</option>`:''}
-      </select>`
+    ?`<div style="display:flex;flex-direction:column;gap:3px">
+        <select class="cat-select-inline" id="ps-${i.id}" onchange="onPlaceSelectChange('${i.id}')" style="max-width:130px">
+          <option value="">📍 場所未定</option>
+          ${allPlaces().map(p=>`<option value="${esc(p)}"${i.place===p?' selected':''}>${esc(p)}</option>`).join('')}
+          ${i.place&&!allPlaces().includes(i.place)?`<option value="${esc(i.place)}" selected>${esc(i.place)}</option>`:''}
+          <option value="__new__">＋ その他（直接入力）</option>
+        </select>
+        <input type="text" id="pn-${i.id}" placeholder="購入場所を入力"
+          style="display:none;font-size:12px;padding:4px 8px;border:1px solid #c8dfe6;border-radius:8px;background:#fbf9f2;color:#2a4a55;width:130px"
+          onblur="onPlaceNewBlur('${i.id}')">
+      </div>`
     :(i.place?`<span>📍${esc(i.place)}</span>`:'');
   const imgSlot=`<div class="img-slot">${i.img?`<img src="${esc(i.img)}" alt="" onclick="openLightbox('${esc(i.img)}')" style="cursor:zoom-in">`:`<span class="img-slot-empty">📷</span>`}</div>`;
   return`<div class="item-card${isDone?' done':''}">
@@ -912,9 +944,11 @@ function itemCardHTML(i,opts={}){
       </div>
       <div class="item-meta">
         ${catBadge}
-        ${i.garden?`<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:#e3eef2;color:#5a8a9c;font-weight:600">🏫 ${esc(i.garden)}</span>`:''}
-        ${i.requester?`<span class="requester-tag">👤 ${esc(i.requester)}</span>`:''}
         ${placeEditable?placeBadge:(i.place?`<span>📍${esc(i.place)}</span>`:'')}
+      </div>
+      <div class="item-meta" style="margin-top:3px">
+        ${i.requester?`<span class="requester-tag">👤 ${esc(i.requester)}</span>`:''}
+        ${i.garden?`<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:#e3eef2;color:#5a8a9c;font-weight:600">🏫 ${esc(i.garden)}</span>`:''}
       </div>
       ${i.url?`<a class="url-link" href="${esc(i.url)}" target="_blank">🔗 ${shortUrl(i.url)}</a>`:''}
       ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
