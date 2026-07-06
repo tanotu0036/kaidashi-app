@@ -154,6 +154,7 @@ input[type=file]{display:none}
 <script>
 const APP_VERSION='2026-06-20-01'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbzH_IODJ4GQaTMG0Chi0t3lcf3R5fPBccOcVh6PrGrfhuYtz9aMHcLn57d6Gm5GGKMQ3A/exec';
+let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 const CATS=[
   {id:'kyozai',label:'保育教材費'},
   {id:'shoumou',label:'消耗品'},
@@ -1055,10 +1056,12 @@ async function deleteItem(id,list){
 }
 
 (async()=>{
+  if(!currentGarden){
+    showGardenOverlay();
+  }
   await loadAll();
+  updateGardenHeader();
   renderStaff();
-  // バージョンチェック用：5分ごとにキャッシュを無視して最新HTMLを再取得し、
-  // 内容が変わっていたら自動リロードする
   startVersionWatcher();
 })();
 
