@@ -199,10 +199,20 @@ function hideGardenOverlay(){
   document.getElementById('garden-overlay').style.display='none';
 }
 function selectGarden(name){
+  const prev=currentGarden;
   currentGarden=name;
   localStorage.setItem('kaidashi_garden',name);
   hideGardenOverlay();
   updateGardenHeader();
+  // 園が変わったらデータを再読み込み
+  if(prev!==name){
+    pending=[];done=[];hold=[];masterRequesters=[];masterPlaces=[];
+    staffTab='request';adminTab='pending';
+    if(mode==='staff')renderStaff();else renderAdmin();
+    loadAll().then(()=>{
+      if(mode==='staff')renderStaff();else renderAdmin();
+    });
+  }
 }
 function updateGardenHeader(){
   const el=document.getElementById('header-garden');
