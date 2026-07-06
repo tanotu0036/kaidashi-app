@@ -11,10 +11,17 @@
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;font-size:15px;color:#2a4a55;background:#f9f6f0;min-height:100vh}
 .app{max-width:480px;margin:0 auto;padding:0 0 80px;background:#f9f6f0;min-height:100vh}
-.header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid #e8f0f2;background:#8fb8c8;position:sticky;top:0;z-index:10}
-.header h1{font-size:16px;font-weight:700;color:#fff}
-.mode-btn{font-size:12px;padding:5px 12px;border:1px solid rgba(255,255,255,.4);border-radius:20px;background:rgba(255,255,255,.25);color:#fff;cursor:pointer;white-space:nowrap}
-.mode-btn:hover{background:rgba(255,255,255,.35)}
+.header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:10px 12px;border-bottom:1px solid #b8d8e8;background:#8fb8c8;position:sticky;top:0;z-index:10;gap:6px}
+.header-garden{font-size:15px;font-weight:700;color:#fff;text-align:center;padding:4px 8px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.header-garden:hover{opacity:.8}
+.header-left{display:flex;justify-content:flex-start}
+.header-right{display:flex;justify-content:flex-end}
+.mode-btn{font-size:12px;padding:6px 12px;border:1px solid rgba(255,255,255,.5);border-radius:20px;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;white-space:nowrap;font-weight:500}
+.mode-btn:hover{background:rgba(255,255,255,.2)}
+.mode-btn.active{background:#fff;color:#5a8a9c;border-color:#fff;font-weight:700}
+.header-side-btn{font-size:12px;padding:6px 12px;border:1px solid rgba(255,255,255,.5);border-radius:20px;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;white-space:nowrap;font-weight:500}
+.header-side-btn:hover{background:rgba(255,255,255,.2)}
+.header-side-btn.active{background:#fff;color:#5a8a9c;border-color:#fff;font-weight:700}
 .loading-overlay{position:fixed;inset:0;background:rgba(249,246,240,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;gap:12px}
 .spinner{width:36px;height:36px;border:3px solid #e8f0f2;border-top-color:#8fb8c8;border-radius:50%;animation:spin .7s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
@@ -137,8 +144,13 @@ input[type=file]{display:none}
 </div>
 <div class="app">
   <div class="header">
-    <h1 id="header-title" onclick="changeGarden()" style="cursor:pointer;flex:1">🛒 買出しリクエスト画面</h1>
-    <button class="mode-btn" id="mode-toggle" onclick="toggleMode()">⚙ 買出し管理画面</button>
+    <div class="header-left">
+      <button class="header-side-btn" id="staff-btn" onclick="goStaff()">リクエスト画面</button>
+    </div>
+    <div class="header-garden" id="header-garden" onclick="changeGarden()">園を選択してください</div>
+    <div class="header-right">
+      <button class="mode-btn" id="mode-toggle" onclick="goAdmin()">買出し画面</button>
+    </div>
   </div>
   <div id="err-banner" class="err-banner"></div>
   <div id="staff-view"></div>
@@ -153,7 +165,7 @@ input[type=file]{display:none}
 
 <script>
 const APP_VERSION='2026-06-20-01'; // 更新時にこの値を変えると新バージョン検知に使えます
-const GAS_URL='https://script.google.com/macros/s/AKfycbzH_IODJ4GQaTMG0Chi0t3lcf3R5fPBccOcVh6PrGrfhuYtz9aMHcLn57d6Gm5GGKMQ3A/exec';
+const GAS_URL='https://script.google.com/macros/s/AKfycbxhMOfpvb9Wqz7riGkJiMdRBw6AtKIfIAqbJbnoauhUcQEAUpe0ShdrApRGsPxynHnf9w/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 const CATS=[
   {id:'kyozai',label:'保育教材費'},
@@ -193,10 +205,15 @@ function selectGarden(name){
   updateGardenHeader();
 }
 function updateGardenHeader(){
-  const h1=document.getElementById('header-title');
-  if(h1){
-    const modeLabel=mode==='staff'?'🛒 買出しリクエスト画面':'📋 買出し管理画面';
-    h1.innerHTML=`${modeLabel} <span class="garden-badge">${esc(currentGarden)}</span>`;
+  const el=document.getElementById('header-garden');
+  if(el) el.textContent=currentGarden||'園を選択してください';
+  const staffBtn=document.getElementById('staff-btn');
+  const adminBtn=document.getElementById('mode-toggle');
+  if(staffBtn){
+    staffBtn.classList.toggle('active', mode==='staff');
+  }
+  if(adminBtn){
+    adminBtn.classList.toggle('active', mode==='admin');
   }
 }
 function changeGarden(){
@@ -207,7 +224,7 @@ function showToast(msg){const t=document.getElementById('toast');t.textContent=m
 
 /* ── API ─── */
 async function apiGet(){
-  const res=await fetch(GAS_URL+'?action=getAll&t='+Date.now(),{redirect:'follow'});
+  const res=await fetch(GAS_URL+'?action=getAll&garden='+encodeURIComponent(currentGarden)+'&t='+Date.now(),{redirect:'follow'});
   return JSON.parse(await res.text());
 }
 async function apiPost(payload){
@@ -250,20 +267,32 @@ function renderModeBtn(){
   const btn=document.getElementById('mode-toggle');
   if(!btn)return;
   if(mode==='staff'){
-    btn.innerHTML=`⚙ 管理者${pending.length>0?` <span style="background:#e05a7a;color:#fff;border-radius:20px;font-size:11px;padding:1px 7px;font-weight:700;margin-left:2px">${pending.length}</span>`:''}`;
+    btn.innerHTML=`買出し画面${pending.length>0?` <span style="background:#e05a7a;color:#fff;border-radius:20px;font-size:11px;padding:1px 7px;font-weight:700;margin-left:2px">${pending.length}</span>`:''}`;
   } else {
-    btn.innerHTML='👤 買出しリクエスト画面';
+    btn.innerHTML='買出し画面';
   }
+  updateGardenHeader();
+}
+function goStaff(){
+  if(mode==='staff')return;
+  mode='staff';
+  document.getElementById('staff-view').style.display='block';
+  document.getElementById('admin-view').style.display='none';
+  updateGardenHeader();
+  renderStaff();
+  loadAll(true).then(()=>renderStaff());
+}
+function goAdmin(){
+  if(mode==='admin')return;
+  mode='admin';
+  document.getElementById('staff-view').style.display='none';
+  document.getElementById('admin-view').style.display='block';
+  updateGardenHeader();
+  renderAdmin();
+  loadAll(true).then(()=>renderAdmin());
 }
 function toggleMode(){
-  mode=mode==='staff'?'admin':'staff';
-  document.getElementById('header-title').textContent=mode==='staff'?'🛒 買出しリクエスト画面':'📋 買出し管理画面';
-  renderModeBtn();
-  document.getElementById('staff-view').style.display=mode==='staff'?'block':'none';
-  document.getElementById('admin-view').style.display=mode==='admin'?'block':'none';
-  updateGardenHeader();
-  if(mode==='admin')renderAdmin();else renderStaff();
-  loadAll(true).then(()=>{if(mode==='admin')renderAdmin();else renderStaff();});
+  if(mode==='staff') goAdmin(); else goStaff();
 }
 
 /* ── 再購入 ─── */
