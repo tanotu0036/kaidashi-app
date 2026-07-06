@@ -82,6 +82,7 @@ input[type=file]{display:none}
 .bc-torig{background:#e6e2d4;color:#6a6858}
 .bc-diy{background:#c8e8dc;color:#0a6a50}
 .bc-zappi{background:#e2dce8;color:#5a4a70}
+.bc-fukuri{background:#fce8d8;color:#a35a20}
 .requester-tag{font-size:11px;padding:2px 8px;border-radius:20px;background:#f0e6d8;color:#9a7a55;font-weight:500}
 .qty-alert{font-size:12px;font-weight:700;color:#c0664a}
 .cat-select-inline{border:1px solid #c8dfe6;border-radius:8px;font-size:12px;padding:3px 6px;background:#fbf9f2;color:#2a4a55;width:auto}
@@ -113,13 +114,31 @@ input[type=file]{display:none}
 @keyframes lb-in{from{opacity:0}to{opacity:1}}
 .lightbox img{max-width:92vw;max-height:88vh;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.5);object-fit:contain;transition:transform .05s linear;will-change:transform}
 .lightbox-close{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.2);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid rgba(255,255,255,.3)}
+
+/* 園選択オーバーレイ */
+.garden-overlay{position:fixed;inset:0;background:#f9f6f0;z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px}
+.garden-overlay h2{font-size:20px;font-weight:700;color:#2a4a55;margin-bottom:8px;text-align:center}
+.garden-overlay p{font-size:13px;color:#5a8a9c;margin-bottom:32px;text-align:center}
+.garden-btn{width:100%;max-width:340px;padding:16px;margin-bottom:12px;border:2px solid #d4e6ec;border-radius:16px;background:#fff;font-size:16px;font-weight:600;color:#2a4a55;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(143,184,200,.1);transition:all .15s}
+.garden-btn:hover{border-color:#8fb8c8;background:#eef6f8;transform:translateX(4px)}
+.garden-btn .g-icon{font-size:24px}
+.garden-badge{display:inline-block;font-size:11px;padding:2px 10px;border-radius:20px;background:#e3eef2;color:#5a8a9c;font-weight:600;margin-left:8px;vertical-align:middle}
 </style>
 </head>
 <body>
+<div id="garden-overlay" class="garden-overlay" style="display:none">
+  <div style="font-size:48px;margin-bottom:16px">🛒</div>
+  <h2>買出しリクエスト</h2>
+  <p>使用する園を選択してください</p>
+  <button class="garden-btn" onclick="selectGarden('西新こども保育園')"><span class="g-icon">🌸</span>西新こども保育園</button>
+  <button class="garden-btn" onclick="selectGarden('原こども保育園')"><span class="g-icon">🌿</span>原こども保育園</button>
+  <button class="garden-btn" onclick="selectGarden('たの津こども保育園')"><span class="g-icon">🌊</span>たの津こども保育園</button>
+  <button class="garden-btn" onclick="selectGarden('ちくし野こども保育園')"><span class="g-icon">🌾</span>ちくし野こども保育園</button>
+</div>
 <div class="app">
   <div class="header">
-    <h1 id="header-title">🛒 買出しリクエスト画面</h1>
-    <button class="mode-btn" id="mode-toggle" onclick="toggleMode()">⚙ 管理者</button>
+    <h1 id="header-title" onclick="changeGarden()" style="cursor:pointer;flex:1">🛒 買出しリクエスト画面</h1>
+    <button class="mode-btn" id="mode-toggle" onclick="toggleMode()">⚙ 買出し管理画面</button>
   </div>
   <div id="err-banner" class="err-banner"></div>
   <div id="staff-view"></div>
@@ -142,6 +161,7 @@ const CATS=[
   {id:'cake',label:'誕生日ケーキ'},
   {id:'torig',label:'トリグ（お米）'},
   {id:'diy',label:'DIY'},
+  {id:'fukuri',label:'福利厚生費'},
   {id:'zappi',label:'雑費'},
 ];
 const DEFAULT_PLACES=['ダイソー','セリア','ドラッグストア','ホームセンター','文房具店','Amazon'];
@@ -159,6 +179,29 @@ let filterCat='all',filterPlace='all';
 function showLoading(msg='処理中…'){document.getElementById('loading-text').textContent=msg;document.getElementById('loading').style.display='flex';}
 function hideLoading(){document.getElementById('loading').style.display='none';}
 function showErr(msg){const b=document.getElementById('err-banner');b.textContent='⚠ '+msg;b.style.display='block';setTimeout(()=>b.style.display='none',6000);}
+function showGardenOverlay(){
+  document.getElementById('garden-overlay').style.display='flex';
+}
+function hideGardenOverlay(){
+  document.getElementById('garden-overlay').style.display='none';
+}
+function selectGarden(name){
+  currentGarden=name;
+  localStorage.setItem('kaidashi_garden',name);
+  hideGardenOverlay();
+  updateGardenHeader();
+}
+function updateGardenHeader(){
+  const h1=document.getElementById('header-title');
+  if(h1){
+    const modeLabel=mode==='staff'?'🛒 買出しリクエスト画面':'📋 買出し管理画面';
+    h1.innerHTML=`${modeLabel} <span class="garden-badge">${esc(currentGarden)}</span>`;
+  }
+}
+function changeGarden(){
+  showGardenOverlay();
+}
+
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
 
 /* ── API ─── */
@@ -208,7 +251,7 @@ function renderModeBtn(){
   if(mode==='staff'){
     btn.innerHTML=`⚙ 管理者${pending.length>0?` <span style="background:#e05a7a;color:#fff;border-radius:20px;font-size:11px;padding:1px 7px;font-weight:700;margin-left:2px">${pending.length}</span>`:''}`;
   } else {
-    btn.innerHTML='👤 職員';
+    btn.innerHTML='👤 買出しリクエスト画面';
   }
 }
 function toggleMode(){
@@ -217,6 +260,7 @@ function toggleMode(){
   renderModeBtn();
   document.getElementById('staff-view').style.display=mode==='staff'?'block':'none';
   document.getElementById('admin-view').style.display=mode==='admin'?'block':'none';
+  updateGardenHeader();
   if(mode==='admin')renderAdmin();else renderStaff();
   loadAll(true).then(()=>{if(mode==='admin')renderAdmin();else renderStaff();});
 }
@@ -237,6 +281,18 @@ async function updateCat(id,newCat){
   renderAdmin();
   try{await apiPost({action:'updateCat',id:String(id),cat:newCat});}
   catch(e){pending[idx]={...pending[idx],cat:oldCat};renderAdmin();showErr('更新失敗: '+e.message);}
+}
+
+async function updatePlace(id,newPlace){
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const oldPlace=pending[idx].place;
+  pending[idx]={...pending[idx],place:newPlace};
+  // カスタム場所をmasterに追加
+  if(newPlace&&!allPlaces().includes(newPlace))masterPlaces.push(newPlace);
+  renderAdmin();
+  try{await apiPost({action:'updateItem',id:String(id),fields:{place:newPlace}});}
+  catch(e){pending[idx]={...pending[idx],place:oldPlace};renderAdmin();showErr('更新失敗: '+e.message);}
 }
 
 /* ════ 画像ヘルパー ════ */
@@ -398,7 +454,7 @@ async function submitItem(){
   const img=getImgData('f-img-preview');
   const btn=document.getElementById('submit-btn');if(btn)btn.disabled=true;
   try{
-    const newItem={id:String(Date.now()),requester,name,qty,cat:'zappi',place,url,memo,img,created:new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'})};
+    const newItem={id:String(Date.now()),garden:currentGarden,requester,name,qty,cat:'kyozai',place,url,memo,img,created:new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'})};
     pending.unshift(newItem);
     // mastersも即時更新
     if(requester&&!masterRequesters.includes(requester))masterRequesters.push(requester);
@@ -484,7 +540,7 @@ async function submitRebuy(srcId){
 
   const src=done.find(i=>i.id===srcId);
   if(!src)return;
-  const newItem={...src,id:String(Date.now()),requester,qty,place,memo,
+  const newItem={...src,id:String(Date.now()),garden:currentGarden,requester,qty,place,memo,
                  created:new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'})};
   delete newItem.boughtAt;delete newItem.heldAt;
 
@@ -786,10 +842,17 @@ async function deleteMaster(type, value){
 
 /* ── 共通カードHTML ─── */
 function itemCardHTML(i,opts={}){
-  const {checkBox,cancelBtn,editBtn,rebuyBtn,holdBtn,holdToPublicBtn,doneToPublicBtn,deleteBtn,isDone,catEditable}=opts;
+  const {checkBox,cancelBtn,editBtn,rebuyBtn,holdBtn,holdToPublicBtn,doneToPublicBtn,deleteBtn,isDone,catEditable,placeEditable}=opts;
   const catBadge=catEditable
     ?`<select class="cat-select-inline" onchange="updateCat('${i.id}',this.value)">${CATS.map(c=>`<option value="${c.id}"${c.id===(i.cat||'zappi')?' selected':''}>${c.label}</option>`).join('')}</select>`
     :`<span class="cat-badge ${getCatClass(i.cat)}">${getCatLabel(i.cat||'zappi')}</span>`;
+  const placeBadge=placeEditable
+    ?`<select class="cat-select-inline" onchange="updatePlace('${i.id}',this.value)" style="max-width:110px">
+        <option value="">📍 場所未定</option>
+        ${allPlaces().map(p=>`<option value="${esc(p)}"${i.place===p?' selected':''}>${esc(p)}</option>`).join('')}
+        ${i.place&&!allPlaces().includes(i.place)?`<option value="${esc(i.place)}" selected>${esc(i.place)}</option>`:''}
+      </select>`
+    :(i.place?`<span>📍${esc(i.place)}</span>`:'');
   const imgSlot=`<div class="img-slot">${i.img?`<img src="${esc(i.img)}" alt="" onclick="openLightbox('${esc(i.img)}')" style="cursor:zoom-in">`:`<span class="img-slot-empty">📷</span>`}</div>`;
   return`<div class="item-card${isDone?' done':''}">
     ${checkBox?`<input type="checkbox" class="chk" onchange="checkItem('${i.id}',this.checked)">`:''}
@@ -805,8 +868,9 @@ function itemCardHTML(i,opts={}){
       </div>
       <div class="item-meta">
         ${catBadge}
+        ${i.garden?`<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:#e3eef2;color:#5a8a9c;font-weight:600">🏫 ${esc(i.garden)}</span>`:''}
         ${i.requester?`<span class="requester-tag">👤 ${esc(i.requester)}</span>`:''}
-        ${i.place?`<span>📍${esc(i.place)}</span>`:''}
+        ${placeEditable?placeBadge:(i.place?`<span>📍${esc(i.place)}</span>`:'')}
       </div>
       ${i.url?`<a class="url-link" href="${esc(i.url)}" target="_blank">🔗 ${shortUrl(i.url)}</a>`:''}
       ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
