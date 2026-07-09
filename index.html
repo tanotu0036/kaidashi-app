@@ -56,10 +56,10 @@ input[type=file]{display:none}
 .sort-bar select{font-size:13px;padding:6px 10px}
 .group-block{margin-bottom:16px}
 .group-label{font-size:11px;font-weight:700;color:#5a8a9c;letter-spacing:.06em;margin-bottom:7px;display:flex;align-items:center;gap:5px}
-.item-card{background:#fffdf8;border:1px solid #e8f0f2;border-radius:12px;padding:11px 12px;display:flex;align-items:flex-start;gap:10px;margin-bottom:8px;box-shadow:0 1px 6px rgba(143,184,200,.08)}
+.item-card{background:#fffdf8;border:1px solid #e8f0f2;border-radius:12px;padding:11px 12px;display:flex;align-items:stretch;gap:10px;margin-bottom:8px;box-shadow:0 1px 6px rgba(143,184,200,.08)}
 .item-card.done{}
-.chk{width:22px;height:22px;flex-shrink:0;cursor:pointer;margin-top:2px;accent-color:#8fb8c8}
-.img-slot{width:48px;height:48px;flex-shrink:0;border-radius:10px;overflow:hidden;background:#e3eef2;border:1px solid #d4e6ec;display:flex;align-items:center;justify-content:center}
+.chk{width:22px;height:22px;flex-shrink:0;cursor:pointer;margin-top:2px;accent-color:#8fb8c8;align-self:flex-start}
+.img-slot{width:48px;height:48px;flex-shrink:0;border-radius:10px;overflow:hidden;background:#e3eef2;border:1px solid #d4e6ec;display:flex;align-items:center;justify-content:center;align-self:flex-start}
 .img-slot img{width:100%;height:100%;object-fit:cover}
 .img-slot-empty{font-size:18px;opacity:.35;color:#5a8a9c}
 .item-info{flex:1;min-width:0}
@@ -70,7 +70,7 @@ input[type=file]{display:none}
 .item-meta{font-size:12px;color:#5a8a9c;margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
 .icon-btn{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid #e8f0f2;border-radius:8px;background:transparent;cursor:pointer;color:#a8c4cc;font-size:16px;flex-shrink:0}
 .icon-btn:hover{background:#eef6f8;color:#5a8a9c}
-.actions-col{display:flex;flex-direction:column;gap:4px;align-items:center;flex-shrink:0;justify-content:space-between}
+.actions-col{display:flex;flex-direction:column;align-items:center;flex-shrink:0;justify-content:space-between;gap:4px}
 .small-btn{font-size:11px;padding:4px 9px;border:none;border-radius:8px;background:#e3eef2;color:#5a8a9c;cursor:pointer;white-space:nowrap;font-weight:600}
 .small-btn:hover{background:#d4e6ec}
 .edit-btn{font-size:12px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4);color:#fff;cursor:pointer;white-space:nowrap;font-weight:700;min-width:48px;text-align:center;line-height:1.3}
@@ -150,7 +150,7 @@ input[type=file]{display:none}
 .move-folder-btn:hover{background:#d4e6ee}
 .clear-sel-btn{background:#fff;color:#5a8a9c;border:1px solid #b8d4e4}
 .clear-sel-btn:hover{background:#eef6f8}
-.buy-btn{font-size:13px;padding:7px 18px;border:none;border-radius:20px;background:linear-gradient(135deg,#e88fa8,#d4607a);color:#fff;cursor:pointer;white-space:nowrap;font-weight:700;text-align:center;line-height:1.4}
+.buy-btn{font-size:13px;padding:12px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#e88fa8,#d4607a);color:#fff;cursor:pointer;font-weight:700;text-align:center;line-height:1.4;width:48px;display:flex;align-items:center;justify-content:center}
 .buy-btn:hover{opacity:.85}
 </style>
 </head>
@@ -186,7 +186,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-07-09-03'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-07-09-05'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbwN84xYOZCZ9RA_2wXD9fVpKmgvgAWeqQCuAfRbHnaw0VN4_oiZPQ1y4J3mN9ZNqBi7Rw/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
