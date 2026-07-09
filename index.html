@@ -1160,80 +1160,101 @@ function startVersionWatcher(){
 function openLightbox(src){
   const lb=document.createElement('div');
   lb.className='lightbox';
-  lb.innerHTML=`<div class="lightbox-close" id="lb-close">✕</div><img src="${src}" alt="" id="lb-img" style="touch-action:none;cursor:zoom-in">`;
+  lb.innerHTML=`<div class="lightbox-close" id="lb-close">✕</div><img src="${src}" alt="" id="lb-img" style="touch-action:none;cursor:zoom-in;user-select:none">`;
   document.body.appendChild(lb);
 
   const img=document.getElementById('lb-img');
   const closeBtn=document.getElementById('lb-close');
-  let scale=1, minScale=0.5, maxScale=5;
-  let lastDist=0, isDragging=false;
-  let startX=0,startY=0,translateX=0,translateY=0,lastTX=0,lastTY=0;
+  let scale=1, minScale=0.5, maxScale=8;
+  let translateX=0, translateY=0;
+  let lastTX=0, lastTY=0;
+  // ピンチ用
+  let pinching=false, initDist=0, initScale=1;
+  let pinchMidX=0, pinchMidY=0, initTX=0, initTY=0;
+  // ドラッグ用
+  let dragging=false, dragStartX=0, dragStartY=0;
+  let lastTap=0;
 
-  function applyTransform(){
+  function applyTransform(animate){
+    img.style.transition=animate?'transform .2s ease':'none';
     img.style.transform=`translate(${translateX}px,${translateY}px) scale(${scale})`;
   }
+  function getDist(t){
+    return Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY);
+  }
+  function getMid(t){
+    return {x:(t[0].clientX+t[1].clientX)/2, y:(t[0].clientY+t[1].clientY)/2};
+  }
 
-  // ピンチ
-  img.addEventListener('touchstart',e=>{
-    if(e.touches.length===2){
-      lastDist=Math.hypot(
-        e.touches[0].clientX-e.touches[1].clientX,
-        e.touches[0].clientY-e.touches[1].clientY
-      );
-    } else if(e.touches.length===1){
-      isDragging=true;
-      startX=e.touches[0].clientX-lastTX;
-      startY=e.touches[0].clientY-lastTY;
-    }
-    e.stopPropagation();
-  },{passive:true});
-
-  img.addEventListener('touchmove',e=>{
-    if(e.touches.length===2){
-      const dist=Math.hypot(
-        e.touches[0].clientX-e.touches[1].clientX,
-        e.touches[0].clientY-e.touches[1].clientY
-      );
-      if(lastDist>0){
-        scale=Math.min(maxScale,Math.max(minScale,scale*(dist/lastDist)));
-        applyTransform();
-      }
-      lastDist=dist;
-    } else if(e.touches.length===1&&isDragging){
-      translateX=e.touches[0].clientX-startX;
-      translateY=e.touches[0].clientY-startY;
-      applyTransform();
-    }
+  lb.addEventListener('touchstart',e=>{
     e.preventDefault();
+    if(e.touches.length===2){
+      pinching=true; dragging=false;
+      initDist=getDist(e.touches);
+      initScale=scale;
+      const mid=getMid(e.touches);
+      pinchMidX=mid.x; pinchMidY=mid.y;
+      initTX=translateX; initTY=translateY;
+    } else if(e.touches.length===1){
+      dragging=true; pinching=false;
+      dragStartX=e.touches[0].clientX-translateX;
+      dragStartY=e.touches[0].clientY-translateY;
+      // ダブルタップ
+      const now=Date.now();
+      if(now-lastTap<300){
+        if(scale>1){scale=1;translateX=0;translateY=0;lastTX=0;lastTY=0;}
+        else{scale=2.5;}
+        applyTransform(true);
+        dragging=false;
+      }
+      lastTap=now;
+    }
   },{passive:false});
 
-  img.addEventListener('touchend',e=>{
-    lastDist=0;
-    if(e.touches.length===0){
-      isDragging=false;
-      lastTX=translateX;lastTY=translateY;
+  lb.addEventListener('touchmove',e=>{
+    e.preventDefault();
+    if(pinching&&e.touches.length===2){
+      const dist=getDist(e.touches);
+      const newScale=Math.min(maxScale,Math.max(minScale,initScale*(dist/initDist)));
+      // ピンチ中心点を基準にズーム
+      const mid=getMid(e.touches);
+      const dx=mid.x-pinchMidX;
+      const dy=mid.y-pinchMidY;
+      translateX=initTX+(newScale-initScale)*(pinchMidX-initTX/initScale*0+0)*0+dx;
+      translateY=initTY+dy;
+      scale=newScale;
+      translateX=initTX+dx;
+      translateY=initTY+dy;
+      applyTransform(false);
+    } else if(dragging&&e.touches.length===1){
+      translateX=e.touches[0].clientX-dragStartX;
+      translateY=e.touches[0].clientY-dragStartY;
+      applyTransform(false);
     }
-  },{passive:true});
+  },{passive:false});
 
-  // ダブルタップでリセット
-  let lastTap=0;
-  img.addEventListener('touchend',e=>{
-    const now=Date.now();
-    if(now-lastTap<300){
-      scale=1;translateX=0;translateY=0;lastTX=0;lastTY=0;
-      applyTransform();
+  lb.addEventListener('touchend',e=>{
+    e.preventDefault();
+    if(e.touches.length===0){
+      pinching=false; dragging=false;
+      lastTX=translateX; lastTY=translateY;
+      // 背景タップで閉じる（移動・拡縮していない時のみ）
+    } else if(e.touches.length===1&&pinching){
+      pinching=false;
+      dragStartX=e.touches[0].clientX-translateX;
+      dragStartY=e.touches[0].clientY-translateY;
+      dragging=true;
     }
-    lastTap=now;
-  },{passive:true});
+  },{passive:false});
 
   // PCマウスホイールでズーム
-  img.addEventListener('wheel',e=>{
+  lb.addEventListener('wheel',e=>{
     e.preventDefault();
-    scale=Math.min(maxScale,Math.max(minScale,scale+(e.deltaY<0?0.15:-0.15)));
-    applyTransform();
+    scale=Math.min(maxScale,Math.max(minScale,scale*(e.deltaY<0?1.1:0.9)));
+    applyTransform(false);
   },{passive:false});
 
-  // 閉じる（背景クリック or ✕ボタン）
+  // 閉じる
   closeBtn.addEventListener('click',e=>{e.stopPropagation();lb.remove();});
   lb.addEventListener('click',e=>{if(e.target===lb)lb.remove();});
 }
