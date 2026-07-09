@@ -186,8 +186,8 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-07-09-07'; // 更新時にこの値を変えると新バージョン検知に使えます
-const GAS_URL='https://script.google.com/macros/s/AKfycbwN84xYOZCZ9RA_2wXD9fVpKmgvgAWeqQCuAfRbHnaw0VN4_oiZPQ1y4J3mN9ZNqBi7Rw/exec';
+const APP_VERSION='2026-07-09-10'; // 更新時にこの値を変えると新バージョン検知に使えます
+const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
 let selectedItems=new Set(); // 選択中のアイテムID
@@ -937,12 +937,11 @@ function grpIcon(k){return k==='place'?'📍':k==='cat'?'🏷':k==='requester'?'
 function renderFolderBar(isAdmin){
   const chips=folders.map(f=>{
     const active=currentFolder===f.id?'active':'';
-    const delBtn=isAdmin?'<span class="folder-del" onclick="deleteFolder(event,\''+f.id+'\',\''+esc(f.name)+'\')">✕</span>':'';
-    return '<button class="folder-chip '+active+'" onclick="setFolder(\''+f.id+'\')">📁 '+esc(f.name)+' '+delBtn+'</button>';
+    return '<button class="folder-chip '+active+'" onclick="setFolder(\''+f.id+'\')">📁 '+esc(f.name)+'</button>';
   }).join('');
   const allChip=`<button class="folder-chip ${currentFolder==='all'?'active':''}" onclick="setFolder('all')">📋 すべて</button>`;
   const noneChip=`<button class="folder-chip ${currentFolder===''?'active':''}" onclick="setFolder('')">📄 通常</button>`;
-  const addBtn=isAdmin?`<button class="folder-chip add-btn" onclick="addFolderDialog()">＋ フォルダ追加</button>`:'';
+  const addBtn='';
   return`<div class="folder-bar">${noneChip}${allChip}${chips}${addBtn}</div>`;
 }
 
@@ -1074,25 +1073,86 @@ function renderDoneList(){
 /* ── マスタ管理タブ ─── */
 function renderMasterTab(){
   const rRows=masterRequesters.map((r,idx)=>
-    `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #eef4fb">
-      <span style="font-size:14px;color:#2a3f5f">👤 ${esc(r)}</span>
+    `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e8f0f2">
+      <span style="font-size:14px;color:#2a4a55">👤 ${esc(r)}</span>
       <button class="icon-btn" data-type="requester" data-idx="${idx}" onclick="deleteMasterByIdx(this)" title="削除">🗑</button>
     </div>`).join('');
   const pRows=masterPlaces.map((p,idx)=>
-    `<div style="display:flex;align-items:center;justify-content:space-between;padding:7px 0;border-bottom:1px solid #eef4fb">
-      <span style="font-size:14px;color:#2a3f5f">📍 ${esc(p)}</span>
+    `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e8f0f2">
+      <span style="font-size:14px;color:#2a4a55">📍 ${esc(p)}</span>
       <button class="icon-btn" data-type="place" data-idx="${idx}" onclick="deleteMasterByIdx(this)" title="削除">🗑</button>
     </div>`).join('');
+  const fRows=folders.map((f,idx)=>
+    `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e8f0f2">
+      <span style="font-size:14px;color:#2a4a55">📁 ${esc(f.name)}</span>
+      <button class="icon-btn" onclick="deleteFolderFromMaster('${f.id}','${esc(f.name)}')" title="削除">🗑</button>
+    </div>`).join('');
   return`<div class="section">
-    <div class="form-card" style="margin-bottom:14px">
-      <div style="font-size:13px;font-weight:700;color:#1a6fba;margin-bottom:10px">👤 依頼者マスタ</div>
-      ${masterRequesters.length===0?'<div style="font-size:13px;color:#8ab0cc">登録された依頼者はいません</div>':rRows}
+    <div class="form-card" style="margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:#5a8a9c;margin-bottom:10px">👤 依頼者マスタ</div>
+      ${masterRequesters.length===0?'<div style="font-size:13px;color:#8ab0cc;margin-bottom:8px">登録された依頼者はいません</div>':rRows}
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <input type="text" id="new-requester" placeholder="新しい依頼者名" style="flex:1;font-size:13px;padding:7px 10px">
+        <button onclick="addMasterItem('requester')" style="padding:7px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4);color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">追加</button>
+      </div>
+    </div>
+    <div class="form-card" style="margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:#5a8a9c;margin-bottom:10px">📍 購入場所マスタ</div>
+      ${masterPlaces.length===0?'<div style="font-size:13px;color:#8ab0cc;margin-bottom:8px">登録された場所はありません</div>':pRows}
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <input type="text" id="new-place" placeholder="新しい購入場所" style="flex:1;font-size:13px;padding:7px 10px">
+        <button onclick="addMasterItem('place')" style="padding:7px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4);color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">追加</button>
+      </div>
     </div>
     <div class="form-card">
-      <div style="font-size:13px;font-weight:700;color:#1a6fba;margin-bottom:10px">📍 購入場所マスタ（カスタム登録分）</div>
-      ${masterPlaces.length===0?'<div style="font-size:13px;color:#8ab0cc">カスタム登録された場所はありません</div>':pRows}
+      <div style="font-size:13px;font-weight:700;color:#5a8a9c;margin-bottom:10px">📁 フォルダ管理</div>
+      ${folders.length===0?'<div style="font-size:13px;color:#8ab0cc;margin-bottom:8px">フォルダはありません</div>':fRows}
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <input type="text" id="new-folder" placeholder="新しいフォルダ名" style="flex:1;font-size:13px;padding:7px 10px">
+        <button onclick="addFolderFromMaster()" style="padding:7px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4);color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">追加</button>
+      </div>
     </div>
   </div>`;
+}
+
+async function addMasterItem(type){
+  const inputId=type==='requester'?'new-requester':'new-place';
+  const val=(document.getElementById(inputId)?.value||'').trim();
+  if(!val){showToast('名前を入力してください');return;}
+  if(type==='requester'&&masterRequesters.includes(val)){showToast('すでに登録されています');return;}
+  if(type==='place'&&masterPlaces.includes(val)){showToast('すでに登録されています');return;}
+  if(type==='requester') masterRequesters.push(val);
+  else masterPlaces.push(val);
+  renderAdmin();
+  showToast('追加しました');
+  try{await apiPost({action:'saveMasterDirect',masterType:type,value:val,garden:currentGarden});}
+  catch(e){showErr('追加失敗: '+e.message);}
+}
+
+async function addFolderFromMaster(){
+  const val=(document.getElementById('new-folder')?.value||'').trim();
+  if(!val){showToast('フォルダ名を入力してください');return;}
+  const newFolder={id:String(Date.now()),name:val,garden:currentGarden};
+  folders.push(newFolder);
+  renderAdmin();
+  showToast('フォルダを追加しました');
+  try{await apiPost({action:'addFolder',name:val,garden:currentGarden});}
+  catch(e){folders.pop();renderAdmin();showErr('フォルダ作成失敗: '+e.message);}
+}
+
+async function deleteFolderFromMaster(folderId,folderName){
+  if(!confirm('「'+folderName+'」を削除しますか？\nフォルダ内のアイテムは「通常」に戻ります。'))return;
+  const idx=folders.findIndex(f=>f.id===folderId);
+  if(idx<0)return;
+  folders.splice(idx,1);
+  pending.forEach(i=>{if(i.folder===folderId)i.folder='';});
+  done.forEach(i=>{if(i.folder===folderId)i.folder='';});
+  hold.forEach(i=>{if(i.folder===folderId)i.folder='';});
+  if(currentFolder===folderId)currentFolder='';
+  renderAdmin();
+  showToast('フォルダを削除しました');
+  try{await apiPost({action:'deleteFolder',folderId,garden:currentGarden});}
+  catch(e){showErr('削除失敗: '+e.message);loadAll().then(()=>renderAdmin());}
 }
 
 function deleteMasterByIdx(btn){
