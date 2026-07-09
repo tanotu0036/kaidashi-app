@@ -1144,7 +1144,7 @@ function itemCardHTML(i,opts={}){
       ${cancelBtn?`<button class="small-btn" onclick="cancelItem('${i.id}')">取消</button>`:''}
       ${editBtn?`<button class="edit-btn" onclick="openEditModal('${i.id}')">訂正</button>`:''}
       ${holdBtn?`<button class="hold-btn" onclick="holdItem('${i.id}')">保留</button>`:''}
-      ${holdBtn?`<button class="buy-btn" onclick="checkItem('${i.id}',true)">購入</button>`:''}
+      ${holdBtn?`<button class="buy-btn" onclick="checkItem('${i.id}',true)">✓ 購入</button>`:''}
       ${holdToPublicBtn?`<button class="edit-btn" onclick="holdToPublic('${i.id}')">要購入へ</button>`:''}
       ${doneToPublicBtn?`<button class="revert-btn" onclick="doneToPublic('${i.id}')">要購入へ</button>`:''}
       ${rebuyBtn?`<button class="rebuy-btn" onclick="rebuyItem('${i.id}')">🔄 再購入</button>`:''}
