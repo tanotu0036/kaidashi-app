@@ -204,7 +204,7 @@ let filterCat='all',filterPlace='all';
 /* ── ローディング ─── */
 function showLoading(msg='処理中…'){document.getElementById('loading-text').textContent=msg;document.getElementById('loading').style.display='flex';}
 function hideLoading(){document.getElementById('loading').style.display='none';}
-function showErr(msg){const b=document.getElementById('err-banner');b.textContent='⚠ '+msg;b.style.display='block';setTimeout(()=>b.style.display='none',6000);}
+function showErr(msg){const b=document.getElementById('err-banner');b.textContent='!! '+msg;b.style.display='block';setTimeout(()=>b.style.display='none',6000);}
 function showGardenOverlay(){
   document.getElementById('garden-overlay').style.display='flex';
 }
@@ -353,19 +353,39 @@ function clearSelection(){
 async function openMoveFolderDialog(){
   if(selectedItems.size===0){showToast('アイテムを選択してください');return;}
   if(folders.length===0){showToast('フォルダがありません。先にフォルダを作成してください');return;}
-  // フォルダ選択モーダル
-  document.getElementById('modal-container').innerHTML=`
-  <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
-    <div class="modal">
-      <button class="modal-close" onclick="closeModal()">✕</button>
-      <div class="modal-title">📁 フォルダに移動</div>
-      <div style="font-size:13px;color:#5a8a9c;margin-bottom:14px">${selectedItems.size}件のアイテムを移動</div>
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <button onclick="moveToFolderExec('')" style="padding:12px;border:1px solid #c8dfe6;border-radius:10px;background:#fff;font-size:14px;cursor:pointer;text-align:left">📄 通常（フォルダなし）</button>
-        ${folders.map(f=>`<button onclick="moveToFolderExec('${f.id}')" style="padding:12px;border:1px solid #c8dfe6;border-radius:10px;background:#fff;font-size:14px;cursor:pointer;text-align:left">📁 ${esc(f.name)}</button>`).join('')}
-      </div>
-    </div>
-  </div>`;
+  const overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal();});
+  const modal=document.createElement('div');
+  modal.className='modal';
+  const closeBtn=document.createElement('button');
+  closeBtn.className='modal-close';closeBtn.textContent='✕';
+  closeBtn.onclick=closeModal;
+  const title=document.createElement('div');
+  title.className='modal-title';title.textContent='📁 フォルダに移動';
+  const sub=document.createElement('div');
+  sub.style.cssText='font-size:13px;color:#5a8a9c;margin-bottom:14px';
+  sub.textContent=selectedItems.size+'件のアイテムを移動';
+  const list=document.createElement('div');
+  list.style.cssText='display:flex;flex-direction:column;gap:8px';
+  // 通常ボタン
+  const noneBtn=document.createElement('button');
+  noneBtn.style.cssText='padding:12px;border:1px solid #c8dfe6;border-radius:10px;background:#fff;font-size:14px;cursor:pointer;text-align:left';
+  noneBtn.textContent='📄 通常（フォルダなし）';
+  noneBtn.onclick=()=>moveToFolderExec('');
+  list.appendChild(noneBtn);
+  // フォルダボタン
+  folders.forEach(f=>{
+    const btn=document.createElement('button');
+    btn.style.cssText='padding:12px;border:1px solid #c8dfe6;border-radius:10px;background:#fff;font-size:14px;cursor:pointer;text-align:left';
+    btn.textContent='📁 '+f.name;
+    btn.onclick=()=>moveToFolderExec(f.id);
+    list.appendChild(btn);
+  });
+  modal.appendChild(closeBtn);modal.appendChild(title);modal.appendChild(sub);modal.appendChild(list);
+  overlay.appendChild(modal);
+  document.getElementById('modal-container').innerHTML='';
+  document.getElementById('modal-container').appendChild(overlay);
 }
 
 async function moveToFolderExec(folderId){
@@ -385,27 +405,30 @@ async function moveToFolderExec(folderId){
 }
 
 function exportCSV(){
-  // 現在のフォルダフィルタを適用したアイテムをCSV出力
   const items=filterByFolder(pending);
   if(!items.length){showToast('出力するアイテムがありません');return;}
-  const folderName=currentFolder==='all'?'すべて':currentFolder===''?'通常':getFolderName(currentFolder);
+  const folderName=currentFolder==='all'?'すべて':currentFolder===''?'通常':getFolderName_safe();
   const headers=['品名','個数','経費','購入場所','依頼者','メモ','URL','依頼日'];
-  const rows=items.map(i=>[
-    i.name, i.qty, getCatLabel(i.cat||'zappi'), i.place, i.requester, i.memo, i.url,
-    fmtDate(i.created)
-  ].map(v=>`"${String(v||'').replace(/"/g,'""')}"`));
-  const csv='﻿'+[headers.map(h=>`"${h}"`).join(','),...rows.map(r=>r.join(','))].join('
-');
+  const NL=String.fromCharCode(10);
+  const q=v=>'"'+String(v||'').replace(/"/g,'""')+'"';
+  const headerRow=headers.map(q).join(',');
+  const dataRows=items.map(i=>[i.name,i.qty,getCatLabel(i.cat||'zappi'),i.place,i.requester,i.memo,i.url,fmtDate(i.created)].map(q).join(','));
+  const csv='\uFEFF'+[headerRow,...dataRows].join(NL);
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
   const a=document.createElement('a');
   a.href=url;
-  a.download=`買出しリスト_${currentGarden}_${folderName}_${new Date().toLocaleDateString('ja-JP')}.csv`;
+  const d=new Date().toLocaleDateString('ja-JP');
+  a.download='買出しリスト_'+currentGarden+'_'+folderName+'_'+d+'.csv';
   a.click();
   URL.revokeObjectURL(url);
   showToast('CSVをダウンロードしました');
 }
-
+function getFolderName_safe(){
+  if(!currentFolder)return '通常';
+  const f=folders.find(f=>f.id===currentFolder);
+  return f?f.name:'不明';
+}
 function onPlaceSelectChange(id){
   const sel=document.getElementById('ps-'+id);
   const inp=document.getElementById('pn-'+id);
@@ -558,7 +581,7 @@ function renderRequestForm(){
       <label>フォルダ <span class="opt">(任意)</span></label>
       <select id="f-folder">
         <option value="">通常（フォルダなし）</option>
-        ${folders.map(f=>`<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('')}
+        ${folders.map(f=>'<option value="'+esc(f.id)+'">'+esc(f.name)+'</option>').join('')}
       </select>
     </div>
     <div class="form-row">
@@ -893,11 +916,11 @@ function renderPendingList(){
 
 function grpIcon(k){return k==='place'?'📍':k==='cat'?'🏷':k==='requester'?'👤':'📅';}
 function renderFolderBar(isAdmin){
-  const chips=folders.map(f=>`
-    <button class="folder-chip ${currentFolder===f.id?'active':''}" onclick="setFolder('${f.id}')">
-      📁 ${esc(f.name)}
-      ${isAdmin?`<span class="folder-del" onclick="deleteFolder(event,'${f.id}','${esc(f.name)}')">✕</span>`:''}
-    </button>`).join('');
+  const chips=folders.map(f=>{
+    const active=currentFolder===f.id?'active':'';
+    const delBtn=isAdmin?'<span class="folder-del" onclick="deleteFolder(event,\''+f.id+'\',\''+esc(f.name)+'\')">✕</span>':'';
+    return '<button class="folder-chip '+active+'" onclick="setFolder(\''+f.id+'\')">📁 '+esc(f.name)+' '+delBtn+'</button>';
+  }).join('');
   const allChip=`<button class="folder-chip ${currentFolder==='all'?'active':''}" onclick="setFolder('all')">📋 すべて</button>`;
   const noneChip=`<button class="folder-chip ${currentFolder===''?'active':''}" onclick="setFolder('')">📄 通常</button>`;
   const addBtn=isAdmin?`<button class="folder-chip add-btn" onclick="addFolderDialog()">＋ フォルダ追加</button>`:'';
