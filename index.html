@@ -75,7 +75,7 @@ input[type=file]{display:none}
 .small-btn:hover{background:#d4e6ec}
 .edit-btn{font-size:12px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4);color:#fff;cursor:pointer;white-space:nowrap;font-weight:700;min-width:48px;text-align:center;line-height:1.3}
 .edit-btn:hover{opacity:.85}
-.hold-btn{font-size:12px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#d4a843,#c4943a);color:#fff;cursor:pointer;white-space:nowrap;font-weight:700;min-width:48px;text-align:center;line-height:1.3}
+.hold-btn{font-size:12px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#d4a843,#c4943a);color:#7a4400;cursor:pointer;white-space:nowrap;font-weight:700;min-width:48px;text-align:center;line-height:1.3}
 .hold-btn:hover{opacity:.85}
 .rebuy-btn{font-size:13px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#d4937a,#c47a5f);color:#fff;cursor:pointer;white-space:nowrap;font-weight:700;min-width:52px;text-align:center;line-height:1.3}
 .rebuy-btn:hover{opacity:.85}
@@ -144,13 +144,13 @@ input[type=file]{display:none}
 .action-bar{display:flex;gap:6px;padding:8px 16px;align-items:center;background:#d4e6ee;border-bottom:1px solid #b8d4e4;flex-wrap:wrap}
 .action-bar-btn{font-size:12px;padding:5px 14px;border:none;border-radius:20px;cursor:pointer;font-weight:600;white-space:nowrap}
 .sel-count{font-size:12px;color:#2a4a55;font-weight:600;flex:1}
-.csv-btn{background:linear-gradient(135deg,#6ab87a,#4a9a5a);color:#fff}
-.csv-btn:hover{opacity:.85}
-.move-folder-btn{background:linear-gradient(135deg,#8fb8c8,#6fa0b4);color:#fff}
-.move-folder-btn:hover{opacity:.85}
+.csv-btn{background:#e3eef2;color:#3a7a9c;border:1px solid #b8d4e4}
+.csv-btn:hover{background:#d4e6ee}
+.move-folder-btn{background:#e3eef2;color:#3a7a9c;border:1px solid #b8d4e4}
+.move-folder-btn:hover{background:#d4e6ee}
 .clear-sel-btn{background:#fff;color:#5a8a9c;border:1px solid #b8d4e4}
 .clear-sel-btn:hover{background:#eef6f8}
-.buy-btn{font-size:12px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#6ab87a,#4a9a5a);color:#fff;cursor:pointer;white-space:nowrap;font-weight:700;min-width:48px;text-align:center;line-height:1.3}
+.buy-btn{font-size:12px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4);color:#fff;cursor:pointer;white-space:nowrap;font-weight:700;min-width:48px;text-align:center;line-height:1.3}
 .buy-btn:hover{opacity:.85}
 </style>
 </head>
@@ -412,7 +412,9 @@ async function moveToFolderExec(folderId){
   renderAdmin();
   showToast(`${ids.length}件を移動しました`);
   try{
-    await Promise.all(ids.map(id=>apiPost({action:'updateItem',id,fields:{folder:folderId},sheet:'pending'})));
+    for(const id of ids){
+      await apiPost({action:'updateItem',id:String(id),fields:{folder:folderId},sheet:'pending'});
+    }
   }catch(e){showErr('移動失敗: '+e.message);loadAll().then(()=>renderAdmin());}
 }
 
@@ -1152,7 +1154,7 @@ function itemCardHTML(i,opts={}){
       ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
       <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
         <div style="font-size:11px;color:#8ab0cc">${fmtDate(isDone?(i.boughtAt||i.created):i.created)}</div>
-        ${holdBtn?`<button class="buy-btn" onclick="checkItem('${i.id}',true)" style="font-size:11px;padding:4px 14px;min-width:0;border-radius:20px;line-height:1.4">購入</button>`:''}
+        ${holdBtn?`<button class="buy-btn" onclick="checkItem('${i.id}',true)">購入</button>`:''}
       </div>
     </div>
     <div class="actions-col">
