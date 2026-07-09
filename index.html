@@ -1254,8 +1254,15 @@ function openLightbox(src){
     applyTransform(false);
   },{passive:false});
 
-  // 閉じる
+  // 閉じる（touchendとclickの両方対応）
+  closeBtn.addEventListener('touchend',e=>{e.stopPropagation();e.preventDefault();lb.remove();},{passive:false});
   closeBtn.addEventListener('click',e=>{e.stopPropagation();lb.remove();});
+  // 背景タップで閉じる（スケール1かつ移動なしの時）
+  lb.addEventListener('touchend',e=>{
+    if(e.target===lb&&e.changedTouches.length===1&&!pinching){
+      lb.remove();
+    }
+  },{passive:true});
   lb.addEventListener('click',e=>{if(e.target===lb)lb.remove();});
 }
 
