@@ -178,6 +178,7 @@ const APP_VERSION='2026-06-20-01'; // 更新時にこの値を変えると新バ
 const GAS_URL='https://script.google.com/macros/s/AKfycbwN84xYOZCZ9RA_2wXD9fVpKmgvgAWeqQCuAfRbHnaw0VN4_oiZPQ1y4J3mN9ZNqBi7Rw/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
+let selectedItems=new Set(); // 選択中のアイテムID
 let currentFolder=''; // ''=通常（全フォルダ外）、'all'=全て表示、フォルダID=特定フォルダ
 const CATS=[
   {id:'kyozai',label:'保育教材費'},
@@ -333,6 +334,76 @@ async function updateCat(id,newCat){
   renderAdmin();
   try{await apiPost({action:'updateCat',id:String(id),cat:newCat});}
   catch(e){pending[idx]={...pending[idx],cat:oldCat};renderAdmin();showErr('更新失敗: '+e.message);}
+}
+
+function toggleSelect(id,checked){
+  if(checked) selectedItems.add(id);
+  else selectedItems.delete(id);
+  // アクションバーだけ再描画
+  const ab=document.querySelector('.action-bar');
+  const container=ab?ab.parentElement:null;
+  if(adminTab==='pending') renderAdmin();
+}
+
+function clearSelection(){
+  selectedItems.clear();
+  renderAdmin();
+}
+
+async function openMoveFolderDialog(){
+  if(selectedItems.size===0){showToast('アイテムを選択してください');return;}
+  if(folders.length===0){showToast('フォルダがありません。先にフォルダを作成してください');return;}
+  // フォルダ選択モーダル
+  document.getElementById('modal-container').innerHTML=`
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-title">📁 フォルダに移動</div>
+      <div style="font-size:13px;color:#5a8a9c;margin-bottom:14px">${selectedItems.size}件のアイテムを移動</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button onclick="moveToFolderExec('')" style="padding:12px;border:1px solid #c8dfe6;border-radius:10px;background:#fff;font-size:14px;cursor:pointer;text-align:left">📄 通常（フォルダなし）</button>
+        ${folders.map(f=>`<button onclick="moveToFolderExec('${f.id}')" style="padding:12px;border:1px solid #c8dfe6;border-radius:10px;background:#fff;font-size:14px;cursor:pointer;text-align:left">📁 ${esc(f.name)}</button>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+async function moveToFolderExec(folderId){
+  closeModal();
+  const ids=[...selectedItems];
+  // 楽観的更新
+  ids.forEach(id=>{
+    const item=pending.find(i=>i.id===id);
+    if(item)item.folder=folderId;
+  });
+  selectedItems.clear();
+  renderAdmin();
+  showToast(`${ids.length}件を移動しました`);
+  try{
+    await Promise.all(ids.map(id=>apiPost({action:'updateItem',id,fields:{folder:folderId},sheet:'pending'})));
+  }catch(e){showErr('移動失敗: '+e.message);loadAll().then(()=>renderAdmin());}
+}
+
+function exportCSV(){
+  // 現在のフォルダフィルタを適用したアイテムをCSV出力
+  const items=filterByFolder(pending);
+  if(!items.length){showToast('出力するアイテムがありません');return;}
+  const folderName=currentFolder==='all'?'すべて':currentFolder===''?'通常':getFolderName(currentFolder);
+  const headers=['品名','個数','経費','購入場所','依頼者','メモ','URL','依頼日'];
+  const rows=items.map(i=>[
+    i.name, i.qty, getCatLabel(i.cat||'zappi'), i.place, i.requester, i.memo, i.url,
+    fmtDate(i.created)
+  ].map(v=>`"${String(v||'').replace(/"/g,'""')}"`));
+  const csv='﻿'+[headers.map(h=>`"${h}"`).join(','),...rows.map(r=>r.join(','))].join('
+');
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  a.download=`買出しリスト_${currentGarden}_${folderName}_${new Date().toLocaleDateString('ja-JP')}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSVをダウンロードしました');
 }
 
 function onPlaceSelectChange(id){
@@ -741,12 +812,22 @@ function renderAdmin(){
     <button class="tab ${adminTab==='done'?'active':''}" onclick="setAdminTab('done')">購入済 (${done.length})</button>
     <button class="tab ${adminTab==='master'?'active':''}" onclick="setAdminTab('master')">マスタ</button>
   </div>
-  ${adminTab!=='master'?renderFolderBar(true):''}
+  ${adminTab!=='master'?renderFolderBar(true):''}  ${adminTab==='pending'?renderActionBar():''}
   ${adminTab==='pending'?renderPendingList():adminTab==='hold'?renderHoldList():adminTab==='done'?renderDoneList():renderMasterTab()}`;
 }
 function setAdminTab(t){
   adminTab=t;filterCat='all';filterPlace='all';renderAdmin();
   loadAll(true).then(()=>renderAdmin());
+}
+
+function renderActionBar(){
+  if(selectedItems.size===0) return '';
+  return`<div class="action-bar">
+    <span class="sel-count">${selectedItems.size}件選択中</span>
+    <button class="action-bar-btn clear-sel-btn" onclick="clearSelection()">✕ 選択解除</button>
+    <button class="action-bar-btn move-folder-btn" onclick="openMoveFolderDialog()">📁 フォルダ移動</button>
+    <button class="action-bar-btn csv-btn" onclick="exportCSV()">📥 CSV出力</button>
+  </div>`;
 }
 
 function renderPendingList(){
@@ -1013,7 +1094,7 @@ function itemCardHTML(i,opts={}){
     :(i.place?`<span>📍${esc(i.place)}</span>`:'');
   const imgSlot=`<div class="img-slot">${i.img?`<img src="${esc(i.img)}" alt="" onclick="openLightbox('${esc(i.img)}')" style="cursor:zoom-in">`:`<span class="img-slot-empty">📷</span>`}</div>`;
   return`<div class="item-card${isDone?' done':''}">
-    ${checkBox?`<input type="checkbox" class="chk" onchange="checkItem('${i.id}',this.checked)">`:''}
+    ${checkBox?`<input type="checkbox" class="chk" id="chk-${i.id}" ${selectedItems.has(i.id)?'checked':''} onchange="toggleSelect('${i.id}',this.checked)">`:''}
     ${imgSlot}
     <div class="item-info">
       <div class="item-name-row">
@@ -1040,6 +1121,7 @@ function itemCardHTML(i,opts={}){
       ${cancelBtn?`<button class="small-btn" onclick="cancelItem('${i.id}')">取消</button>`:''}
       ${editBtn?`<button class="edit-btn" onclick="openEditModal('${i.id}')">訂正</button>`:''}
       ${holdBtn?`<button class="hold-btn" onclick="holdItem('${i.id}')">保留</button>`:''}
+      ${holdBtn?`<button class="buy-btn" onclick="checkItem('${i.id}',true)">購入</button>`:''}
       ${holdToPublicBtn?`<button class="edit-btn" onclick="holdToPublic('${i.id}')">要購入へ</button>`:''}
       ${doneToPublicBtn?`<button class="revert-btn" onclick="doneToPublic('${i.id}')">要購入へ</button>`:''}
       ${rebuyBtn?`<button class="rebuy-btn" onclick="rebuyItem('${i.id}')">🔄 再購入</button>`:''}
