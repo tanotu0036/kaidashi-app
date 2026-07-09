@@ -186,7 +186,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-06-20-01'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-07-09-02'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbwN84xYOZCZ9RA_2wXD9fVpKmgvgAWeqQCuAfRbHnaw0VN4_oiZPQ1y4J3mN9ZNqBi7Rw/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -1157,7 +1157,7 @@ function itemCardHTML(i,opts={}){
       </div>
       ${i.url?`<a class="url-link" href="${esc(i.url)}" target="_blank">🔗 ${shortUrl(i.url)}</a>`:''}
       ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:5px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:6px">
         <div style="font-size:11px;color:#8ab0cc">${fmtDate(isDone?(i.boughtAt||i.created):i.created)}</div>
         ${holdBtn?`<button class="buy-btn" onclick="checkItem('${i.id}',true)">購入</button>`:''}
       </div>
