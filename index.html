@@ -847,9 +847,9 @@ function renderActionBar(){
   if(selectedItems.size===0) return '';
   return`<div class="action-bar">
     <span class="sel-count">${selectedItems.size}件選択中</span>
-    <button class="action-bar-btn clear-sel-btn" onclick="clearSelection()">✕ 選択解除</button>
-    <button class="action-bar-btn move-folder-btn" onclick="openMoveFolderDialog()">📁 フォルダ移動</button>
-    <button class="action-bar-btn csv-btn" onclick="exportCSV()">📥 CSV出力</button>
+    <button class="action-bar-btn clear-sel-btn" onclick="clearSelection()">選択解除</button>
+    <button class="action-bar-btn move-folder-btn" onclick="openMoveFolderDialog()">フォルダ移動</button>
+    <button class="action-bar-btn csv-btn" onclick="exportCSV()">CSV出力</button>
   </div>`;
 }
 
@@ -1138,15 +1138,13 @@ function itemCardHTML(i,opts={}){
       </div>
       ${i.url?`<a class="url-link" href="${esc(i.url)}" target="_blank">🔗 ${shortUrl(i.url)}</a>`:''}
       ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-top:4px">
-        <div style="font-size:11px;color:#8ab0cc">${fmtDate(isDone?(i.boughtAt||i.created):i.created)}</div>
-        ${holdBtn?`<button class="buy-btn" onclick="checkItem('${i.id}',true)" style="font-size:11px;padding:4px 12px;min-width:0;border-radius:20px">✓ 購入</button>`:''}
-      </div>
+      <div style="font-size:11px;color:#8ab0cc;margin-top:3px">${fmtDate(isDone?(i.boughtAt||i.created):i.created)}</div>
     </div>
     <div class="actions-col">
       ${cancelBtn?`<button class="small-btn" onclick="cancelItem('${i.id}')">取消</button>`:''}
       ${editBtn?`<button class="edit-btn" onclick="openEditModal('${i.id}')">訂正</button>`:''}
       ${holdBtn?`<button class="hold-btn" onclick="holdItem('${i.id}')">保留</button>`:''}
+      ${holdBtn?`<button class="buy-btn" onclick="checkItem('${i.id}',true)">購入</button>`:''}
       ${holdToPublicBtn?`<button class="edit-btn" onclick="holdToPublic('${i.id}')">要購入へ</button>`:''}
       ${doneToPublicBtn?`<button class="revert-btn" onclick="doneToPublic('${i.id}')">要購入へ</button>`:''}
       ${rebuyBtn?`<button class="rebuy-btn" onclick="rebuyItem('${i.id}')">🔄 再購入</button>`:''}
