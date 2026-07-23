@@ -186,7 +186,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-07-10-02'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-07-10-03'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -1330,7 +1330,7 @@ function openPartialBuyModal(id, originalNum, originalQty){
       <div style="font-size:13px;color:#4a8ad0;margin:4px 0 16px;text-align:center;font-weight:500" id="remaining-label">
         残り：待機中
       </div>
-      <button class="small-btn" onclick="confirmPartialBuy('${id}',${originalNum},'${originalQty}')" style="width:100%;padding:10px;text-align:center;font-size:13px">この数量で購入済みにする</button>
+      <button class="small-btn" onclick="confirmPartialBuy('${id}',${originalNum},'${originalQty}')" style="width:100%;padding:10px;text-align:center;font-size:13px">この数量を購入済みにする</button>
     </div>
   </div>`;
   // ドラムロール初期化（テンプレートリテラルの外で実行）
