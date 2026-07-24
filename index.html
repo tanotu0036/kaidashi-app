@@ -155,7 +155,7 @@ input[type=file]{display:none}
 .buy-btn{font-size:13px;padding:26px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#e88fa8,#d4607a);color:#fff;cursor:pointer;font-weight:700;text-align:center;line-height:1.4;width:48px;display:flex;align-items:center;justify-content:center}
 .buy-btn:hover{opacity:.85}
 
-.img-col{display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0}
+.img-col{display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0}
 
 .master-row{display:flex;align-items:center;justify-content:space-between;padding:8px 4px;border-bottom:1px solid #e8f0f2;background:#fffdf8}
 .master-row.dragging{opacity:.6;background:#eef6f8;box-shadow:0 4px 12px rgba(143,184,200,.3);border-radius:8px;z-index:10;position:relative}
@@ -196,7 +196,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-07-12-04'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-07-12-06'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -1314,20 +1314,17 @@ function itemCardHTML(i,opts={}){
     :(i.place?`<span>📍${esc(i.place)}</span>`:'');
   const imgSlot=`<div class="img-slot">${i.img?`<img src="${esc(i.img)}" alt="" onclick="openLightbox('${esc(i.img)}')" style="cursor:zoom-in">`:`<span class="img-slot-empty">📷</span>`}</div>`;
   return`<div class="item-card${isDone?' done':''}${i.partial?' partial':''}">
-    ${checkBox?`<input type="checkbox" class="chk" id="chk-${i.id}" ${selectedItems.has(i.id)?'checked':''} onchange="toggleSelect('${i.id}',this.checked)">`:''}
     <div class="img-col">
+      ${checkBox?`<input type="checkbox" class="chk" id="chk-${i.id}" ${selectedItems.has(i.id)?'checked':''} onchange="toggleSelect('${i.id}',this.checked)">`:''}
       ${imgSlot}
-      ${deleteBtn?`<button class="icon-btn" onclick="deleteItem('${i.id}','${isDone?'done':holdToPublicBtn?'hold':'pending'}')">🗑</button>`:''}
     </div>
     <div class="item-info">
-      <div class="item-name-row">
-        <div class="item-name${isDone?' done':''}">${esc(i.name)}</div>
-        <div class="item-qty${isDone?' done':''}">${
+      <div class="item-name${isDone?' done':''}">${esc(i.name)}</div>
+      <div class="item-qty${isDone?' done':''}" style="margin-top:1px">${
   (isDone&&i.requestedQty&&i.boughtQty&&i.requestedQty!==i.boughtQty)
     ? `依頼 ${esc(i.requestedQty)} → 購入 ${esc(i.boughtQty)}<span style="font-size:11px;color:#e05a7a;margin-left:4px">（残り${String(parseInt(i.requestedQty)||0)-String(parseInt(i.boughtQty)||0)}個）</span>`
     : i.qty?`× ${esc(i.qty)}`:'<span class="qty-alert">個数未記入</span>'
 }</div>
-      </div>
       <div class="item-meta">
         ${catBadge}
         ${placeEditable?placeBadge:(i.place?`<span>📍${esc(i.place)}</span>`:'')}
@@ -1341,11 +1338,14 @@ function itemCardHTML(i,opts={}){
       ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
       <div style="font-size:11px;color:#7a98a2;margin-top:3px">${fmtDate(isDone?(i.boughtAt||i.created):i.created)}</div>
     </div>
-    <div class="actions-col" style="justify-content:space-between;height:100%">
-      <div style="display:flex;flex-direction:column;gap:4px;align-items:center">
+    <div class="actions-col" style="justify-content:space-between;height:100%;align-items:flex-end">
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
         ${cancelBtn?`<button class="small-btn" onclick="cancelItem('${i.id}')">取消</button>`:''}
         ${editBtn?`<button class="edit-btn" onclick="openEditModal('${i.id}')">訂正</button>`:''}
-        ${holdBtn?`<button class="hold-btn" onclick="holdItem('${i.id}')">保留</button>`:''}
+        <div style="display:flex;gap:4px;align-items:center">
+          ${deleteBtn?`<button class="icon-btn" onclick="deleteItem('${i.id}','${isDone?'done':holdToPublicBtn?'hold':'pending'}')">🗑</button>`:''}
+          ${holdBtn?`<button class="hold-btn" onclick="holdItem('${i.id}')">保留</button>`:''}
+        </div>
         ${holdToPublicBtn?`<button class="edit-btn" onclick="holdToPublic('${i.id}')">要購入へ</button>`:''}
         ${doneToPublicBtn?`<button class="revert-btn" onclick="doneToPublic('${i.id}')">要購入へ</button>`:''}
         ${rebuyBtn?`<button class="rebuy-btn" onclick="rebuyItem('${i.id}')">🔄 再購入</button>`:''}
