@@ -162,6 +162,12 @@ input[type=file]{display:none}
 .master-row-left{display:flex;align-items:center;gap:8px}
 .drag-handle{cursor:grab;color:#c8dfe6;font-size:16px;padding:4px;touch-action:none}
 .drag-handle:active{cursor:grabbing}
+
+.pull-refresh-indicator{position:fixed;top:0;left:50%;transform:translateX(-50%) translateY(-50px);
+  background:#fff;color:#5a8a9c;font-size:12px;font-weight:600;padding:8px 18px;border-radius:20px;
+  box-shadow:0 2px 10px rgba(143,184,200,.3);z-index:400;opacity:0;transition:none;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.pull-refresh-indicator .spin{width:14px;height:14px;border:2px solid #d4e6ec;border-top-color:#8fb8c8;border-radius:50%;display:inline-block}
+.pull-refresh-indicator .spin.active{animation:spin .7s linear infinite}
 </style>
 </head>
 <body>
@@ -174,6 +180,7 @@ input[type=file]{display:none}
   <button class="garden-btn" onclick="selectGarden('たの津こども保育園')"><span class="g-icon">🌊</span>たの津こども保育園</button>
   <button class="garden-btn" onclick="selectGarden('ちくし野こども保育園')"><span class="g-icon">🌾</span>ちくし野こども保育園</button>
 </div>
+<div class="pull-refresh-indicator" id="pull-refresh-indicator"><span class="spin" id="pull-refresh-spin"></span><span id="pull-refresh-text">引っ張って更新</span></div>
 <div class="app">
   <div class="header">
     <div class="header-left">
@@ -196,7 +203,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-07-12-06'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-07-12-07'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -290,7 +297,7 @@ async function loadAll(silent=false){
 /* ── ユーティリティ ─── */
 function getCatLabel(id){const c=CATS.find(c=>c.id===id);return c?c.label:id}
 function getCatClass(id){return'bc-'+(id||'zappi')}
-function allPlaces(){return[...DEFAULT_PLACES,...masterPlaces.filter(p=>!DEFAULT_PLACES.includes(p))]}
+function allPlaces(){return[...masterPlaces,...DEFAULT_PLACES.filter(p=>!masterPlaces.includes(p))]}
 function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
 function fmtDate(s){
   if(!s)return'';
@@ -1534,6 +1541,7 @@ async function deleteItem(id,list){
   updateGardenHeader();
   renderStaff();
   startVersionWatcher();
+  setupPullToRefresh();
 })();
 
 function startVersionWatcher(){
@@ -1548,6 +1556,62 @@ function startVersionWatcher(){
       }
     }catch(e){/* オフライン時などは無視 */}
   }, 5*60*1000); // 5分ごと
+}
+
+/* ── 下スワイプでリロード（Pull to Refresh） ── */
+function setupPullToRefresh(){
+  const indicator=document.getElementById('pull-refresh-indicator');
+  const spin=document.getElementById('pull-refresh-spin');
+  const text=document.getElementById('pull-refresh-text');
+  const THRESHOLD=70;
+  let startY=0,startX=0,pulling=false,refreshing=false,lastPull=0;
+
+  document.addEventListener('touchstart',e=>{
+    if(refreshing)return;
+    if(window.scrollY>0||document.documentElement.scrollTop>0)return;
+    startY=e.touches[0].clientY;
+    startX=e.touches[0].clientX;
+    pulling=true;
+    lastPull=0;
+  },{passive:true});
+
+  document.addEventListener('touchmove',e=>{
+    if(!pulling||refreshing)return;
+    const dy=e.touches[0].clientY-startY;
+    const dx=e.touches[0].clientX-startX;
+    if(Math.abs(dx)>Math.abs(dy)){pulling=false;return;} // 横スワイプは無視（フォルダバー等）
+    if(dy>0&&(window.scrollY||0)===0){
+      const pull=Math.min(dy,110);
+      lastPull=pull;
+      indicator.style.transform=`translateX(-50%) translateY(${pull-50}px)`;
+      indicator.style.opacity=Math.min(pull/THRESHOLD,1);
+      text.textContent=pull>=THRESHOLD?'離すと更新':'引っ張って更新';
+    }
+  },{passive:true});
+
+  document.addEventListener('touchend',async()=>{
+    if(!pulling)return;
+    pulling=false;
+    if(lastPull>=THRESHOLD){
+      refreshing=true;
+      text.textContent='更新中…';
+      spin.classList.add('active');
+      indicator.style.transform='translateX(-50%) translateY(14px)';
+      indicator.style.opacity='1';
+      try{
+        await loadAll();
+        if(mode==='staff'){renderStaff();}else{renderAdmin();}
+      }catch(e){/* エラーは通常のloadAll内で表示済み */}
+      spin.classList.remove('active');
+      indicator.style.transform='translateX(-50%) translateY(-50px)';
+      indicator.style.opacity='0';
+      refreshing=false;
+    } else {
+      indicator.style.transform='translateX(-50%) translateY(-50px)';
+      indicator.style.opacity='0';
+    }
+    lastPull=0;
+  },{passive:true});
 }
 
 /* ── ライトボックス（ピンチ拡縮対応） ── */
