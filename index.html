@@ -56,16 +56,17 @@ input[type=file]{display:none}
 .sort-bar select{font-size:13px;padding:6px 10px}
 .group-block{margin-bottom:16px}
 .group-label{font-size:11px;font-weight:700;color:#5a8a9c;letter-spacing:.06em;margin-bottom:7px;display:flex;align-items:center;gap:5px}
-.item-card{background:#fffdf8;border:1px solid #e8f0f2;border-radius:12px;padding:11px 12px;display:flex;align-items:stretch;gap:10px;margin-bottom:8px;box-shadow:0 1px 6px rgba(143,184,200,.08)}
+.item-card{background:#fffdf8;border:1.3px solid #c8dfe6;border-radius:12px;padding:11px 12px;display:flex;align-items:stretch;gap:10px;margin-bottom:8px;box-shadow:0 1px 6px rgba(143,184,200,.08)}
+.item-card.partial{background:#fff6ec;border-color:#f0d8b0}
 .item-card.done{}
 .chk{width:22px;height:22px;flex-shrink:0;cursor:pointer;margin-top:2px;accent-color:#8fb8c8;align-self:flex-start}
 .img-slot{width:48px;height:48px;flex-shrink:0;border-radius:10px;overflow:hidden;background:#e3eef2;border:1px solid #d4e6ec;display:flex;align-items:center;justify-content:center;align-self:flex-start}
 .img-slot img{width:100%;height:100%;object-fit:cover}
 .img-slot-empty{font-size:18px;opacity:.35;color:#5a8a9c}
 .item-info{flex:1;min-width:0}
-.item-name{font-size:14px;font-weight:700;color:#2a4a55;word-break:break-all}
+.item-name{font-size:14px;font-weight:700;color:#1e3a44;word-break:break-all}
 .item-name.done{}
-.item-qty{font-size:14px;font-weight:700;color:#2a4a55;margin-top:1px}
+.item-qty{font-size:14px;font-weight:700;color:#1e3a44;margin-top:1px}
 .item-qty.done{}
 .item-meta{font-size:12px;color:#5a8a9c;margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
 .icon-btn{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid #e8f0f2;border-radius:8px;background:transparent;cursor:pointer;color:#a8c4cc;font-size:16px;flex-shrink:0}
@@ -92,6 +93,7 @@ input[type=file]{display:none}
 .bc-fukuri{background:#fce8d8;color:#a35a20}
 .requester-tag{font-size:11px;padding:2px 8px;border-radius:20px;background:#f0e6d8;color:#9a7a55;font-weight:500}
 .qty-alert{font-size:12px;font-weight:700;color:#c0664a}
+.partial-badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;background:#f0d8b0;color:#a3702a}
 .cat-select-inline{border:1px solid #c8dfe6;border-radius:8px;font-size:12px;padding:3px 6px;background:#fbf9f2;color:#2a4a55;width:auto}
 .empty{text-align:center;padding:36px 16px;color:#a8c4cc;font-size:13px}
 .empty-icon{font-size:36px;display:block;margin-bottom:8px}
@@ -186,7 +188,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-07-10-03'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-07-11-02'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -1195,7 +1197,7 @@ function itemCardHTML(i,opts={}){
       </div>`
     :(i.place?`<span>📍${esc(i.place)}</span>`:'');
   const imgSlot=`<div class="img-slot">${i.img?`<img src="${esc(i.img)}" alt="" onclick="openLightbox('${esc(i.img)}')" style="cursor:zoom-in">`:`<span class="img-slot-empty">📷</span>`}</div>`;
-  return`<div class="item-card${isDone?' done':''}">
+  return`<div class="item-card${isDone?' done':''}${i.partial?' partial':''}">
     ${checkBox?`<input type="checkbox" class="chk" id="chk-${i.id}" ${selectedItems.has(i.id)?'checked':''} onchange="toggleSelect('${i.id}',this.checked)">`:''}
     ${imgSlot}
     <div class="item-info">
@@ -1210,6 +1212,7 @@ function itemCardHTML(i,opts={}){
       <div class="item-meta">
         ${catBadge}
         ${placeEditable?placeBadge:(i.place?`<span>📍${esc(i.place)}</span>`:'')}
+        ${i.partial?'<span class="partial-badge">🔸買い残し</span>':''}
       </div>
       <div class="item-meta" style="margin-top:3px">
         ${i.requester?`<span class="requester-tag">👤 ${esc(i.requester)}</span>`:''}
@@ -1217,7 +1220,7 @@ function itemCardHTML(i,opts={}){
       </div>
       ${i.url?`<a class="url-link" href="${esc(i.url)}" target="_blank">🔗 ${shortUrl(i.url)}</a>`:''}
       ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
-      <div style="font-size:11px;color:#8ab0cc;margin-top:3px">${fmtDate(isDone?(i.boughtAt||i.created):i.created)}</div>
+      <div style="font-size:11px;color:#7a98a2;margin-top:3px">${fmtDate(isDone?(i.boughtAt||i.created):i.created)}</div>
     </div>
     <div class="actions-col" style="justify-content:space-between;height:100%">
       <div style="display:flex;flex-direction:column;gap:4px;align-items:center">
@@ -1362,8 +1365,8 @@ async function confirmPartialBuy(id, originalNum, originalQty){
   };
 
   if(remaining>0){
-    // 残りを要購入に残す（個数更新）
-    pending[idx]={...srcItem,qty:`${remaining}${unit}`};
+    // 残りを要購入に残す（個数更新・買い残しフラグを付与）
+    pending[idx]={...srcItem,qty:`${remaining}${unit}`,partial:'1'};
     done.unshift(doneItem);
     closeModal();
     renderAdmin();
