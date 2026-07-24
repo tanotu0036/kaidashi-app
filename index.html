@@ -157,7 +157,7 @@ input[type=file]{display:none}
 
 .img-col{display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0}
 
-.master-row{display:flex;align-items:center;justify-content:space-between;padding:8px 4px;border-bottom:1px solid #e8f0f2;background:#fffdf8;touch-action:none}
+.master-row{display:flex;align-items:center;justify-content:space-between;padding:8px 4px;border-bottom:1px solid #e8f0f2;background:#fffdf8}
 .master-row.dragging{opacity:.6;background:#eef6f8;box-shadow:0 4px 12px rgba(143,184,200,.3);border-radius:8px;z-index:10;position:relative}
 .master-row-left{display:flex;align-items:center;gap:8px}
 .drag-handle{cursor:grab;color:#c8dfe6;font-size:16px;padding:4px;touch-action:none}
@@ -196,7 +196,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-07-12-03'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-07-12-04'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
