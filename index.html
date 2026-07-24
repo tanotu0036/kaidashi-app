@@ -60,9 +60,9 @@ input[type=file]{display:none}
 .item-card.partial{background:#fff6ec;border-color:#f0d8b0}
 .item-card.done{}
 .chk{width:22px;height:22px;flex-shrink:0;cursor:pointer;margin-top:2px;accent-color:#8fb8c8;align-self:flex-start}
-.img-slot{width:48px;height:48px;flex-shrink:0;border-radius:10px;overflow:hidden;background:#e3eef2;border:1px solid #d4e6ec;display:flex;align-items:center;justify-content:center;align-self:flex-start}
+.img-slot{width:64px;height:64px;flex-shrink:0;border-radius:10px;overflow:hidden;background:#e3eef2;border:1px solid #d4e6ec;display:flex;align-items:center;justify-content:center;align-self:flex-start}
 .img-slot img{width:100%;height:100%;object-fit:cover}
-.img-slot-empty{font-size:18px;opacity:.35;color:#5a8a9c}
+.img-slot-empty{font-size:24px;opacity:.35;color:#5a8a9c}
 .item-info{flex:1;min-width:0}
 .item-name{font-size:14px;font-weight:700;color:#1e3a44;word-break:break-all}
 .item-name.done{}
@@ -154,6 +154,14 @@ input[type=file]{display:none}
 .clear-sel-btn:hover{background:#eef6f8}
 .buy-btn{font-size:13px;padding:26px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#e88fa8,#d4607a);color:#fff;cursor:pointer;font-weight:700;text-align:center;line-height:1.4;width:48px;display:flex;align-items:center;justify-content:center}
 .buy-btn:hover{opacity:.85}
+
+.img-col{display:flex;flex-direction:column;align-items:center;gap:6px;flex-shrink:0}
+
+.master-row{display:flex;align-items:center;justify-content:space-between;padding:8px 4px;border-bottom:1px solid #e8f0f2;background:#fffdf8;touch-action:none}
+.master-row.dragging{opacity:.6;background:#eef6f8;box-shadow:0 4px 12px rgba(143,184,200,.3);border-radius:8px;z-index:10;position:relative}
+.master-row-left{display:flex;align-items:center;gap:8px}
+.drag-handle{cursor:grab;color:#c8dfe6;font-size:16px;padding:4px;touch-action:none}
+.drag-handle:active{cursor:grabbing}
 </style>
 </head>
 <body>
@@ -188,7 +196,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-07-11-02'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-07-12-03'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -858,6 +866,12 @@ function renderAdmin(){
   </div>
   ${adminTab!=='master'?renderFolderBar(true):''}  ${adminTab==='pending'?renderActionBar():''}
   ${adminTab==='pending'?renderPendingList():adminTab==='hold'?renderHoldList():adminTab==='done'?renderDoneList():renderMasterTab()}`;
+  if(adminTab==='master'){
+    setTimeout(()=>{
+      makeReorderable('requester-list','requester');
+      makeReorderable('place-list','place');
+    },30);
+  }
 }
 function setAdminTab(t){
   adminTab=t;filterCat='all';filterPlace='all';renderAdmin();
@@ -905,6 +919,19 @@ function renderPendingList(){
 
   // 2段階グルーピング
   const keyFn=(key,i)=>key==='place'?(i.place||'場所未定'):key==='cat'?getCatLabel(i.cat):key==='requester'?(i.requester||'不明'):'';
+  const sortGroupKeys=(keys,sortKey)=>{
+    if(sortKey!=='place')return keys.sort();
+    const order=allPlaces(); // マスタ登録順（実店舗→Amazon等）
+    return keys.sort((a,b)=>{
+      const ia=order.indexOf(a), ib=order.indexOf(b);
+      if(a==='場所未定')return 1;
+      if(b==='場所未定')return -1;
+      if(ia<0&&ib<0)return a.localeCompare(b,'ja');
+      if(ia<0)return 1;
+      if(ib<0)return -1;
+      return ia-ib;
+    });
+  };
   
   let html='';
   if(sortKey1==='date'){
@@ -914,18 +941,24 @@ function renderPendingList(){
   } else {
     const g1={};
     items.forEach(i=>{const k=keyFn(sortKey1,i);if(!g1[k])g1[k]=[];g1[k].push(i);});
-    Object.entries(g1).forEach(([k1,its1])=>{
+    const g1Keys=sortGroupKeys(Object.keys(g1),sortKey1);
+    g1Keys.forEach(k1=>{
+      const its1=g1[k1];
       let inner='';
       if(sortKey2==='none'||sortKey2===sortKey1){
         inner=its1.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true,placeEditable:true})).join('');
       } else {
         const g2={};
         its1.forEach(i=>{const k=keyFn(sortKey2,i);if(!g2[k])g2[k]=[];g2[k].push(i);});
-        inner=Object.entries(g2).map(([k2,its2])=>`
+        const g2Keys=sortGroupKeys(Object.keys(g2),sortKey2);
+        inner=g2Keys.map(k2=>{
+          const its2=g2[k2];
+          return `
           <div style="margin-left:8px;margin-bottom:10px">
             <div class="group-label" style="font-size:10px;opacity:.75">${grpIcon(sortKey2)} ${esc(k2)}<span style="font-size:10px;color:#8ab0cc;font-weight:400;margin-left:4px">${its2.length}件</span></div>
             ${its2.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true,placeEditable:true})).join('')}
-          </div>`).join('');
+          </div>`;
+        }).join('');
       }
       html+=`<div class="group-block"><div class="group-label">${grpIcon(sortKey1)} ${esc(k1)}<span style="font-size:11px;color:#8ab0cc;font-weight:400;margin-left:4px">${its1.length}件</span></div>${inner}</div>`;
     });
@@ -1030,6 +1063,20 @@ function filterByFolder(items){
   return items.filter(i=>i.folder===currentFolder);
 }
 
+function sortGroupKeysGeneric(keys,sortKey){
+  if(sortKey!=='place')return keys.sort();
+  const order=allPlaces();
+  return keys.sort((a,b)=>{
+    const ia=order.indexOf(a), ib=order.indexOf(b);
+    if(a==='場所未定')return 1;
+    if(b==='場所未定')return -1;
+    if(ia<0&&ib<0)return a.localeCompare(b,'ja');
+    if(ia<0)return 1;
+    if(ib<0)return -1;
+    return ia-ib;
+  });
+}
+
 function groupedCards(items,s1,s2,cardOpts){
   if(!items.length)return'';
   const keyFn=(key,i)=>key==='place'?(i.place||'場所未定'):key==='cat'?getCatLabel(i.cat||'zappi'):key==='requester'?(i.requester||'不明'):'';
@@ -1040,7 +1087,9 @@ function groupedCards(items,s1,s2,cardOpts){
   let html='';
   const g1={};
   items.forEach(i=>{const k=keyFn(s1,i);if(!g1[k])g1[k]=[];g1[k].push(i);});
-  Object.entries(g1).forEach(([k1,its1])=>{
+  const g1Keys=sortGroupKeysGeneric(Object.keys(g1),s1);
+  g1Keys.forEach(k1=>{
+    const its1=g1[k1];
     let inner='';
     if(s2==='none'||s2===s1){
       inner=its1.map(card).join('');
@@ -1049,11 +1098,15 @@ function groupedCards(items,s1,s2,cardOpts){
     } else {
       const g2={};
       its1.forEach(i=>{const k=keyFn(s2,i);if(!g2[k])g2[k]=[];g2[k].push(i);});
-      inner=Object.entries(g2).map(([k2,its2])=>`
+      const g2Keys=sortGroupKeysGeneric(Object.keys(g2),s2);
+      inner=g2Keys.map(k2=>{
+        const its2=g2[k2];
+        return `
         <div style="margin-left:8px;margin-bottom:10px">
           <div class="group-label" style="font-size:10px;opacity:.8">${grpIcon(s2)} ${esc(k2)}<span style="font-size:10px;color:#8ab0cc;font-weight:400;margin-left:4px">${its2.length}件</span></div>
           ${its2.map(card).join('')}
-        </div>`).join('');
+        </div>`;
+      }).join('');
     }
     html+=`<div class="group-block"><div class="group-label">${grpIcon(s1)} ${esc(k1)}<span style="font-size:11px;color:#8ab0cc;font-weight:400;margin-left:4px">${its1.length}件</span></div>${inner}</div>`;
   });
@@ -1075,13 +1128,19 @@ function renderDoneList(){
 /* ── マスタ管理タブ ─── */
 function renderMasterTab(){
   const rRows=masterRequesters.map((r,idx)=>
-    `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e8f0f2">
-      <span style="font-size:14px;color:#2a4a55">👤 ${esc(r)}</span>
+    `<div class="master-row" data-value="${esc(r)}">
+      <div class="master-row-left">
+        <span class="drag-handle">☰</span>
+        <span style="font-size:14px;color:#2a4a55">👤 ${esc(r)}</span>
+      </div>
       <button class="icon-btn" data-type="requester" data-idx="${idx}" onclick="deleteMasterByIdx(this)" title="削除">🗑</button>
     </div>`).join('');
   const pRows=masterPlaces.map((p,idx)=>
-    `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e8f0f2">
-      <span style="font-size:14px;color:#2a4a55">📍 ${esc(p)}</span>
+    `<div class="master-row" data-value="${esc(p)}">
+      <div class="master-row-left">
+        <span class="drag-handle">☰</span>
+        <span style="font-size:14px;color:#2a4a55">📍 ${esc(p)}</span>
+      </div>
       <button class="icon-btn" data-type="place" data-idx="${idx}" onclick="deleteMasterByIdx(this)" title="削除">🗑</button>
     </div>`).join('');
   const fRows=folders.map((f,idx)=>
@@ -1092,15 +1151,15 @@ function renderMasterTab(){
   return`<div class="section">
     <div class="form-card" style="margin-bottom:12px">
       <div style="font-size:13px;font-weight:700;color:#5a8a9c;margin-bottom:10px">👤 依頼者マスタ</div>
-      ${masterRequesters.length===0?'<div style="font-size:13px;color:#8ab0cc;margin-bottom:8px">登録された依頼者はいません</div>':rRows}
+      <div id="requester-list">${masterRequesters.length===0?'<div style="font-size:13px;color:#8ab0cc;margin-bottom:8px">登録された依頼者はいません</div>':rRows}</div>
       <div style="display:flex;gap:8px;margin-top:10px">
         <input type="text" id="new-requester" placeholder="新しい依頼者名" style="flex:1;font-size:13px;padding:7px 10px">
         <button onclick="addMasterItem('requester')" style="padding:7px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4);color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">追加</button>
       </div>
     </div>
     <div class="form-card" style="margin-bottom:12px">
-      <div style="font-size:13px;font-weight:700;color:#5a8a9c;margin-bottom:10px">📍 購入場所マスタ</div>
-      ${masterPlaces.length===0?'<div style="font-size:13px;color:#8ab0cc;margin-bottom:8px">登録された場所はありません</div>':pRows}
+      <div style="font-size:13px;font-weight:700;color:#5a8a9c;margin-bottom:4px">📍 購入場所マスタ</div><div style="font-size:11px;color:#a8c4cc;margin-bottom:8px">☰を押しながら並び替えると、要購入画面のグループ順に反映されます</div>
+      <div id="place-list">${masterPlaces.length===0?'<div style="font-size:13px;color:#8ab0cc;margin-bottom:8px">登録された場所はありません</div>':pRows}</div>
       <div style="display:flex;gap:8px;margin-top:10px">
         <input type="text" id="new-place" placeholder="新しい購入場所" style="flex:1;font-size:13px;padding:7px 10px">
         <button onclick="addMasterItem('place')" style="padding:7px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4);color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">追加</button>
@@ -1157,6 +1216,63 @@ async function deleteFolderFromMaster(folderId,folderName){
   catch(e){showErr('削除失敗: '+e.message);loadAll().then(()=>renderAdmin());}
 }
 
+function makeReorderable(containerId, type){
+  const container=document.getElementById(containerId);
+  if(!container)return;
+  let dragEl=null;
+
+  container.querySelectorAll('.master-row').forEach(row=>{
+    const handle=row.querySelector('.drag-handle');
+    if(!handle)return;
+    handle.onpointerdown=(e)=>{
+      e.preventDefault();
+      dragEl=row;
+      row.classList.add('dragging');
+      try{handle.setPointerCapture(e.pointerId);}catch(err){}
+      document.addEventListener('pointermove',onMove);
+      document.addEventListener('pointerup',onUp,{once:true});
+    };
+  });
+
+  function onMove(e){
+    if(!dragEl)return;
+    const rows=[...container.querySelectorAll('.master-row')];
+    const y=e.clientY;
+    for(const row of rows){
+      if(row===dragEl)continue;
+      const rect=row.getBoundingClientRect();
+      if(y>rect.top&&y<rect.bottom){
+        const mid=rect.top+rect.height/2;
+        if(y<mid){
+          if(row.previousElementSibling!==dragEl)container.insertBefore(dragEl,row);
+        }else{
+          if(row.nextElementSibling!==dragEl)container.insertBefore(dragEl,row.nextElementSibling);
+        }
+        break;
+      }
+    }
+  }
+
+  function onUp(){
+    if(!dragEl)return;
+    dragEl.classList.remove('dragging');
+    document.removeEventListener('pointermove',onMove);
+    const newOrder=[...container.querySelectorAll('.master-row')].map(r=>r.dataset.value);
+    dragEl=null;
+    saveMasterOrder(type,newOrder);
+  }
+}
+
+async function saveMasterOrder(type,newOrder){
+  if(type==='requester')masterRequesters=newOrder;
+  else masterPlaces=newOrder;
+  try{
+    await apiPost({action:'reorderMaster',masterType:type,garden:currentGarden,values:newOrder});
+  }catch(e){
+    showErr('並び順の保存に失敗: '+e.message);
+  }
+}
+
 function deleteMasterByIdx(btn){
   const type=btn.dataset.type;
   const idx=parseInt(btn.dataset.idx);
@@ -1199,7 +1315,10 @@ function itemCardHTML(i,opts={}){
   const imgSlot=`<div class="img-slot">${i.img?`<img src="${esc(i.img)}" alt="" onclick="openLightbox('${esc(i.img)}')" style="cursor:zoom-in">`:`<span class="img-slot-empty">📷</span>`}</div>`;
   return`<div class="item-card${isDone?' done':''}${i.partial?' partial':''}">
     ${checkBox?`<input type="checkbox" class="chk" id="chk-${i.id}" ${selectedItems.has(i.id)?'checked':''} onchange="toggleSelect('${i.id}',this.checked)">`:''}
-    ${imgSlot}
+    <div class="img-col">
+      ${imgSlot}
+      ${deleteBtn?`<button class="icon-btn" onclick="deleteItem('${i.id}','${isDone?'done':holdToPublicBtn?'hold':'pending'}')">🗑</button>`:''}
+    </div>
     <div class="item-info">
       <div class="item-name-row">
         <div class="item-name${isDone?' done':''}">${esc(i.name)}</div>
@@ -1230,7 +1349,6 @@ function itemCardHTML(i,opts={}){
         ${holdToPublicBtn?`<button class="edit-btn" onclick="holdToPublic('${i.id}')">要購入へ</button>`:''}
         ${doneToPublicBtn?`<button class="revert-btn" onclick="doneToPublic('${i.id}')">要購入へ</button>`:''}
         ${rebuyBtn?`<button class="rebuy-btn" onclick="rebuyItem('${i.id}')">🔄 再購入</button>`:''}
-        ${deleteBtn?`<button class="icon-btn" onclick="deleteItem('${i.id}','${isDone?'done':holdToPublicBtn?'hold':'pending'}')">🗑</button>`:''}
       </div>
       ${holdBtn?`<button class="buy-btn" onclick="checkItem('${i.id}',true)">購入</button>`:''}
     </div>
