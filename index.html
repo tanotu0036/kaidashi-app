@@ -203,7 +203,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-07-12-07'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-07-13-01'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -877,6 +877,7 @@ function renderAdmin(){
     setTimeout(()=>{
       makeReorderable('requester-list','requester');
       makeReorderable('place-list','place');
+      makeReorderable('folder-list','folder');
     },30);
   }
 }
@@ -1151,8 +1152,11 @@ function renderMasterTab(){
       <button class="icon-btn" data-type="place" data-idx="${idx}" onclick="deleteMasterByIdx(this)" title="削除">🗑</button>
     </div>`).join('');
   const fRows=folders.map((f,idx)=>
-    `<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid #e8f0f2">
-      <span style="font-size:14px;color:#2a4a55">📁 ${esc(f.name)}</span>
+    `<div class="master-row" data-value="${esc(f.id)}">
+      <div class="master-row-left">
+        <span class="drag-handle">☰</span>
+        <span style="font-size:14px;color:#2a4a55">📁 ${esc(f.name)}</span>
+      </div>
       <button class="icon-btn" onclick="deleteFolderFromMaster('${f.id}','${esc(f.name)}')" title="削除">🗑</button>
     </div>`).join('');
   return`<div class="section">
@@ -1173,8 +1177,9 @@ function renderMasterTab(){
       </div>
     </div>
     <div class="form-card">
-      <div style="font-size:13px;font-weight:700;color:#5a8a9c;margin-bottom:10px">📁 フォルダ管理</div>
-      ${folders.length===0?'<div style="font-size:13px;color:#8ab0cc;margin-bottom:8px">フォルダはありません</div>':fRows}
+      <div style="font-size:13px;font-weight:700;color:#5a8a9c;margin-bottom:4px">📁 フォルダ管理</div>
+      <div style="font-size:11px;color:#a8c4cc;margin-bottom:8px">☰を押しながら並び替えると、フォルダバーの表示順に反映されます</div>
+      <div id="folder-list">${folders.length===0?'<div style="font-size:13px;color:#8ab0cc;margin-bottom:8px">フォルダはありません</div>':fRows}</div>
       <div style="display:flex;gap:8px;margin-top:10px">
         <input type="text" id="new-folder" placeholder="新しいフォルダ名" style="flex:1;font-size:13px;padding:7px 10px">
         <button onclick="addFolderFromMaster()" style="padding:7px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4);color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">追加</button>
@@ -1271,12 +1276,27 @@ function makeReorderable(containerId, type){
 }
 
 async function saveMasterOrder(type,newOrder){
+  if(type==='folder'){
+    await saveFolderOrder(newOrder);
+    return;
+  }
   if(type==='requester')masterRequesters=newOrder;
   else masterPlaces=newOrder;
   try{
     await apiPost({action:'reorderMaster',masterType:type,garden:currentGarden,values:newOrder});
   }catch(e){
     showErr('並び順の保存に失敗: '+e.message);
+  }
+}
+
+async function saveFolderOrder(newOrderIds){
+  // newOrderIdsはフォルダIDの新しい順番
+  const reordered=newOrderIds.map(id=>folders.find(f=>f.id===id)).filter(Boolean);
+  folders=reordered;
+  try{
+    await apiPost({action:'reorderFolders',garden:currentGarden,folderIds:newOrderIds});
+  }catch(e){
+    showErr('フォルダ並び順の保存に失敗: '+e.message);
   }
 }
 
