@@ -203,7 +203,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-07-13-01'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-07-15-01'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -252,7 +252,9 @@ function selectGarden(name){
     staffTab='request';adminTab='pending';
     if(mode==='staff')renderStaff();else renderAdmin();
     loadAll().then(()=>{
+      const preserved=(mode==='staff')?captureRequestFormState():null;
       if(mode==='staff')renderStaff();else renderAdmin();
+      if(mode==='staff')restoreRequestFormState(preserved);
     });
   }
 }
@@ -332,7 +334,11 @@ function goStaff(){
   document.getElementById('admin-view').style.display='none';
   updateGardenHeader();
   renderStaff();
-  loadAll(true).then(()=>renderStaff());
+  loadAll(true).then(()=>{
+    const preserved=captureRequestFormState();
+    renderStaff();
+    restoreRequestFormState(preserved);
+  });
 }
 function goAdmin(){
   if(mode==='admin')return;
@@ -562,6 +568,35 @@ function getImgData(previewImgId){
 }
 
 /* ════ 職員ビュー ════ */
+function captureRequestFormState(){
+  if(!(mode==='staff'&&staffTab==='request'))return null;
+  const ids=['f-requester','f-requester-new','f-name','f-qty','f-place','f-place-new','f-url','f-memo','f-folder'];
+  const state={};
+  let hasValue=false;
+  ids.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){state[id]=el.value;if(el.value)hasValue=true;}
+  });
+  const imgPreview=document.getElementById('f-img-preview');
+  if(imgPreview&&imgPreview.src&&imgPreview.src.startsWith('data:')){state.__img=imgPreview.src;hasValue=true;}
+  return hasValue?state:null;
+}
+function restoreRequestFormState(state){
+  if(!state)return;
+  Object.entries(state).forEach(([id,val])=>{
+    if(id==='__img'){
+      const box=document.getElementById('img-preview-box');
+      const img=document.getElementById('f-img-preview');
+      if(img){img.src=val;if(box)box.style.display='block';}
+      return;
+    }
+    const el=document.getElementById(id);
+    if(el)el.value=val;
+  });
+  if(typeof onRequesterChange==='function')onRequesterChange();
+  if(typeof onPlaceChange==='function')onPlaceChange();
+}
+
 function renderStaff(){
   document.getElementById('staff-view').innerHTML=`
   <div class="tabs">
@@ -575,7 +610,11 @@ function renderStaff(){
 }
 function setStaffTab(t){
   staffTab=t;renderStaff();
-  loadAll(true).then(()=>renderStaff());
+  loadAll(true).then(()=>{
+    const preserved=captureRequestFormState();
+    renderStaff();
+    restoreRequestFormState(preserved);
+  });
 }
 function renderStaffContent(){
   const el=document.getElementById('staff-content');if(!el)return;
