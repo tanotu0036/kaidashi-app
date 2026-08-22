@@ -203,7 +203,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-08-22-09'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-08-22-10'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -637,7 +637,10 @@ function renderUsualTab(){
       <div class="item-card">
         <div class="img-col">
           <div class="img-slot">${i.img?`<img src="${esc(i.img)}" alt="" onclick="openLightbox('${esc(i.img)}')" style="cursor:zoom-in">`:`<span class="img-slot-empty">📷</span>`}</div>
-          <button class="icon-btn" onclick="deleteUsualItem('${i.id}','${esc(i.name)}')">🗑</button>
+          <div style="display:flex;gap:4px">
+            <button class="icon-btn" onclick="openUsualEditModal('${i.id}')" title="編集">✏️</button>
+            <button class="icon-btn" onclick="deleteUsualItem('${i.id}','${esc(i.name)}')">🗑</button>
+          </div>
         </div>
         <div class="item-info">
           <div class="item-name">⭐ ${esc(i.name)}</div>
@@ -759,6 +762,80 @@ async function deleteUsualItem(id,name){
   showToast('削除しました');
   try{await apiPost({action:'deleteUsualItem',id:String(id),garden:currentGarden});}
   catch(e){usualItems.splice(idx,0,item);renderStaffContent();showErr('削除失敗: '+e.message);}
+}
+
+function openUsualEditModal(id){
+  const item=usualItems.find(i=>i.id===id);
+  if(!item)return;
+  const places=allPlaces();
+  document.getElementById('modal-container').innerHTML=`
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-title">✏️ 定番アイテムを編集</div>
+      <div class="form-row">
+        <label>品名 <span class="req">*</span></label>
+        <input type="text" id="ue-name" value="${esc(item.name)}" placeholder="品名">
+      </div>
+      <div class="form-row">
+        <label>個数 <span class="opt">(任意)</span></label>
+        <input type="text" id="ue-qty" value="${esc(item.qty)}" placeholder="例: 2個">
+      </div>
+      <div class="form-row">
+        <label>経費の種類</label>
+        <select id="ue-cat">${CATS.map(c=>`<option value="${c.id}"${c.id===item.cat?' selected':''}>${c.label}</option>`).join('')}</select>
+      </div>
+      <div class="form-row">
+        <label>購入場所 <span class="opt">(任意)</span></label>
+        <select id="ue-place">
+          <option value="">未定</option>
+          ${places.map(p=>`<option value="${esc(p)}"${item.place===p?' selected':''}>${esc(p)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row">
+        <label>画像 <span class="opt">(任意)</span></label>
+        <div class="img-area" id="ue-img-area">
+          <div class="img-area-text">📷 タップして選択</div>
+        </div>
+        <input type="file" id="ue-img" accept="image/*">
+        <div class="img-preview-box" id="ue-img-preview-box" ${item.img?'style="display:block"':''}>
+          <img id="ue-img-preview" src="${esc(item.img)}" alt="">
+          <button class="img-clear-btn" onclick="clearImg('ue-img-preview-box','ue-img-preview','ue-img')">✕</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>メモ <span class="opt">(任意)</span></label>
+        <textarea id="ue-memo" placeholder="メモ">${esc(item.memo)}</textarea>
+      </div>
+      <button class="submit-btn" onclick="saveUsualEdit('${id}')">💾 保存する</button>
+    </div>
+  </div>`;
+  setupImgArea('ue-img-area','ue-img','ue-img-preview-box','ue-img-preview');
+}
+
+async function saveUsualEdit(id){
+  const name=(document.getElementById('ue-name').value||'').trim();
+  if(!name){showToast('品名は必須です');return;}
+  const qty=(document.getElementById('ue-qty').value||'').trim();
+  const cat=document.getElementById('ue-cat').value;
+  const place=document.getElementById('ue-place').value;
+  const memo=(document.getElementById('ue-memo').value||'').trim();
+  const img=getImgData('ue-img-preview');
+  const idx=usualItems.findIndex(i=>i.id===id);
+  if(idx<0){closeModal();return;}
+  const oldItem={...usualItems[idx]};
+  const fields={name,qty,cat,place,memo,img};
+  usualItems[idx]={...usualItems[idx],...fields};
+  closeModal();
+  renderStaffContent();
+  showToast('更新しました ✓');
+  try{
+    await apiPost({action:'updateUsualItem',id:String(id),fields});
+  }catch(e){
+    usualItems[idx]=oldItem;
+    renderStaffContent();
+    showErr('更新失敗: '+e.message);
+  }
 }
 
 function openUsualSendModal(id){
