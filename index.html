@@ -203,7 +203,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-08-22-04'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-08-22-05'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -1612,10 +1612,7 @@ function itemCardHTML(i,opts={}){
       ${imgSlot}
     </div>
     <div class="item-info">
-      <div class="item-name${isDone?' done':''}" style="display:flex;align-items:center;gap:5px">
-        ${isUsual(i.name)?'<span title="いつもの定番アイテム" style="font-size:13px">⭐</span>':''}
-        <span>${esc(i.name)}</span>
-      </div>
+      <div class="item-name${isDone?' done':''}">${isUsual(i.name)?'⭐ ':''}${esc(i.name)}</div>
       <div class="item-qty${isDone?' done':''}" style="margin-top:1px">${
   (isDone&&i.requestedQty&&i.boughtQty&&i.requestedQty!==i.boughtQty)
     ? `依頼 ${esc(i.requestedQty)} → 購入 ${esc(i.boughtQty)}<span style="font-size:11px;color:#e05a7a;margin-left:4px">（残り${String(parseInt(i.requestedQty)||0)-String(parseInt(i.boughtQty)||0)}個）</span>`
