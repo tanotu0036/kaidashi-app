@@ -203,7 +203,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-08-22-08'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-08-22-09'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -640,7 +640,7 @@ function renderUsualTab(){
           <button class="icon-btn" onclick="deleteUsualItem('${i.id}','${esc(i.name)}')">🗑</button>
         </div>
         <div class="item-info">
-          <div class="item-name">${esc(i.name)}</div>
+          <div class="item-name">⭐ ${esc(i.name)}</div>
           <div class="item-qty" style="margin-top:1px">${i.qty?`× ${esc(i.qty)}`:''}</div>
           <div class="item-meta">
             <span class="cat-badge ${getCatClass(i.cat)}">${getCatLabel(i.cat||'zappi')}</span>
