@@ -203,7 +203,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-08-22-06'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-08-22-07'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -228,7 +228,7 @@ let hold=[];
 let holdSort1='date',holdSort2='none';
 let staffListSort1='date',staffListSort2='none';
 let usualItems=[];
-let usualFolder='';
+let usualSort1='place',usualSort2='none';
 let doneSort1='date',doneSort2='none';
 let filterCat='all',filterPlace='all';
 
@@ -628,51 +628,53 @@ function renderStaffContent(){
 }
 
 /* ════ いつものリクエスト ════ */
-function renderUsualFolderBar(){
-  const chips=folders.map(f=>{
-    const active=usualFolder===f.id?'active':'';
-    return '<button class="folder-chip '+active+'" onclick="setUsualFolder(\''+f.id+'\')">📁 '+esc(f.name)+'</button>';
-  }).join('');
-  const noneChip=`<button class="folder-chip ${usualFolder===''?'active':''}" onclick="setUsualFolder('')">📄 通常</button>`;
-  const allChip=`<button class="folder-chip ${usualFolder==='all'?'active':''}" onclick="setUsualFolder('all')">📋 すべて</button>`;
-  return`<div class="folder-bar">${noneChip}${allChip}${chips}</div>`;
-}
-function setUsualFolder(id){
-  usualFolder=id;
-  renderStaffContent();
-}
-function filterUsualByFolder(items){
-  if(usualFolder==='all')return items;
-  if(usualFolder==='')return items.filter(i=>!i.folder||i.folder==='');
-  return items.filter(i=>i.folder===usualFolder);
-}
-
 function renderUsualTab(){
-  const items=filterUsualByFolder(usualItems);
-  const cards=items.map(i=>`
-    <div class="item-card">
-      <div class="img-col">
-        <div class="img-slot">${i.img?`<img src="${esc(i.img)}" alt="">`:`<span class="img-slot-empty">📷</span>`}</div>
-        <button class="icon-btn" onclick="deleteUsualItem('${i.id}','${esc(i.name)}')">🗑</button>
-      </div>
-      <div class="item-info">
-        <div class="item-name">${esc(i.name)}</div>
-        <div class="item-qty" style="margin-top:1px">${i.qty?`× ${esc(i.qty)}`:''}</div>
-        <div class="item-meta">
-          <span class="cat-badge ${getCatClass(i.cat)}">${getCatLabel(i.cat||'zappi')}</span>
-          ${i.place?`<span>📍${esc(i.place)}</span>`:''}
+  const items=usualItems;
+  const usualKeyFn=(key,i)=>key==='place'?(i.place||'場所未定'):key==='cat'?getCatLabel(i.cat||'zappi'):'';
+  function usualGrouped(items,s1,s2){
+    if(!items.length)return'<div class="empty"><span class="empty-icon">📦</span>登録された定番アイテムはありません</div>';
+    const card=i=>`
+      <div class="item-card">
+        <div class="img-col">
+          <div class="img-slot">${i.img?`<img src="${esc(i.img)}" alt="" onclick="openLightbox('${esc(i.img)}')" style="cursor:zoom-in">`:`<span class="img-slot-empty">📷</span>`}</div>
+          <button class="icon-btn" onclick="deleteUsualItem('${i.id}','${esc(i.name)}')">🗑</button>
         </div>
-        ${i.folder&&getFolderName(i.folder)?`<div style="font-size:11px;margin-top:2px"><span style="background:#d4e6ee;color:#3a7a9c;border-radius:12px;padding:1px 8px;font-size:10px;font-weight:600">📁 ${esc(getFolderName(i.folder))}</span></div>`:''}
-        ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
-      </div>
-      <div class="actions-col" style="justify-content:center">
-        <button class="buy-btn" style="background:linear-gradient(135deg,#8fb8c8,#6fa0b4)" onclick="openUsualSendModal('${i.id}')">🛒<br>送る</button>
-      </div>
-    </div>`).join('');
+        <div class="item-info">
+          <div class="item-name">${esc(i.name)}</div>
+          <div class="item-qty" style="margin-top:1px">${i.qty?`× ${esc(i.qty)}`:''}</div>
+          <div class="item-meta">
+            <span class="cat-badge ${getCatClass(i.cat)}">${getCatLabel(i.cat||'zappi')}</span>
+            ${i.place?`<span>📍${esc(i.place)}</span>`:''}
+          </div>
+          ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
+        </div>
+        <div class="actions-col" style="justify-content:center">
+          <button class="buy-btn" style="background:linear-gradient(135deg,#8fb8c8,#6fa0b4);font-size:12px;padding:10px 8px" onclick="openUsualSendModal('${i.id}')">🛒送る</button>
+        </div>
+      </div>`;
+    if(s1==='none'){return items.map(card).join('');}
+    const g1={};
+    items.forEach(i=>{const k=usualKeyFn(s1,i);if(!g1[k])g1[k]=[];g1[k].push(i);});
+    const g1Keys=sortGroupKeysGeneric(Object.keys(g1),s1);
+    return g1Keys.map(k1=>{
+      const its1=g1[k1];
+      let inner='';
+      if(s2==='none'||s2===s1){inner=its1.map(card).join('');}
+      else{
+        const g2={};
+        its1.forEach(i=>{const k=usualKeyFn(s2,i);if(!g2[k])g2[k]=[];g2[k].push(i);});
+        const g2Keys=sortGroupKeysGeneric(Object.keys(g2),s2);
+        inner=g2Keys.map(k2=>`<div style="margin-left:8px;margin-bottom:10px">
+          <div class="group-label" style="font-size:10px;opacity:.75">📍 ${esc(k2)}<span style="margin-left:4px;font-size:10px;color:#8ab0cc;font-weight:400">${g2[k2].length}件</span></div>
+          ${g2[k2].map(card).join('')}</div>`).join('');
+      }
+      return`<div class="group-block"><div class="group-label">${s1==='place'?'📍':s1==='cat'?'💰':''} ${esc(k1)}<span style="font-size:11px;color:#8ab0cc;font-weight:400;margin-left:4px">${its1.length}件</span></div>${inner}</div>`;
+    }).join('');
+  }
 
-  return`${renderUsualFolderBar()}
+  return`${sortBar2('usualSort1','usualSort2')}
   <div class="section" style="padding-top:8px">
-    ${items.length?cards:'<div class="empty"><span class="empty-icon">📦</span>登録された定番アイテムはありません</div>'}
+    ${usualGrouped(items,usualSort1,usualSort2)}
     <button class="submit-btn" style="margin-top:12px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4)" onclick="toggleUsualAddForm()">＋ 新しい定番アイテムを登録</button>
     <div id="usual-add-form" style="display:none;margin-top:12px" class="form-card">
       <div class="form-row">
@@ -1272,8 +1274,8 @@ function sortBar2(v1,v2){
     {value:'none',label:'なし（第2のみ）'},
   ];
   const opts2=[{value:'none',label:'なし'},...opts.filter(o=>o.value!=='none')];
-  const cur1=v1==='staffListSort1'?staffListSort1:v1==='doneSort1'?doneSort1:v1==='holdSort1'?holdSort1:sortKey1;
-  const cur2=v2==='staffListSort2'?staffListSort2:v2==='doneSort2'?doneSort2:v2==='holdSort2'?holdSort2:sortKey2;
+  const cur1=v1==='staffListSort1'?staffListSort1:v1==='doneSort1'?doneSort1:v1==='holdSort1'?holdSort1:v1==='usualSort1'?usualSort1:sortKey1;
+  const cur2=v2==='staffListSort2'?staffListSort2:v2==='doneSort2'?doneSort2:v2==='holdSort2'?holdSort2:v2==='usualSort2'?usualSort2:sortKey2;
   return`<div class="sort-bar">
     <div><div class="sort-label">第1グループ</div>
       <select onchange="setSortVar('${v1}',this.value)">
@@ -1297,6 +1299,8 @@ function setSortVar(varName,val){
   else if(varName==='doneSort2')doneSort2=val;
   else if(varName==='holdSort1')holdSort1=val;
   else if(varName==='holdSort2')holdSort2=val;
+  else if(varName==='usualSort1')usualSort1=val;
+  else if(varName==='usualSort2')usualSort2=val;
   if(mode==='admin')renderAdmin();else renderStaff();
 }
 
