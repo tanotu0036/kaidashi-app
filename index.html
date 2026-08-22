@@ -203,7 +203,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-07-15-01'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-07-16-02'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -227,6 +227,8 @@ let sortKey1='place',sortKey2='cat';
 let hold=[];
 let holdSort1='date',holdSort2='none';
 let staffListSort1='date',staffListSort2='none';
+let usualItems=[];
+let usualFolder='';
 let doneSort1='date',doneSort2='none';
 let filterCat='all',filterPlace='all';
 
@@ -290,7 +292,7 @@ async function loadAll(silent=false){
   if(!silent)showLoading('データを読み込み中…');
   try{
     const d=await apiGet();
-    pending=d.pending||[];done=d.done||[];hold=d.hold||[];folders=d.folders||[];
+    pending=d.pending||[];done=d.done||[];hold=d.hold||[];folders=d.folders||[];usualItems=d.usualItems||[];
     masterRequesters=d.masters?.requesters||[];masterPlaces=d.masters?.places||[];
   }catch(e){console.error(e);if(!silent)showErr('読み込み失敗: '+e.message);}
   finally{if(!silent)hideLoading();renderModeBtn();}
@@ -601,10 +603,11 @@ function renderStaff(){
   document.getElementById('staff-view').innerHTML=`
   <div class="tabs">
     <button class="tab ${staffTab==='request'?'active':''}" onclick="setStaffTab('request')">リクエスト</button>
+    <button class="tab ${staffTab==='usual'?'active':''}" onclick="setStaffTab('usual')">いつもの</button>
     <button class="tab ${staffTab==='mylist'?'active':''}" onclick="setStaffTab('mylist')">依頼中 (${pending.length})</button>
     <button class="tab ${staffTab==='history'?'active':''}" onclick="setStaffTab('history')">購入履歴 (${done.length})</button>
   </div>
-  ${renderFolderBar(false)}
+  ${staffTab!=='usual'?renderFolderBar(false):''}
   <div id="staff-content"></div>`;
   renderStaffContent();
 }
@@ -619,8 +622,202 @@ function setStaffTab(t){
 function renderStaffContent(){
   const el=document.getElementById('staff-content');if(!el)return;
   if(staffTab==='request'){el.innerHTML=renderRequestForm();setupImgArea('img-area','f-img','img-preview-box','f-img-preview');}
+  else if(staffTab==='usual'){el.innerHTML=renderUsualTab();setupImgArea('u-img-area','u-img','u-img-preview-box','u-img-preview');}
   else if(staffTab==='mylist')el.innerHTML=renderMyList();
   else el.innerHTML=renderStaffHistory();
+}
+
+/* ════ いつものリクエスト ════ */
+function renderUsualFolderBar(){
+  const chips=folders.map(f=>{
+    const active=usualFolder===f.id?'active':'';
+    return '<button class="folder-chip '+active+'" onclick="setUsualFolder(\''+f.id+'\')">📁 '+esc(f.name)+'</button>';
+  }).join('');
+  const noneChip=`<button class="folder-chip ${usualFolder===''?'active':''}" onclick="setUsualFolder('')">📄 通常</button>`;
+  const allChip=`<button class="folder-chip ${usualFolder==='all'?'active':''}" onclick="setUsualFolder('all')">📋 すべて</button>`;
+  return`<div class="folder-bar">${noneChip}${allChip}${chips}</div>`;
+}
+function setUsualFolder(id){
+  usualFolder=id;
+  renderStaffContent();
+}
+function filterUsualByFolder(items){
+  if(usualFolder==='all')return items;
+  if(usualFolder==='')return items.filter(i=>!i.folder||i.folder==='');
+  return items.filter(i=>i.folder===usualFolder);
+}
+
+function renderUsualTab(){
+  const items=filterUsualByFolder(usualItems);
+  const cards=items.map(i=>`
+    <div class="item-card">
+      <div class="img-col">
+        <div class="img-slot">${i.img?`<img src="${esc(i.img)}" alt="">`:`<span class="img-slot-empty">📷</span>`}</div>
+        <button class="icon-btn" onclick="deleteUsualItem('${i.id}','${esc(i.name)}')">🗑</button>
+      </div>
+      <div class="item-info">
+        <div class="item-name">${esc(i.name)}</div>
+        <div class="item-qty" style="margin-top:1px">${i.qty?`× ${esc(i.qty)}`:''}</div>
+        <div class="item-meta">
+          <span class="cat-badge ${getCatClass(i.cat)}">${getCatLabel(i.cat||'zappi')}</span>
+          ${i.place?`<span>📍${esc(i.place)}</span>`:''}
+        </div>
+        ${i.folder&&getFolderName(i.folder)?`<div style="font-size:11px;margin-top:2px"><span style="background:#d4e6ee;color:#3a7a9c;border-radius:12px;padding:1px 8px;font-size:10px;font-weight:600">📁 ${esc(getFolderName(i.folder))}</span></div>`:''}
+        ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
+      </div>
+      <div class="actions-col" style="justify-content:center">
+        <button class="buy-btn" style="background:linear-gradient(135deg,#8fb8c8,#6fa0b4)" onclick="openUsualSendModal('${i.id}')">🛒<br>送る</button>
+      </div>
+    </div>`).join('');
+
+  return`${renderUsualFolderBar()}
+  <div class="section" style="padding-top:8px">
+    ${items.length?cards:'<div class="empty"><span class="empty-icon">📦</span>登録された定番アイテムはありません</div>'}
+    <button class="submit-btn" style="margin-top:12px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4)" onclick="toggleUsualAddForm()">＋ 新しい定番アイテムを登録</button>
+    <div id="usual-add-form" style="display:none;margin-top:12px" class="form-card">
+      <div class="form-row">
+        <label>品名 <span class="req">*</span></label>
+        <input type="text" id="u-name" placeholder="例: 絵の具セット">
+      </div>
+      <div class="form-row">
+        <label>個数 <span class="opt">(任意・毎回変えられます)</span></label>
+        <input type="text" id="u-qty" placeholder="例: 2個">
+      </div>
+      <div class="form-row">
+        <label>経費の種類</label>
+        <select id="u-cat">${CATS.map(c=>`<option value="${c.id}">${c.label}</option>`).join('')}</select>
+      </div>
+      <div class="form-row">
+        <label>購入場所 <span class="opt">(任意)</span></label>
+        <select id="u-place">
+          <option value="">未定</option>
+          ${allPlaces().map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row">
+        <label>フォルダ <span class="opt">(任意)</span></label>
+        <select id="u-folder">
+          <option value="">通常（フォルダなし）</option>
+          ${folders.map(f=>`<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row">
+        <label>画像 <span class="opt">(任意)</span></label>
+        <div class="img-area" id="u-img-area">
+          <div class="img-area-text">📷 タップして選択</div>
+        </div>
+        <input type="file" id="u-img" accept="image/*">
+        <div class="img-preview-box" id="u-img-preview-box">
+          <img id="u-img-preview" alt="">
+          <button class="img-clear-btn" onclick="clearImg('u-img-preview-box','u-img-preview','u-img')">✕</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>メモ <span class="opt">(任意)</span></label>
+        <textarea id="u-memo" placeholder="サイズ、色、銘柄など"></textarea>
+      </div>
+      <button class="submit-btn" onclick="submitUsualItem()">💾 登録する</button>
+    </div>
+  </div>`;
+}
+
+function toggleUsualAddForm(){
+  const el=document.getElementById('usual-add-form');
+  if(!el)return;
+  const showing=el.style.display==='block';
+  el.style.display=showing?'none':'block';
+  if(!showing)setupImgArea('u-img-area','u-img','u-img-preview-box','u-img-preview');
+}
+
+async function submitUsualItem(){
+  const name=(document.getElementById('u-name').value||'').trim();
+  if(!name){showToast('品名は必須です');return;}
+  const qty=(document.getElementById('u-qty').value||'').trim();
+  const cat=document.getElementById('u-cat').value;
+  const place=document.getElementById('u-place').value;
+  const folder=document.getElementById('u-folder').value;
+  const memo=(document.getElementById('u-memo').value||'').trim();
+  const img=getImgData('u-img-preview');
+  const newItem={id:String(Date.now()),name,qty,cat,place,folder,memo,img,garden:currentGarden};
+  usualItems.push(newItem);
+  toggleUsualAddForm();
+  renderStaffContent();
+  showToast('定番アイテムを登録しました ✓');
+  try{await apiPost({action:'addUsualItem',item:newItem});}
+  catch(e){usualItems.pop();renderStaffContent();showErr('登録失敗: '+e.message);}
+}
+
+async function deleteUsualItem(id,name){
+  if(!confirm(`「${name}」を削除しますか？`))return;
+  const idx=usualItems.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const item=usualItems[idx];
+  usualItems.splice(idx,1);
+  renderStaffContent();
+  showToast('削除しました');
+  try{await apiPost({action:'deleteUsualItem',id:String(id),garden:currentGarden});}
+  catch(e){usualItems.splice(idx,0,item);renderStaffContent();showErr('削除失敗: '+e.message);}
+}
+
+function openUsualSendModal(id){
+  const src=usualItems.find(i=>i.id===id);
+  if(!src)return;
+  document.getElementById('modal-container').innerHTML=`
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-title">🛒 リクエストを送る</div>
+      <div style="background:#eef4fb;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:#5a8ab8">
+        <strong style="color:#2a3f5f">${esc(src.name)}</strong>
+      </div>
+      <div class="form-row">
+        <label>依頼者 <span class="req">*</span></label>
+        <select id="us-requester" onchange="onUsRequesterChange()">
+          <option value="">選択または入力</option>
+          ${masterRequesters.map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join('')}
+          <option value="__new__">＋ 新しい名前を入力</option>
+        </select>
+        <input type="text" class="sub-input" id="us-requester-new" placeholder="名前を入力">
+      </div>
+      <div class="form-row">
+        <label>個数</label>
+        <input type="text" id="us-qty" value="${esc(src.qty)}" placeholder="例: 2個">
+      </div>
+      ${src.place?`<div style="font-size:12px;color:#5a8a9c;margin-bottom:12px">📍 ${esc(src.place)}</div>`:''}
+      <button class="submit-btn" onclick="submitUsualSend('${id}')">📨 リクエストを送る</button>
+    </div>
+  </div>`;
+}
+function onUsRequesterChange(){
+  const s=document.getElementById('us-requester'),n=document.getElementById('us-requester-new');
+  if(!n)return;n.style.display=s.value==='__new__'?'block':'none';if(s.value==='__new__')n.focus();
+}
+async function submitUsualSend(usualId){
+  const src=usualItems.find(i=>i.id===usualId);
+  if(!src)return;
+  let requester=document.getElementById('us-requester').value;
+  if(requester==='__new__')requester=(document.getElementById('us-requester-new').value||'').trim();
+  const qty=(document.getElementById('us-qty').value||'').trim();
+  if(!requester){showToast('依頼者は必須です');return;}
+  const place=src.place||'';
+  const newItem={
+    id:String(Date.now()),garden:currentGarden,requester,name:src.name,qty,
+    cat:src.cat||'kyozai',place,url:'',memo:src.memo||'',img:src.img||'',folder:src.folder||'',
+    created:new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'})
+  };
+  pending.unshift(newItem);
+  if(requester&&!masterRequesters.includes(requester))masterRequesters.push(requester);
+  if(place&&!masterPlaces.includes(place))masterPlaces.push(place);
+  closeModal();
+  showToast('リクエストを送りました ✓');
+  renderStaffContent();
+  try{
+    await apiPost({action:'addPending',item:newItem});
+  }catch(e){
+    pending.shift();
+    renderStaffContent();
+    showErr('送信失敗: '+e.message);
+  }
 }
 
 function renderRequestForm(){
@@ -740,7 +937,6 @@ async function cancelItem(id){
 
 /* ── 訂正モーダル ─── */
 function openRebuyModal(src){
-  const places=allPlaces();
   document.getElementById('modal-container').innerHTML=`
   <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
     <div class="modal">
@@ -827,7 +1023,6 @@ async function submitRebuy(srcId){
 
 function openEditModal(id){
   const item=pending.find(i=>i.id===id);if(!item)return;
-  const places=allPlaces();
   document.getElementById('modal-container').innerHTML=`
   <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
     <div class="modal">
