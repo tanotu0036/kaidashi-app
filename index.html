@@ -203,7 +203,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-08-22-07'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-08-22-08'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -649,7 +649,7 @@ function renderUsualTab(){
           ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
         </div>
         <div class="actions-col" style="justify-content:center">
-          <button class="buy-btn" style="background:linear-gradient(135deg,#8fb8c8,#6fa0b4);font-size:12px;padding:10px 8px" onclick="openUsualSendModal('${i.id}')">🛒送る</button>
+          <button class="buy-btn" style="background:linear-gradient(135deg,#8fb8c8,#6fa0b4)" onclick="openUsualSendModal('${i.id}')">送る</button>
         </div>
       </div>`;
     if(s1==='none'){return items.map(card).join('');}
