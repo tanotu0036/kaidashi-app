@@ -203,7 +203,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-08-22-01'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-08-22-02'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -1023,6 +1023,7 @@ async function submitRebuy(srcId){
 
 function openEditModal(id){
   const item=pending.find(i=>i.id===id);if(!item)return;
+  const places=allPlaces();
   document.getElementById('modal-container').innerHTML=`
   <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
     <div class="modal">
