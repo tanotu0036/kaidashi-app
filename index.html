@@ -203,7 +203,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-08-22-05'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-08-22-06'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -1630,6 +1630,7 @@ function itemCardHTML(i,opts={}){
       ${i.url?`<a class="url-link" href="${esc(i.url)}" target="_blank">🔗 ${shortUrl(i.url)}</a>`:''}
       ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
       <div style="font-size:11px;color:#7a98a2;margin-top:3px">${fmtDate(isDone?(i.boughtAt||i.created):i.created)}</div>
+      ${usualBtn&&!isUsual(i.name)?`<button onclick="addToUsualFromCard('${i.id}')" style="margin-top:6px;font-size:11px;padding:3px 10px;border:1px dashed #8fb8c8;border-radius:20px;background:transparent;color:#5a8a9c;cursor:pointer">⭐ いつものに追加</button>`:''}
     </div>
     <div class="actions-col" style="justify-content:space-between;height:100%;align-items:flex-end">
       <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
@@ -1647,7 +1648,6 @@ function itemCardHTML(i,opts={}){
       </div>
       ${holdBtn?`<button class="buy-btn" onclick="checkItem('${i.id}',true)">購入</button>`:''}
     </div>
-    ${usualBtn&&!isUsual(i.name)?`<button onclick="addToUsualFromCard('${i.id}')" style="margin-top:5px;width:100%;font-size:10px;padding:4px;border:1px dashed #d4e6ec;border-radius:8px;background:transparent;color:#5a8a9c;cursor:pointer;white-space:nowrap">⭐ いつものに追加</button>`:''}
   </div>`;
 }
 
