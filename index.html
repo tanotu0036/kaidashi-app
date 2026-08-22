@@ -203,7 +203,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-08-22-02'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-08-22-04'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -603,7 +603,7 @@ function renderStaff(){
   document.getElementById('staff-view').innerHTML=`
   <div class="tabs">
     <button class="tab ${staffTab==='request'?'active':''}" onclick="setStaffTab('request')">リクエスト</button>
-    <button class="tab ${staffTab==='usual'?'active':''}" onclick="setStaffTab('usual')">いつもの</button>
+    <button class="tab ${staffTab==='usual'?'active':''}" onclick="setStaffTab('usual')">⭐ いつもの</button>
     <button class="tab ${staffTab==='mylist'?'active':''}" onclick="setStaffTab('mylist')">依頼中 (${pending.length})</button>
     <button class="tab ${staffTab==='history'?'active':''}" onclick="setStaffTab('history')">購入履歴 (${done.length})</button>
   </div>
@@ -882,12 +882,12 @@ function renderRequestForm(){
 function renderMyList(){
   const pendingF=filterByFolder(pending);
   if(!pendingF.length)return'<div class="empty"><span class="empty-icon">📭</span>依頼中のアイテムはありません</div>';
-  return`<div class="section">${sortBar2('staffListSort1','staffListSort2')}${groupedCards(pendingF,staffListSort1,staffListSort2,{cancelBtn:true,editBtn:true})}</div>`;
+  return`<div class="section">${sortBar2('staffListSort1','staffListSort2')}${groupedCards(pendingF,staffListSort1,staffListSort2,{cancelBtn:true,editBtn:true,usualBtn:true})}</div>`;
 }
 function renderStaffHistory(){
   const doneF=filterByFolder(done);
   if(!doneF.length)return'<div class="empty"><span class="empty-icon">🕐</span>購入履歴はありません</div>';
-  return`<div class="section">${sortBar2('doneSort1','doneSort2')}${groupedCards(doneF,doneSort1,doneSort2,{rebuyBtn:true,isDone:true})}</div>`;
+  return`<div class="section">${sortBar2('doneSort1','doneSort2')}${groupedCards(doneF,doneSort1,doneSort2,{rebuyBtn:true,isDone:true,usualBtn:true})}</div>`;
 }
 
 function onRequesterChange(){
@@ -1179,7 +1179,7 @@ function renderPendingList(){
   let html='';
   if(sortKey1==='date'){
     items=[...items].sort((a,b)=>Number(b.id)-Number(a.id));
-    html=items.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true,placeEditable:true})).join('');
+    html=items.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true,placeEditable:true,usualBtn:true})).join('');
     html=`<div class="group-block"><div class="group-label">📅 すべて（新しい順）<span style="font-size:11px;color:#8ab0cc;font-weight:400;margin-left:4px">${items.length}件</span></div>${html}</div>`;
   } else {
     const g1={};
@@ -1189,7 +1189,7 @@ function renderPendingList(){
       const its1=g1[k1];
       let inner='';
       if(sortKey2==='none'||sortKey2===sortKey1){
-        inner=its1.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true,placeEditable:true})).join('');
+        inner=its1.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true,placeEditable:true,usualBtn:true})).join('');
       } else {
         const g2={};
         its1.forEach(i=>{const k=keyFn(sortKey2,i);if(!g2[k])g2[k]=[];g2[k].push(i);});
@@ -1199,7 +1199,7 @@ function renderPendingList(){
           return `
           <div style="margin-left:8px;margin-bottom:10px">
             <div class="group-label" style="font-size:10px;opacity:.75">${grpIcon(sortKey2)} ${esc(k2)}<span style="font-size:10px;color:#8ab0cc;font-weight:400;margin-left:4px">${its2.length}件</span></div>
-            ${its2.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true,placeEditable:true})).join('')}
+            ${its2.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true,placeEditable:true,usualBtn:true})).join('')}
           </div>`;
         }).join('');
       }
@@ -1359,13 +1359,13 @@ function groupedCards(items,s1,s2,cardOpts){
 function renderHoldList(){
   if(!hold.length)return'<div class="empty"><span class="empty-icon">⏸</span>保留中のアイテムはありません</div>';
   const holdFiltered=filterByFolder(hold);
-  return`<div class="section" style="padding-top:10px">${sortBar2('holdSort1','holdSort2')}${groupedCards(holdFiltered,holdSort1,holdSort2,{holdToPublicBtn:true,deleteBtn:true,isDone:false,placeEditable:true})}</div>`;
+  return`<div class="section" style="padding-top:10px">${sortBar2('holdSort1','holdSort2')}${groupedCards(holdFiltered,holdSort1,holdSort2,{holdToPublicBtn:true,deleteBtn:true,isDone:false,placeEditable:true,usualBtn:true})}</div>`;
 }
 
 function renderDoneList(){
   if(!done.length)return'<div class="empty"><span class="empty-icon">🛍</span>購入済アイテムはありません</div>';
   const doneFiltered=filterByFolder(done);
-  return`<div class="section" style="padding-top:10px">${sortBar2('doneSort1','doneSort2')}${groupedCards(doneFiltered,doneSort1,doneSort2,{doneToPublicBtn:true,rebuyBtn:true,deleteBtn:true,isDone:true,placeEditable:true})}</div>`;
+  return`<div class="section" style="padding-top:10px">${sortBar2('doneSort1','doneSort2')}${groupedCards(doneFiltered,doneSort1,doneSort2,{doneToPublicBtn:true,rebuyBtn:true,deleteBtn:true,isDone:true,placeEditable:true,usualBtn:true})}</div>`;
 }
 
 /* ── マスタ管理タブ ─── */
@@ -1463,6 +1463,37 @@ async function deleteFolderFromMaster(folderId,folderName){
   catch(e){showErr('削除失敗: '+e.message);loadAll().then(()=>renderAdmin());}
 }
 
+function isUsual(name){
+  return usualItems.some(u=>u.name===name);
+}
+
+function addToUsualFromCard(id){
+  // pending/done/holdから検索
+  const item = pending.find(i=>i.id===id) || done.find(i=>i.id===id) || hold.find(i=>i.id===id);
+  if(!item)return;
+  if(isUsual(item.name)){showToast('すでに「いつもの」に登録済みです');return;}
+  const newItem={
+    id:String(Date.now()),
+    name:item.name,
+    qty:item.qty||'',
+    cat:item.cat||'kyozai',
+    place:item.place||'',
+    memo:item.memo||'',
+    img:item.img||'',
+    garden:currentGarden,
+    folder:item.folder||'',
+  };
+  usualItems.push(newItem);
+  // 現在の画面を再描画（⭐反映）
+  if(mode==='staff')renderStaff();else renderAdmin();
+  showToast(`「${item.name}」をいつもに追加しました ⭐`);
+  apiPost({action:'addUsualItem',item:newItem}).catch(e=>{
+    usualItems.pop();
+    if(mode==='staff')renderStaff();else renderAdmin();
+    showErr('登録失敗: '+e.message);
+  });
+}
+
 function makeReorderable(containerId, type){
   const container=document.getElementById(containerId);
   if(!container)return;
@@ -1557,7 +1588,7 @@ async function deleteMaster(type, value){
 
 /* ── 共通カードHTML ─── */
 function itemCardHTML(i,opts={}){
-  const {checkBox,cancelBtn,editBtn,rebuyBtn,holdBtn,holdToPublicBtn,doneToPublicBtn,deleteBtn,isDone,catEditable,placeEditable}=opts;
+  const {checkBox,cancelBtn,editBtn,rebuyBtn,holdBtn,holdToPublicBtn,doneToPublicBtn,deleteBtn,isDone,catEditable,placeEditable,usualBtn}=opts;
   const catBadge=catEditable
     ?`<select class="cat-select-inline" onchange="updateCat('${i.id}',this.value)">${CATS.map(c=>`<option value="${c.id}"${c.id===(i.cat||'zappi')?' selected':''}>${c.label}</option>`).join('')}</select>`
     :`<span class="cat-badge ${getCatClass(i.cat)}">${getCatLabel(i.cat||'zappi')}</span>`;
@@ -1581,7 +1612,10 @@ function itemCardHTML(i,opts={}){
       ${imgSlot}
     </div>
     <div class="item-info">
-      <div class="item-name${isDone?' done':''}">${esc(i.name)}</div>
+      <div class="item-name${isDone?' done':''}" style="display:flex;align-items:center;gap:5px">
+        ${isUsual(i.name)?'<span title="いつもの定番アイテム" style="font-size:13px">⭐</span>':''}
+        <span>${esc(i.name)}</span>
+      </div>
       <div class="item-qty${isDone?' done':''}" style="margin-top:1px">${
   (isDone&&i.requestedQty&&i.boughtQty&&i.requestedQty!==i.boughtQty)
     ? `依頼 ${esc(i.requestedQty)} → 購入 ${esc(i.boughtQty)}<span style="font-size:11px;color:#e05a7a;margin-left:4px">（残り${String(parseInt(i.requestedQty)||0)-String(parseInt(i.boughtQty)||0)}個）</span>`
@@ -1616,6 +1650,7 @@ function itemCardHTML(i,opts={}){
       </div>
       ${holdBtn?`<button class="buy-btn" onclick="checkItem('${i.id}',true)">購入</button>`:''}
     </div>
+    ${usualBtn&&!isUsual(i.name)?`<button onclick="addToUsualFromCard('${i.id}')" style="margin-top:5px;width:100%;font-size:10px;padding:4px;border:1px dashed #d4e6ec;border-radius:8px;background:transparent;color:#5a8a9c;cursor:pointer;white-space:nowrap">⭐ いつものに追加</button>`:''}
   </div>`;
 }
 
