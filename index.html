@@ -203,7 +203,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-08-22-11'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-09-17-01'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -604,8 +604,8 @@ function renderStaff(){
   <div class="tabs">
     <button class="tab ${staffTab==='request'?'active':''}" onclick="setStaffTab('request')">リクエスト</button>
     <button class="tab ${staffTab==='usual'?'active':''}" onclick="setStaffTab('usual')">⭐ いつもの</button>
-    <button class="tab ${staffTab==='mylist'?'active':''}" onclick="setStaffTab('mylist')">依頼中 (${pending.length})</button>
-    <button class="tab ${staffTab==='history'?'active':''}" onclick="setStaffTab('history')">購入履歴 (${done.length})</button>
+    <button class="tab ${staffTab==='mylist'?'active':''}" onclick="setStaffTab('mylist')">依頼中 (${filterByFolder(pending).length})</button>
+    <button class="tab ${staffTab==='history'?'active':''}" onclick="setStaffTab('history')">購入履歴 (${filterByFolder(done).length})</button>
   </div>
   ${staffTab!=='usual'?renderFolderBar(false):''}
   <div id="staff-content"></div>`;
