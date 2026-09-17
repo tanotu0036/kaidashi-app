@@ -168,6 +168,9 @@ input[type=file]{display:none}
   box-shadow:0 2px 10px rgba(143,184,200,.3);z-index:400;opacity:0;transition:none;display:flex;align-items:center;gap:6px;white-space:nowrap}
 .pull-refresh-indicator .spin{width:14px;height:14px;border:2px solid #d4e6ec;border-top-color:#8fb8c8;border-radius:50%;display:inline-block}
 .pull-refresh-indicator .spin.active{animation:spin .7s linear infinite}
+
+.folder-count{display:inline-block;margin-left:5px;font-size:10px;font-weight:700;color:#5a8a9c;background:rgba(255,255,255,.7);border-radius:10px;padding:0 6px;line-height:16px;vertical-align:middle}
+.folder-chip.active .folder-count{color:#3a7a9c;background:rgba(255,255,255,.9)}
 </style>
 </head>
 <body>
@@ -203,7 +206,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-09-17-01'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-09-17-02'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -1292,15 +1295,31 @@ function renderPendingList(){
 }
 
 function grpIcon(k){return k==='place'?'📍':k==='cat'?'🏷':k==='requester'?'👤':'📅';}
+function currentFolderBarList(){
+  if(mode==='admin'){
+    if(adminTab==='hold')return hold;
+    if(adminTab==='done')return done;
+    return pending;
+  }
+  if(staffTab==='history')return done;
+  return pending;
+}
+function folderCount(id){
+  const list=currentFolderBarList();
+  if(id==='all')return list.length;
+  if(id==='')return list.filter(i=>!i.folder||i.folder==='').length;
+  return list.filter(i=>i.folder===id).length;
+}
 function renderFolderBar(isAdmin){
+  const cnt=n=>`<span class="folder-count">${n}</span>`;
   const chips=folders.map(f=>{
     const active=currentFolder===f.id?'active':'';
-    return '<button class="folder-chip '+active+'" onclick="setFolder(\''+f.id+'\')">📁 '+esc(f.name)+'</button>';
+    return '<button class="folder-chip '+active+'" onclick="setFolder(\''+f.id+'\')">📁 '+esc(f.name)+cnt(folderCount(f.id))+'</button>';
   }).join('');
-  const allChip=`<button class="folder-chip ${currentFolder==='all'?'active':''}" onclick="setFolder('all')">📋 すべて</button>`;
-  const noneChip=`<button class="folder-chip ${currentFolder===''?'active':''}" onclick="setFolder('')">📄 通常</button>`;
+  const allChip=`<button class="folder-chip ${currentFolder==='all'?'active':''}" onclick="setFolder('all')">📋 すべて${cnt(folderCount('all'))}</button>`;
+  const noneChip=`<button class="folder-chip ${currentFolder===''?'active':''}" onclick="setFolder('')">📄 通常${cnt(folderCount(''))}</button>`;
   const addBtn='';
-  return`<div class="folder-bar">${noneChip}${allChip}${chips}${addBtn}</div>`;
+  return`<div class="folder-bar">${allChip}${noneChip}${chips}${addBtn}</div>`;
 }
 
 function setFolder(id){
