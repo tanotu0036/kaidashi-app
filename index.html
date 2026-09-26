@@ -206,7 +206,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-09-26-03'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-09-26-04'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -607,11 +607,7 @@ async function resolveImgFull(previewImgId){
   }
   return img.dataset.fullId||'';
 }
-// 使われなくなった画像のチャンクを削除（GAS側で他のアイテムが参照していないか確認してから消す）
-function deleteImageIfUnused(imgFullId){
-  if(!imgFullId)return;
-  apiPost({action:'deleteImage',id:String(imgFullId)}).catch(e=>console.warn('画像削除失敗',e));
-}
+// ※アイテム削除・画像差し替え時の古い画像チャンクはGAS側で自動削除
 const fullImgCache={};
 async function fetchFullImage(id){
   if(fullImgCache[id])return fullImgCache[id];
@@ -821,7 +817,7 @@ async function deleteUsualItem(id,name){
   usualItems.splice(idx,1);
   renderStaffContent();
   showToast('削除しました');
-  try{await apiPost({action:'deleteUsualItem',id:String(id),garden:currentGarden});deleteImageIfUnused(item.imgFull);}
+  try{await apiPost({action:'deleteUsualItem',id:String(id),garden:currentGarden});}
   catch(e){usualItems.splice(idx,0,item);renderStaffContent();showErr('削除失敗: '+e.message);}
 }
 
@@ -897,7 +893,6 @@ async function saveUsualEdit(id){
   showToast('更新しました ✓');
   try{
     await apiPost({action:'updateUsualItem',id:String(id),fields});
-    if(oldItem.imgFull&&oldItem.imgFull!==imgFull)deleteImageIfUnused(oldItem.imgFull);
   }catch(e){
     usualItems[idx]=oldItem;
     renderStaffContent();
@@ -1084,7 +1079,7 @@ async function cancelItem(id){
   const item=pending[idx];
   pending.splice(idx,1);
   renderStaff();showToast('取り消しました');
-  try{await apiPost({action:'deletePending',id:String(id)});deleteImageIfUnused(item.imgFull);}
+  try{await apiPost({action:'deletePending',id:String(id)});}
   catch(e){pending.splice(idx,0,item);renderStaff();showErr('失敗: '+e.message);}
 }
 
@@ -1254,7 +1249,6 @@ async function saveEdit(id){
   staffTab='mylist';renderStaff();
   try{
     await apiPost({action:'updateItem',id:String(id),fields});
-    if(oldItem.imgFull&&oldItem.imgFull!==imgFull)deleteImageIfUnused(oldItem.imgFull);
   }catch(e){pending[idx]=oldItem;renderStaff();showErr('更新失敗: '+e.message);}
 }
 
@@ -1998,7 +1992,7 @@ async function deleteItem(id,list){
   const item=arr[idx];
   arr.splice(idx,1);
   renderAdmin();showToast('削除しました');
-  try{await apiPost({action:list==='pending'?'deletePending':list==='hold'?'deleteHold':'deleteDone',id:String(id)});deleteImageIfUnused(item.imgFull);}
+  try{await apiPost({action:list==='pending'?'deletePending':list==='hold'?'deleteHold':'deleteDone',id:String(id)});}
   catch(e){arr.splice(idx,0,item);renderAdmin();showErr('失敗: '+e.message);}
 }
 
