@@ -206,7 +206,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-09-26-01'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-09-26-03'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -539,18 +539,26 @@ function setupImgArea(areaId,inputId,previewBoxId,previewImgId){
 function loadImgFile(file,previewBoxId,previewImgId){
   const reader=new FileReader();
   reader.onload=e=>{
-    compressImage(e.target.result, 1600, 0.85, compressed=>{
-      const box=document.getElementById(previewBoxId);
-      const img=document.getElementById(previewImgId);
-      if(box&&img){img.src=compressed;box.style.display='block';}
+    const src=e.target.result;
+    // サムネイル（カード一覧用・セルに直接保存）とフル画像（imagesシートに分割保存）を両方作る
+    compressImage(src,THUMB_STEPS,THUMB_MAX_CHARS,thumb=>{
+      compressImage(src,FULL_STEPS,FULL_MAX_CHARS,full=>{
+        const box=document.getElementById(previewBoxId);
+        const img=document.getElementById(previewImgId);
+        if(box&&img){img.src=thumb;img.dataset.full=full;img.dataset.fullId='';box.style.display='block';}
+      });
     });
   };
   reader.readAsDataURL(file);
 }
 
-// スプレッドシートの1セル上限(5万文字)に収まる範囲で、できるだけ高画質に圧縮する
-const IMG_MAX_CHARS=46000;
-function compressImage(dataUrl, maxSize, quality, callback){
+// サムネイル：長辺360px以下・12,000文字以内
+const THUMB_MAX_CHARS=12000;
+const THUMB_STEPS=[[360,0.75],[360,0.65],[320,0.6],[280,0.55],[240,0.5],[200,0.45],[160,0.4],[120,0.35]];
+// フル画像：長辺1600px・品質0.85を基本に、大きすぎる場合だけ段階的に落とす（GAS側で40,000文字ずつ分割保存）
+const FULL_MAX_CHARS=600000;
+const FULL_STEPS=[[1600,0.85],[1600,0.78],[1400,0.75],[1200,0.72],[1024,0.7]];
+function compressImage(dataUrl, steps, maxChars, callback){
   const img=new Image();
   img.onload=()=>{
     const render=(size,q)=>{
@@ -561,19 +569,16 @@ function compressImage(dataUrl, maxSize, quality, callback){
       }
       const canvas=document.createElement('canvas');
       canvas.width=w;canvas.height=h;
-      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      const ctx=canvas.getContext('2d');
+      ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h); // 透過PNGの背景が黒くならないように
+      ctx.drawImage(img,0,0,w,h);
       return canvas.toDataURL('image/jpeg',q);
     };
-    // 大きい・高画質から順に試し、セル上限に収まった時点で採用
-    const steps=[
-      [maxSize,quality],[maxSize,0.8],[maxSize,0.72],
-      [1280,0.8],[1280,0.72],[1024,0.75],[1024,0.65],
-      [800,0.7],[800,0.6],[640,0.6],[480,0.5]
-    ];
+    // 大きい・高画質から順に試し、上限に収まった時点で採用
     let out='';
     for(const [size,q] of steps){
       out=render(size,q);
-      if(out.length<=IMG_MAX_CHARS)break;
+      if(out.length<=maxChars)break;
     }
     callback(out);
   };
@@ -581,11 +586,40 @@ function compressImage(dataUrl, maxSize, quality, callback){
 }
 function clearImg(previewBoxId,previewImgId,inputId){
   const box=document.getElementById(previewBoxId);const img=document.getElementById(previewImgId);const inp=document.getElementById(inputId);
-  if(box)box.style.display='none';if(img)img.src='';if(inp)inp.value='';
+  if(box)box.style.display='none';if(img){img.src='';img.dataset.full='';img.dataset.fullId='';}if(inp)inp.value='';
 }
 function getImgData(previewImgId){
   const img=document.getElementById(previewImgId);
   return(img&&img.src&&img.src.startsWith('data:'))?img.src:'';
+}
+// フォームのフル画像を確定させて imgFull（画像ID）を返す
+// 新しく選んだ画像があれば imagesシートへ保存。画像を外した場合は ''、変更なしなら既存IDをそのまま返す
+async function resolveImgFull(previewImgId){
+  const img=document.getElementById(previewImgId);
+  if(!img||!getImgData(previewImgId))return'';
+  if(img.dataset.full){
+    const id='img'+Date.now()+Math.random().toString(36).slice(2,7);
+    const res=await apiPost({action:'saveImage',id,data:img.dataset.full,garden:currentGarden});
+    if(!res||res.ok===false)throw new Error((res&&res.error)||'画像の保存に失敗');
+    fullImgCache[id]=img.dataset.full;
+    img.dataset.full='';img.dataset.fullId=id; // 二重保存防止
+    return id;
+  }
+  return img.dataset.fullId||'';
+}
+// 使われなくなった画像のチャンクを削除（GAS側で他のアイテムが参照していないか確認してから消す）
+function deleteImageIfUnused(imgFullId){
+  if(!imgFullId)return;
+  apiPost({action:'deleteImage',id:String(imgFullId)}).catch(e=>console.warn('画像削除失敗',e));
+}
+const fullImgCache={};
+async function fetchFullImage(id){
+  if(fullImgCache[id])return fullImgCache[id];
+  const res=await fetch(GAS_URL+'?action=getImage&id='+encodeURIComponent(id)+'&t='+Date.now(),{redirect:'follow'});
+  const d=JSON.parse(await res.text());
+  if(!d||!d.data)throw new Error('画像がありません');
+  fullImgCache[id]=d.data;
+  return d.data;
 }
 
 /* ════ 職員ビュー ════ */
@@ -599,7 +633,7 @@ function captureRequestFormState(){
     if(el){state[id]=el.value;if(el.value)hasValue=true;}
   });
   const imgPreview=document.getElementById('f-img-preview');
-  if(imgPreview&&imgPreview.src&&imgPreview.src.startsWith('data:')){state.__img=imgPreview.src;hasValue=true;}
+  if(imgPreview&&imgPreview.src&&imgPreview.src.startsWith('data:')){state.__img=imgPreview.src;state.__imgFull=imgPreview.dataset.full||'';hasValue=true;}
   return hasValue?state:null;
 }
 function restoreRequestFormState(state){
@@ -608,9 +642,10 @@ function restoreRequestFormState(state){
     if(id==='__img'){
       const box=document.getElementById('img-preview-box');
       const img=document.getElementById('f-img-preview');
-      if(img){img.src=val;if(box)box.style.display='block';}
+      if(img){img.src=val;img.dataset.full=state.__imgFull||'';if(box)box.style.display='block';}
       return;
     }
+    if(id==='__imgFull')return;
     const el=document.getElementById(id);
     if(el)el.value=val;
   });
@@ -655,7 +690,7 @@ function renderUsualTab(){
     const card=i=>`
       <div class="item-card">
         <div class="img-col">
-          <div class="img-slot">${i.img?`<img src="${esc(i.img)}" alt="" onclick="openLightbox('${esc(i.img)}')" style="cursor:zoom-in">`:`<span class="img-slot-empty">📷</span>`}</div>
+          <div class="img-slot">${i.img?`<img src="${esc(i.img)}" alt="" onclick="openLightbox('${esc(i.img)}','${esc(i.imgFull||'')}')" style="cursor:zoom-in">`:`<span class="img-slot-empty">📷</span>`}</div>
           <div style="display:flex;gap:4px">
             <button class="icon-btn" onclick="openUsualEditModal('${i.id}')" title="編集">✏️</button>
             <button class="icon-btn" onclick="deleteUsualItem('${i.id}','${esc(i.name)}')">🗑</button>
@@ -762,7 +797,14 @@ async function submitUsualItem(){
   const folder=document.getElementById('u-folder').value;
   const memo=(document.getElementById('u-memo').value||'').trim();
   const img=getImgData('u-img-preview');
-  const newItem={id:String(Date.now()),name,qty,cat,place,folder,memo,img,garden:currentGarden};
+  let imgFull='';
+  if(img){
+    showLoading('画像を保存中…');
+    try{imgFull=await resolveImgFull('u-img-preview');}
+    catch(e){hideLoading();showErr('画像の保存に失敗: '+e.message);return;}
+    hideLoading();
+  }
+  const newItem={id:String(Date.now()),name,qty,cat,place,folder,memo,img,imgFull,garden:currentGarden};
   usualItems.push(newItem);
   toggleUsualAddForm();
   renderStaffContent();
@@ -779,7 +821,7 @@ async function deleteUsualItem(id,name){
   usualItems.splice(idx,1);
   renderStaffContent();
   showToast('削除しました');
-  try{await apiPost({action:'deleteUsualItem',id:String(id),garden:currentGarden});}
+  try{await apiPost({action:'deleteUsualItem',id:String(id),garden:currentGarden});deleteImageIfUnused(item.imgFull);}
   catch(e){usualItems.splice(idx,0,item);renderStaffContent();showErr('削除失敗: '+e.message);}
 }
 
@@ -818,7 +860,7 @@ function openUsualEditModal(id){
         </div>
         <input type="file" id="ue-img" accept="image/*">
         <div class="img-preview-box" id="ue-img-preview-box" ${item.img?'style="display:block"':''}>
-          <img id="ue-img-preview" src="${esc(item.img)}" alt="">
+          <img id="ue-img-preview" src="${esc(item.img)}" data-full-id="${esc(item.imgFull||'')}" alt="">
           <button class="img-clear-btn" onclick="clearImg('ue-img-preview-box','ue-img-preview','ue-img')">✕</button>
         </div>
       </div>
@@ -842,14 +884,20 @@ async function saveUsualEdit(id){
   const img=getImgData('ue-img-preview');
   const idx=usualItems.findIndex(i=>i.id===id);
   if(idx<0){closeModal();return;}
+  let imgFull='';
+  showLoading('保存中…');
+  try{imgFull=await resolveImgFull('ue-img-preview');}
+  catch(e){hideLoading();showErr('画像の保存に失敗: '+e.message);return;}
+  hideLoading();
   const oldItem={...usualItems[idx]};
-  const fields={name,qty,cat,place,memo,img};
+  const fields={name,qty,cat,place,memo,img,imgFull};
   usualItems[idx]={...usualItems[idx],...fields};
   closeModal();
   renderStaffContent();
   showToast('更新しました ✓');
   try{
     await apiPost({action:'updateUsualItem',id:String(id),fields});
+    if(oldItem.imgFull&&oldItem.imgFull!==imgFull)deleteImageIfUnused(oldItem.imgFull);
   }catch(e){
     usualItems[idx]=oldItem;
     renderStaffContent();
@@ -900,7 +948,7 @@ async function submitUsualSend(usualId){
   const place=src.place||'';
   const newItem={
     id:String(Date.now()),garden:currentGarden,requester,name:src.name,qty,
-    cat:src.cat||'kyozai',place,url:'',memo:src.memo||'',img:src.img||'',folder:src.folder||'',
+    cat:src.cat||'kyozai',place,url:'',memo:src.memo||'',img:src.img||'',imgFull:src.imgFull||'',folder:src.folder||'',
     created:new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'})
   };
   pending.unshift(newItem);
@@ -1010,8 +1058,15 @@ async function submitItem(){
   const img=getImgData('f-img-preview');
   const btn=document.getElementById('submit-btn');if(btn)btn.disabled=true;
   try{
+    let imgFull='';
+    if(img){
+      showLoading('画像を保存中…');
+      try{imgFull=await resolveImgFull('f-img-preview');}
+      catch(e){showErr('画像の保存に失敗: '+e.message);return;}
+      finally{hideLoading();}
+    }
     const folder=document.getElementById('f-folder')?.value||'';
-    const newItem={id:String(Date.now()),garden:currentGarden,requester,name,qty,cat:'kyozai',place,url,memo,img,created:new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'}),folder};
+    const newItem={id:String(Date.now()),garden:currentGarden,requester,name,qty,cat:'kyozai',place,url,memo,img,imgFull,created:new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'}),folder};
     pending.unshift(newItem);
     // mastersも即時更新
     if(requester&&!masterRequesters.includes(requester))masterRequesters.push(requester);
@@ -1029,7 +1084,7 @@ async function cancelItem(id){
   const item=pending[idx];
   pending.splice(idx,1);
   renderStaff();showToast('取り消しました');
-  try{await apiPost({action:'deletePending',id:String(id)});}
+  try{await apiPost({action:'deletePending',id:String(id)});deleteImageIfUnused(item.imgFull);}
   catch(e){pending.splice(idx,0,item);renderStaff();showErr('失敗: '+e.message);}
 }
 
@@ -1156,7 +1211,7 @@ function openEditModal(id){
         </div>
         <input type="file" id="e-img" accept="image/*">
         <div class="img-preview-box" id="e-img-preview-box" ${item.img?'style="display:block"':''}>
-          <img id="e-img-preview" src="${esc(item.img)}" alt="">
+          <img id="e-img-preview" src="${esc(item.img)}" data-full-id="${esc(item.imgFull||'')}" alt="">
           <button class="img-clear-btn" onclick="clearImg('e-img-preview-box','e-img-preview','e-img')">✕</button>
         </div>
       </div>
@@ -1185,15 +1240,22 @@ async function saveEdit(id){
   const img=getImgData('e-img-preview');
   const idx=pending.findIndex(i=>i.id===id);
   if(idx<0){closeModal();return;}
+  let imgFull='';
+  showLoading('保存中…');
+  try{imgFull=await resolveImgFull('e-img-preview');}
+  catch(e){hideLoading();showErr('画像の保存に失敗: '+e.message);return;}
+  hideLoading();
   const oldItem={...pending[idx]};
-  const fields={name,qty,place,url,memo,img};
+  const fields={name,qty,place,url,memo,img,imgFull};
   pending[idx]={...pending[idx],...fields};
   if(place&&!masterPlaces.includes(place)&&!['ダイソー','セリア','ドラッグストア','ホームセンター','文房具店','Amazon'].includes(place))masterPlaces.push(place);
   closeModal();
   showToast('訂正しました ✓');
   staffTab='mylist';renderStaff();
-  try{await apiPost({action:'updateItem',id:String(id),fields});}
-  catch(e){pending[idx]=oldItem;renderStaff();showErr('更新失敗: '+e.message);}
+  try{
+    await apiPost({action:'updateItem',id:String(id),fields});
+    if(oldItem.imgFull&&oldItem.imgFull!==imgFull)deleteImageIfUnused(oldItem.imgFull);
+  }catch(e){pending[idx]=oldItem;renderStaff();showErr('更新失敗: '+e.message);}
 }
 
 /* ════ 管理者ビュー ════ */
@@ -1597,6 +1659,7 @@ function addToUsualFromCard(id){
     place:item.place||'',
     memo:item.memo||'',
     img:item.img||'',
+    imgFull:item.imgFull||'',
     garden:currentGarden,
     folder:item.folder||'',
   };
@@ -1722,7 +1785,7 @@ function itemCardHTML(i,opts={}){
           onblur="onPlaceNewBlur('${i.id}')">
       </div>`
     :(i.place?`<span>📍${esc(i.place)}</span>`:'');
-  const imgSlot=`<div class="img-slot">${i.img?`<img src="${esc(i.img)}" alt="" onclick="openLightbox('${esc(i.img)}')" style="cursor:zoom-in">`:`<span class="img-slot-empty">📷</span>`}</div>`;
+  const imgSlot=`<div class="img-slot">${i.img?`<img src="${esc(i.img)}" alt="" onclick="openLightbox('${esc(i.img)}','${esc(i.imgFull||'')}')" style="cursor:zoom-in">`:`<span class="img-slot-empty">📷</span>`}</div>`;
   return`<div class="item-card${isDone?' done':''}${i.partial?' partial':''}">
     <div class="img-col">
       ${checkBox?`<input type="checkbox" class="chk" id="chk-${i.id}" ${selectedItems.has(i.id)?'checked':''} onchange="toggleSelect('${i.id}',this.checked)">`:''}
@@ -1935,7 +1998,7 @@ async function deleteItem(id,list){
   const item=arr[idx];
   arr.splice(idx,1);
   renderAdmin();showToast('削除しました');
-  try{await apiPost({action:list==='pending'?'deletePending':list==='hold'?'deleteHold':'deleteDone',id:String(id)});}
+  try{await apiPost({action:list==='pending'?'deletePending':list==='hold'?'deleteHold':'deleteDone',id:String(id)});deleteImageIfUnused(item.imgFull);}
   catch(e){arr.splice(idx,0,item);renderAdmin();showErr('失敗: '+e.message);}
 }
 
@@ -2021,13 +2084,17 @@ function setupPullToRefresh(){
 }
 
 /* ── ライトボックス（ピンチ拡縮対応） ── */
-function openLightbox(src){
+function openLightbox(src,imgFull){
   const lb=document.createElement('div');
   lb.className='lightbox';
-  lb.innerHTML=`<div class="lightbox-close" id="lb-close">✕</div><img src="${src}" alt="" id="lb-img" style="touch-action:none;cursor:zoom-in;user-select:none">`;
+  lb.innerHTML=`<div class="lightbox-close" id="lb-close">✕</div><img src="${fullImgCache[imgFull]||src}" alt="" id="lb-img" style="touch-action:none;cursor:zoom-in;user-select:none">`;
   document.body.appendChild(lb);
 
   const img=document.getElementById('lb-img');
+  // 高画質版があれば取得して差し替え（取得済みはキャッシュから即表示）
+  if(imgFull&&!fullImgCache[imgFull]){
+    fetchFullImage(imgFull).then(data=>{if(img.isConnected)img.src=data;}).catch(e=>console.warn('高画質画像の取得失敗',e));
+  }
   const closeBtn=document.getElementById('lb-close');
   let scale=1, minScale=0.5, maxScale=8;
   let translateX=0, translateY=0;
