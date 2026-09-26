@@ -206,7 +206,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-09-17-02'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-09-26-01'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -539,7 +539,7 @@ function setupImgArea(areaId,inputId,previewBoxId,previewImgId){
 function loadImgFile(file,previewBoxId,previewImgId){
   const reader=new FileReader();
   reader.onload=e=>{
-    compressImage(e.target.result, 800, 0.7, compressed=>{
+    compressImage(e.target.result, 1600, 0.85, compressed=>{
       const box=document.getElementById(previewBoxId);
       const img=document.getElementById(previewImgId);
       if(box&&img){img.src=compressed;box.style.display='block';}
@@ -548,18 +548,34 @@ function loadImgFile(file,previewBoxId,previewImgId){
   reader.readAsDataURL(file);
 }
 
+// スプレッドシートの1セル上限(5万文字)に収まる範囲で、できるだけ高画質に圧縮する
+const IMG_MAX_CHARS=46000;
 function compressImage(dataUrl, maxSize, quality, callback){
   const img=new Image();
   img.onload=()=>{
-    let w=img.width, h=img.height;
-    if(w>maxSize||h>maxSize){
-      if(w>h){h=Math.round(h*maxSize/w);w=maxSize;}
-      else{w=Math.round(w*maxSize/h);h=maxSize;}
+    const render=(size,q)=>{
+      let w=img.width, h=img.height;
+      if(w>size||h>size){
+        if(w>h){h=Math.round(h*size/w);w=size;}
+        else{w=Math.round(w*size/h);h=size;}
+      }
+      const canvas=document.createElement('canvas');
+      canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      return canvas.toDataURL('image/jpeg',q);
+    };
+    // 大きい・高画質から順に試し、セル上限に収まった時点で採用
+    const steps=[
+      [maxSize,quality],[maxSize,0.8],[maxSize,0.72],
+      [1280,0.8],[1280,0.72],[1024,0.75],[1024,0.65],
+      [800,0.7],[800,0.6],[640,0.6],[480,0.5]
+    ];
+    let out='';
+    for(const [size,q] of steps){
+      out=render(size,q);
+      if(out.length<=IMG_MAX_CHARS)break;
     }
-    const canvas=document.createElement('canvas');
-    canvas.width=w;canvas.height=h;
-    canvas.getContext('2d').drawImage(img,0,0,w,h);
-    callback(canvas.toDataURL('image/jpeg',quality));
+    callback(out);
   };
   img.src=dataUrl;
 }
