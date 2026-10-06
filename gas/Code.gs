@@ -46,6 +46,8 @@ function doGet(e) {
     };
   } else if (action === 'getImage') {
     result = getImage(e.parameter.id);
+  } else if (action === 'getItemImg') {
+    result = getItemImg(e.parameter.sheet, e.parameter.id);
   } else {
     result = { error: 'unknown action' };
   }
@@ -193,8 +195,25 @@ function sheetToArray(sheetName, garden) {
     .map(r => {
       const obj = {};
       headers.forEach((h, i) => { obj[h] = String(r[i] ?? ''); });
-      return obj;
+      return slimImg(obj);
     });
+}
+
+// 旧方式の大きな画像は一覧に含めない（起動を軽くするため）。拡大時に getItemImg で個別に取得する
+const THUMB_MAX = 12000;
+function slimImg(obj) {
+  if (obj.img && obj.img.length > THUMB_MAX) {
+    obj.img = '';
+    obj.imgBig = '1';
+  }
+  return obj;
+}
+
+function getItemImg(sheetName, id) {
+  if (!IMG_REF_SHEETS.includes(sheetName)) return { ok: false, error: 'bad sheet' };
+  const item = findRow(sheetName, id);
+  if (!item || !item.img) return { ok: false, error: 'not found' };
+  return { ok: true, data: item.img };
 }
 
 // 1行目の見出しに足りない列があれば右端に追加し、見出し配列を返す
@@ -478,7 +497,7 @@ function getUsualItems(garden) {
       const obj = {};
       headers.forEach((h, i) => { obj[h] = String(r[i] ?? ''); });
       obj._order = orderCol >= 0 && r[orderCol] !== '' ? Number(r[orderCol]) : 999999;
-      return obj;
+      return slimImg(obj);
     });
   list.sort((a, b) => a._order - b._order);
   list.forEach(o => delete o._order);
@@ -566,6 +585,67 @@ function isImageReferenced(id) {
     return !!sh.getRange(2, col, sh.getLastRow() - 1, 1)
       .createTextFinder(String(id)).matchEntireCell(true).findNext();
   });
+}
+
+// 手動実行用（1回だけ）：旧方式の大きな img を images シートへ移し、セルを空にする
+// 移した画像は imgFull から拡大表示でき、サムネイルは初めて拡大したときにアプリ側で作り直される
+function migrateLegacyImages() {
+  const imgSh = getSheet('images');
+  const existing = new Set(imgSh.getLastRow() < 2 ? [] :
+    imgSh.getRange(2, 1, imgSh.getLastRow() - 1, 1).getValues().map(r => String(r[0])));
+  const chunks = [];
+  const plans = [];
+  IMG_REF_SHEETS.forEach(name => {
+    const sh = SS.getSheetByName(name);
+    if (!sh || sh.getLastRow() < 2) return;
+    const headers = ensureHeaders(sh, ['imgFull']);
+    const idCol = headers.indexOf('id'), imgCol = headers.indexOf('img'), fullCol = headers.indexOf('imgFull');
+    if (idCol < 0 || imgCol < 0) return;
+    const n = sh.getLastRow() - 1;
+    const ids = sh.getRange(2, idCol + 1, n, 1).getValues().map(r => String(r[0]));
+    const imgs = sh.getRange(2, imgCol + 1, n, 1).getValues();
+    const fulls = sh.getRange(2, fullCol + 1, n, 1).getValues();
+    let count = 0;
+    for (let i = 0; i < n; i++) {
+      const img = String(imgs[i][0] || '');
+      if (img.length <= THUMB_MAX) continue;
+      if (!String(fulls[i][0] || '')) {
+        // 同じ画像（再購入でコピーされた分など）は1つのIDにまとめる
+        const id = 'lg' + Utilities.base64EncodeWebSafe(
+          Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, img)).replace(/=+$/, '');
+        if (!existing.has(id)) {
+          existing.add(id);
+          for (let p = 0, seq = 0; p < img.length; p += IMG_CHUNK, seq++) {
+            chunks.push([id, seq, 'c:' + img.slice(p, p + IMG_CHUNK)]);
+          }
+        }
+        fulls[i][0] = id;
+      }
+      imgs[i][0] = '';
+      count++;
+    }
+    if (count) plans.push({ name, sh, ids, imgs, fulls, imgCol, fullCol, count });
+  });
+
+  // 先に画像チャンクを書き込んでから、元のセルを差し替える
+  for (let i = 0; i < chunks.length; i += 50) {
+    const part = chunks.slice(i, i + 50);
+    imgSh.getRange(imgSh.getLastRow() + 1, 1, part.length, 3).setValues(part);
+  }
+  plans.forEach(p => {
+    const n = p.ids.length;
+    // 実行中に行の追加・削除があった場合はずれるので、その表は書き込まない
+    const idCol = ensureHeaders(p.sh, ['imgFull']).indexOf('id');
+    const nowIds = p.sh.getRange(2, idCol + 1, n, 1).getValues().map(r => String(r[0]));
+    if (nowIds.join('\n') !== p.ids.join('\n')) {
+      Logger.log(p.name + '：実行中に行が変わったためスキップしました。もう一度実行してください');
+      return;
+    }
+    p.sh.getRange(2, p.fullCol + 1, n, 1).setValues(p.fulls);
+    p.sh.getRange(2, p.imgCol + 1, n, 1).setValues(p.imgs);
+    Logger.log(p.name + '：' + p.count + '件の画像を移しました');
+  });
+  Logger.log('画像チャンク ' + chunks.length + '行を追加しました');
 }
 
 // 手動実行用：どこからも参照されていない画像チャンクを一括削除

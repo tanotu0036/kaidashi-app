@@ -206,7 +206,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-09-26-04'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-06-01'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -545,7 +545,7 @@ function loadImgFile(file,previewBoxId,previewImgId){
       compressImage(src,FULL_STEPS,FULL_MAX_CHARS,full=>{
         const box=document.getElementById(previewBoxId);
         const img=document.getElementById(previewImgId);
-        if(box&&img){img.src=thumb;img.dataset.full=full;img.dataset.fullId='';box.style.display='block';}
+        if(box&&img){img.src=thumb;img.dataset.full=full;img.dataset.fullId='';img.dataset.changed='1';box.style.display='block';}
       });
     });
   };
@@ -586,8 +586,18 @@ function compressImage(dataUrl, steps, maxChars, callback){
 }
 function clearImg(previewBoxId,previewImgId,inputId){
   const box=document.getElementById(previewBoxId);const img=document.getElementById(previewImgId);const inp=document.getElementById(inputId);
-  if(box)box.style.display='none';if(img){img.src='';img.dataset.full='';img.dataset.fullId='';}if(inp)inp.value='';
+  if(box)box.style.display='none';if(img){img.src='';img.dataset.full='';img.dataset.fullId='';img.dataset.changed='1';}if(inp)inp.value='';
 }
+// 編集フォーム用：画像を触っていなければ {} を返して既存の画像（サムネイル無しの旧画像も含む）を保持
+async function imgFieldsFromForm(previewImgId){
+  const img=document.getElementById(previewImgId);
+  if(!img||img.dataset.changed!=='1')return{};
+  return{img:getImgData(previewImgId),imgFull:await resolveImgFull(previewImgId)};
+}
+// サムネイルは無いが画像はあるアイテムの、編集フォームでのプレビュー
+const IMG_PLACEHOLDER='data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="130"><rect width="100%" height="100%" fill="#e3eef2"/><text x="50%" y="55%" text-anchor="middle" font-size="15" fill="#5a8a9c">🖼 登録済みの画像</text></svg>');
+function hasAnyImg(i){return!!(i.img||i.imgFull||i.imgBig);}
+function editPreviewSrc(i){return i.img||(hasAnyImg(i)?IMG_PLACEHOLDER:'');}
 function getImgData(previewImgId){
   const img=document.getElementById(previewImgId);
   return(img&&img.src&&img.src.startsWith('data:'))?img.src:'';
@@ -598,7 +608,7 @@ async function resolveImgFull(previewImgId){
   const img=document.getElementById(previewImgId);
   if(!img||!getImgData(previewImgId))return'';
   if(img.dataset.full){
-    const id='img'+Date.now()+Math.random().toString(36).slice(2,7);
+    const id=newImgId();
     const res=await apiPost({action:'saveImage',id,data:img.dataset.full,garden:currentGarden});
     if(!res||res.ok===false)throw new Error((res&&res.error)||'画像の保存に失敗');
     fullImgCache[id]=img.dataset.full;
@@ -616,6 +626,59 @@ async function fetchFullImage(id){
   if(!d||!d.data)throw new Error('画像がありません');
   fullImgCache[id]=d.data;
   return d.data;
+}
+function newImgId(){return'img'+Date.now()+Math.random().toString(36).slice(2,7);}
+// 旧方式の大きな画像（起動時の一覧からは外してある）をセルから直接取得
+async function fetchLegacyImage(sheet,id){
+  const key='legacy:'+sheet+':'+id;
+  if(fullImgCache[key])return fullImgCache[key];
+  const res=await fetch(GAS_URL+'?action=getItemImg&sheet='+encodeURIComponent(sheet)+'&id='+encodeURIComponent(id)+'&t='+Date.now(),{redirect:'follow'});
+  const d=JSON.parse(await res.text());
+  if(!d||!d.data)throw new Error('画像がありません');
+  fullImgCache[key]=d.data;
+  return d.data;
+}
+
+/* ── カードの画像枠と拡大表示 ── */
+function imgSlotHTML(i,sheet){
+  const inner=i.img?`<img src="${esc(i.img)}" alt="">`
+    :hasAnyImg(i)?`<span class="img-slot-empty" style="opacity:.7">🖼</span>`
+    :`<span class="img-slot-empty">📷</span>`;
+  return`<div class="img-slot" data-thumb="${esc(i.id)}"${hasAnyImg(i)?` onclick="openItemImage('${i.id}','${sheet}')" style="cursor:zoom-in"`:''}>${inner}</div>`;
+}
+function openItemImage(id,sheet){
+  const list={pending,done,hold,usualItems}[sheet]||[];
+  const item=list.find(i=>i.id===id);
+  if(!item)return;
+  const load=item.imgFull?()=>fetchFullImage(item.imgFull)
+    :item.imgBig?()=>fetchLegacyImage(sheet,id)
+    :null;
+  openLightbox(item.img,load&&(()=>load().then(data=>{healThumb(item,sheet,data);return data;})));
+}
+// サムネイルが無いアイテムは、拡大時に取得した画像からサムネイルを作って保存し直す
+// 旧方式（imgFull無し）の場合は、元画像もフル画像として images シートへ移す
+const healingIds=new Set();
+function healThumb(item,sheet,full){
+  if(item.img||healingIds.has(item.id))return;
+  healingIds.add(item.id);
+  compressImage(full,THUMB_STEPS,THUMB_MAX_CHARS,async thumb=>{
+    try{
+      const fields={img:thumb};
+      if(!item.imgFull){
+        const imgId=newImgId();
+        const res=await apiPost({action:'saveImage',id:imgId,data:full,garden:currentGarden});
+        if(!res||res.ok===false)throw new Error((res&&res.error)||'画像の保存に失敗');
+        fullImgCache[imgId]=full;
+        fields.imgFull=imgId;
+      }
+      await apiPost(sheet==='usualItems'
+        ?{action:'updateUsualItem',id:String(item.id),fields}
+        :{action:'updateItem',id:String(item.id),fields,sheet});
+      Object.assign(item,fields);delete item.imgBig;
+      document.querySelectorAll(`[data-thumb="${item.id}"]`).forEach(el=>{el.innerHTML=`<img src="${thumb}" alt="">`;});
+    }catch(e){console.warn('サムネイルの再作成に失敗',e);}
+    finally{healingIds.delete(item.id);}
+  });
 }
 
 /* ════ 職員ビュー ════ */
@@ -686,7 +749,7 @@ function renderUsualTab(){
     const card=i=>`
       <div class="item-card">
         <div class="img-col">
-          <div class="img-slot">${i.img?`<img src="${esc(i.img)}" alt="" onclick="openLightbox('${esc(i.img)}','${esc(i.imgFull||'')}')" style="cursor:zoom-in">`:`<span class="img-slot-empty">📷</span>`}</div>
+          ${imgSlotHTML(i,'usualItems')}
           <div style="display:flex;gap:4px">
             <button class="icon-btn" onclick="openUsualEditModal('${i.id}')" title="編集">✏️</button>
             <button class="icon-btn" onclick="deleteUsualItem('${i.id}','${esc(i.name)}')">🗑</button>
@@ -855,8 +918,8 @@ function openUsualEditModal(id){
           <div class="img-area-text">📷 タップして選択</div>
         </div>
         <input type="file" id="ue-img" accept="image/*">
-        <div class="img-preview-box" id="ue-img-preview-box" ${item.img?'style="display:block"':''}>
-          <img id="ue-img-preview" src="${esc(item.img)}" data-full-id="${esc(item.imgFull||'')}" alt="">
+        <div class="img-preview-box" id="ue-img-preview-box" ${hasAnyImg(item)?'style="display:block"':''}>
+          <img id="ue-img-preview" src="${esc(editPreviewSrc(item))}" data-full-id="${esc(item.imgFull||'')}" alt="">
           <button class="img-clear-btn" onclick="clearImg('ue-img-preview-box','ue-img-preview','ue-img')">✕</button>
         </div>
       </div>
@@ -877,17 +940,17 @@ async function saveUsualEdit(id){
   const cat=document.getElementById('ue-cat').value;
   const place=document.getElementById('ue-place').value;
   const memo=(document.getElementById('ue-memo').value||'').trim();
-  const img=getImgData('ue-img-preview');
   const idx=usualItems.findIndex(i=>i.id===id);
   if(idx<0){closeModal();return;}
-  let imgFull='';
+  let imgFields={};
   showLoading('保存中…');
-  try{imgFull=await resolveImgFull('ue-img-preview');}
+  try{imgFields=await imgFieldsFromForm('ue-img-preview');}
   catch(e){hideLoading();showErr('画像の保存に失敗: '+e.message);return;}
   hideLoading();
   const oldItem={...usualItems[idx]};
-  const fields={name,qty,cat,place,memo,img,imgFull};
+  const fields={name,qty,cat,place,memo,...imgFields};
   usualItems[idx]={...usualItems[idx],...fields};
+  if('img' in imgFields)delete usualItems[idx].imgBig;
   closeModal();
   renderStaffContent();
   showToast('更新しました ✓');
@@ -1149,7 +1212,7 @@ async function submitRebuy(srcId){
   if(!src)return;
   const newItem={...src,id:String(Date.now()),garden:currentGarden,requester,qty,place,memo,
                  created:new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'})};
-  delete newItem.boughtAt;delete newItem.heldAt;
+  delete newItem.boughtAt;delete newItem.heldAt;delete newItem.imgBig;
 
   // mastersも即時更新
   if(requester&&!masterRequesters.includes(requester))masterRequesters.push(requester);
@@ -1205,8 +1268,8 @@ function openEditModal(id){
           <div class="img-area-text">📷 タップして選択 / Ctrl+V でペースト</div>
         </div>
         <input type="file" id="e-img" accept="image/*">
-        <div class="img-preview-box" id="e-img-preview-box" ${item.img?'style="display:block"':''}>
-          <img id="e-img-preview" src="${esc(item.img)}" data-full-id="${esc(item.imgFull||'')}" alt="">
+        <div class="img-preview-box" id="e-img-preview-box" ${hasAnyImg(item)?'style="display:block"':''}>
+          <img id="e-img-preview" src="${esc(editPreviewSrc(item))}" data-full-id="${esc(item.imgFull||'')}" alt="">
           <button class="img-clear-btn" onclick="clearImg('e-img-preview-box','e-img-preview','e-img')">✕</button>
         </div>
       </div>
@@ -1232,17 +1295,17 @@ async function saveEdit(id){
   if(place==='__new__')place=(document.getElementById('e-place-new').value||'').trim();
   const url=(document.getElementById('e-url').value||'').trim();
   const memo=(document.getElementById('e-memo').value||'').trim();
-  const img=getImgData('e-img-preview');
   const idx=pending.findIndex(i=>i.id===id);
   if(idx<0){closeModal();return;}
-  let imgFull='';
+  let imgFields={};
   showLoading('保存中…');
-  try{imgFull=await resolveImgFull('e-img-preview');}
+  try{imgFields=await imgFieldsFromForm('e-img-preview');}
   catch(e){hideLoading();showErr('画像の保存に失敗: '+e.message);return;}
   hideLoading();
   const oldItem={...pending[idx]};
-  const fields={name,qty,place,url,memo,img,imgFull};
+  const fields={name,qty,place,url,memo,...imgFields};
   pending[idx]={...pending[idx],...fields};
+  if('img' in imgFields)delete pending[idx].imgBig;
   if(place&&!masterPlaces.includes(place)&&!['ダイソー','セリア','ドラッグストア','ホームセンター','文房具店','Amazon'].includes(place))masterPlaces.push(place);
   closeModal();
   showToast('訂正しました ✓');
@@ -1779,7 +1842,8 @@ function itemCardHTML(i,opts={}){
           onblur="onPlaceNewBlur('${i.id}')">
       </div>`
     :(i.place?`<span>📍${esc(i.place)}</span>`:'');
-  const imgSlot=`<div class="img-slot">${i.img?`<img src="${esc(i.img)}" alt="" onclick="openLightbox('${esc(i.img)}','${esc(i.imgFull||'')}')" style="cursor:zoom-in">`:`<span class="img-slot-empty">📷</span>`}</div>`;
+  const sheet=isDone?'done':holdToPublicBtn?'hold':'pending';
+  const imgSlot=imgSlotHTML(i,sheet);
   return`<div class="item-card${isDone?' done':''}${i.partial?' partial':''}">
     <div class="img-col">
       ${checkBox?`<input type="checkbox" class="chk" id="chk-${i.id}" ${selectedItems.has(i.id)?'checked':''} onchange="toggleSelect('${i.id}',this.checked)">`:''}
@@ -1813,7 +1877,7 @@ function itemCardHTML(i,opts={}){
           ${editBtn?`<button class="edit-btn" onclick="openEditModal('${i.id}')">訂正</button>`:''}
         </div>
         <div style="display:flex;gap:4px;align-items:center">
-          ${deleteBtn?`<button class="icon-btn" onclick="deleteItem('${i.id}','${isDone?'done':holdToPublicBtn?'hold':'pending'}')">🗑</button>`:''}
+          ${deleteBtn?`<button class="icon-btn" onclick="deleteItem('${i.id}','${sheet}')">🗑</button>`:''}
           ${holdBtn?`<button class="hold-btn" onclick="holdItem('${i.id}')">保留</button>`:''}
         </div>
         ${holdToPublicBtn?`<button class="edit-btn" onclick="holdToPublic('${i.id}')">要購入へ</button>`:''}
@@ -2078,16 +2142,26 @@ function setupPullToRefresh(){
 }
 
 /* ── ライトボックス（ピンチ拡縮対応） ── */
-function openLightbox(src,imgFull){
+// src：先に表示するサムネイル（無ければ空）／loadFull：高画質版を返す関数（取得済みはキャッシュから即返る）
+function openLightbox(src,loadFull){
   const lb=document.createElement('div');
   lb.className='lightbox';
-  lb.innerHTML=`<div class="lightbox-close" id="lb-close">✕</div><img src="${fullImgCache[imgFull]||src}" alt="" id="lb-img" style="touch-action:none;cursor:zoom-in;user-select:none">`;
+  lb.innerHTML=`<div class="lightbox-close" id="lb-close">✕</div><img alt="" id="lb-img" style="touch-action:none;cursor:zoom-in;user-select:none"><div id="lb-status" style="position:absolute;bottom:20px;left:50%;transform:translateX(-50%);color:#fff;font-size:13px;background:rgba(0,0,0,.45);padding:6px 14px;border-radius:20px;pointer-events:none;display:none"></div>`;
   document.body.appendChild(lb);
 
   const img=document.getElementById('lb-img');
-  // 高画質版があれば取得して差し替え（取得済みはキャッシュから即表示）
-  if(imgFull&&!fullImgCache[imgFull]){
-    fetchFullImage(imgFull).then(data=>{if(img.isConnected)img.src=data;}).catch(e=>console.warn('高画質画像の取得失敗',e));
+  const status=document.getElementById('lb-status');
+  if(src)img.src=src;else img.style.display='none';
+  if(loadFull){
+    status.textContent=src?'高画質を読み込み中…':'画像を読み込み中…';
+    status.style.display='block';
+    loadFull().then(data=>{
+      if(!img.isConnected)return;
+      img.src=data;img.style.display='';status.style.display='none';
+    }).catch(e=>{
+      console.warn('高画質画像の取得失敗',e);
+      if(src)status.style.display='none';else status.textContent='画像を読み込めませんでした';
+    });
   }
   const closeBtn=document.getElementById('lb-close');
   let scale=1, minScale=0.5, maxScale=8;
