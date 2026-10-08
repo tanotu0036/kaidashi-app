@@ -206,7 +206,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-10-06-01'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-08-01'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -255,11 +255,9 @@ function selectGarden(name){
   if(prev!==name){
     pending=[];done=[];hold=[];masterRequesters=[];masterPlaces=[];
     staffTab='request';adminTab='pending';
-    if(mode==='staff')renderStaff();else renderAdmin();
-    loadAll().then(()=>{
-      const preserved=(mode==='staff')?captureRequestFormState():null;
-      if(mode==='staff')renderStaff();else renderAdmin();
-      if(mode==='staff')restoreRequestFormState(preserved);
+    loadAllFast().then(fromCache=>{
+      rerenderKeepingForm();
+      if(fromCache)loadAll(true).then(changed=>{if(changed)rerenderKeepingForm();});
     });
   }
 }
@@ -291,14 +289,50 @@ async function apiPost(payload){
   const text=await res.text();
   try{return JSON.parse(text);}catch(e){console.error('Parse error:',text);throw new Error('レスポンスの解析に失敗');}
 }
+function applyData(d){
+  pending=d.pending||[];done=d.done||[];hold=d.hold||[];folders=d.folders||[];usualItems=d.usualItems||[];
+  masterRequesters=d.masters?.requesters||[];masterPlaces=d.masters?.places||[];
+}
+// 前回取得したデータを園ごとに端末へ保存し、次回の起動時にすぐ表示する
+const DATA_CACHE_PREFIX='kaidashi_cache_v1:';
+function saveDataCache(garden,d){
+  try{localStorage.setItem(DATA_CACHE_PREFIX+garden,typeof d==='string'?d:JSON.stringify(d));}
+  catch(e){try{localStorage.removeItem(DATA_CACHE_PREFIX+garden);}catch(e2){}}
+}
+function loadDataCache(garden){
+  try{const s=localStorage.getItem(DATA_CACHE_PREFIX+garden);return s?JSON.parse(s):null;}
+  catch(e){return null;}
+}
 async function loadAll(silent=false){
+  if(!currentGarden)return; // 園が未選択のときは全園分を取りに行かない
+  const garden=currentGarden;
   if(!silent)showLoading('データを読み込み中…');
   try{
     const d=await apiGet();
-    pending=d.pending||[];done=d.done||[];hold=d.hold||[];folders=d.folders||[];usualItems=d.usualItems||[];
-    masterRequesters=d.masters?.requesters||[];masterPlaces=d.masters?.places||[];
-  }catch(e){console.error(e);if(!silent)showErr('読み込み失敗: '+e.message);}
+    if(garden!==currentGarden)return false; // 読み込み中に園が切り替わった
+    const json=JSON.stringify(d);
+    let changed=true;
+    try{changed=localStorage.getItem(DATA_CACHE_PREFIX+garden)!==json;}catch(e){}
+    applyData(d);
+    if(changed)saveDataCache(garden,json);
+    return changed;
+  }catch(e){console.error(e);if(!silent)showErr('読み込み失敗: '+e.message);return false;}
   finally{if(!silent)hideLoading();renderModeBtn();}
+}
+// 保存済みデータがあれば即表示して裏で最新化、無ければ通常どおり読み込み画面を出す
+async function loadAllFast(){
+  const cached=loadDataCache(currentGarden);
+  if(!cached){await loadAll();return false;}
+  applyData(cached);
+  renderModeBtn();
+  return true;
+}
+function rerenderKeepingForm(){
+  if(mode==='staff'){
+    const preserved=captureRequestFormState();
+    renderStaff();
+    restoreRequestFormState(preserved);
+  }else renderAdmin();
 }
 
 /* ── ユーティリティ ─── */
@@ -2064,9 +2098,10 @@ async function deleteItem(id,list){
   if(!currentGarden){
     showGardenOverlay();
   }
-  await loadAll();
+  const fromCache=currentGarden?await loadAllFast():false;
   updateGardenHeader();
   renderStaff();
+  if(fromCache)loadAll(true).then(changed=>{if(changed)rerenderKeepingForm();});
   startVersionWatcher();
   setupPullToRefresh();
 })();
