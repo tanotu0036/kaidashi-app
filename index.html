@@ -206,7 +206,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-10-08-01'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-21-01'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -1293,6 +1293,13 @@ function openEditModal(id){
         <input type="text" class="sub-input" id="e-place-new" placeholder="購入場所を入力">
       </div>
       <div class="form-row">
+        <label>フォルダ</label>
+        <select id="e-folder">
+          <option value="">通常（フォルダなし）</option>
+          ${folders.map(f=>`<option value="${esc(f.id)}"${item.folder===f.id?' selected':''}>${esc(f.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row">
         <label>参考URL</label>
         <input type="url" id="e-url" value="${esc(item.url)}" placeholder="https://...">
       </div>
@@ -1329,6 +1336,7 @@ async function saveEdit(id){
   if(place==='__new__')place=(document.getElementById('e-place-new').value||'').trim();
   const url=(document.getElementById('e-url').value||'').trim();
   const memo=(document.getElementById('e-memo').value||'').trim();
+  const folder=document.getElementById('e-folder')?.value||'';
   const idx=pending.findIndex(i=>i.id===id);
   if(idx<0){closeModal();return;}
   let imgFields={};
@@ -1337,7 +1345,7 @@ async function saveEdit(id){
   catch(e){hideLoading();showErr('画像の保存に失敗: '+e.message);return;}
   hideLoading();
   const oldItem={...pending[idx]};
-  const fields={name,qty,place,url,memo,...imgFields};
+  const fields={name,qty,place,url,memo,folder,...imgFields};
   pending[idx]={...pending[idx],...fields};
   if('img' in imgFields)delete pending[idx].imgBig;
   if(place&&!masterPlaces.includes(place)&&!['ダイソー','セリア','ドラッグストア','ホームセンター','文房具店','Amazon'].includes(place))masterPlaces.push(place);
