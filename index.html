@@ -211,7 +211,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-10-21-02'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-21-03'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -557,6 +557,19 @@ async function updatePlace(id,newPlace){
   const action=arrName==='pending'?'updateItem':arrName==='done'?'updateDoneItem':'updateHoldItem';
   try{await apiPost({action:'updateItem',id:String(id),fields:{place:newPlace},sheet:arrName});}
   catch(e){arr[idx]={...arr[idx],place:oldPlace};renderAdmin();showErr('更新失敗: '+e.message);}
+}
+
+// カードのプルダウンからフォルダを1件ずつ変更
+async function updateFolder(id,sheet,folderId){
+  const arr={pending,done,hold}[sheet];
+  const idx=arr?arr.findIndex(i=>i.id===id):-1;
+  if(idx<0)return;
+  const oldFolder=arr[idx].folder||'';
+  arr[idx]={...arr[idx],folder:folderId};
+  renderAdmin();
+  showToast(`「${folderId?getFolderName(folderId):'通常'}」に移動しました`);
+  try{await apiPost({action:'updateItem',id:String(id),fields:{folder:folderId},sheet});}
+  catch(e){arr[idx]={...arr[idx],folder:oldFolder};renderAdmin();showErr('移動失敗: '+e.message);}
 }
 
 /* ════ 画像ヘルパー ════ */
@@ -1446,7 +1459,7 @@ function renderPendingList(){
   let html='';
   if(sortKey1==='date'){
     items=[...items].sort((a,b)=>Number(b.id)-Number(a.id));
-    html=items.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true,placeEditable:true,usualBtn:true})).join('');
+    html=items.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true,placeEditable:true,folderEditable:true,usualBtn:true})).join('');
     html=`<div class="group-block"><div class="group-label">📅 すべて（新しい順）<span style="font-size:11px;color:#8ab0cc;font-weight:400;margin-left:4px">${items.length}件</span></div>${html}</div>`;
   } else {
     const g1={};
@@ -1456,7 +1469,7 @@ function renderPendingList(){
       const its1=g1[k1];
       let inner='';
       if(sortKey2==='none'||sortKey2===sortKey1){
-        inner=its1.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true,placeEditable:true,usualBtn:true})).join('');
+        inner=its1.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true,placeEditable:true,folderEditable:true,usualBtn:true})).join('');
       } else {
         const g2={};
         its1.forEach(i=>{const k=keyFn(sortKey2,i);if(!g2[k])g2[k]=[];g2[k].push(i);});
@@ -1466,7 +1479,7 @@ function renderPendingList(){
           return `
           <div style="margin-left:8px;margin-bottom:10px">
             <div class="group-label" style="font-size:10px;opacity:.75">${grpIcon(sortKey2)} ${esc(k2)}<span style="font-size:10px;color:#8ab0cc;font-weight:400;margin-left:4px">${its2.length}件</span></div>
-            ${its2.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true,placeEditable:true,usualBtn:true})).join('')}
+            ${its2.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true,placeEditable:true,folderEditable:true,usualBtn:true})).join('')}
           </div>`;
         }).join('');
       }
@@ -1644,13 +1657,13 @@ function groupedCards(items,s1,s2,cardOpts){
 function renderHoldList(){
   if(!hold.length)return'<div class="empty"><span class="empty-icon">⏸</span>保留中のアイテムはありません</div>';
   const holdFiltered=filterByFolder(hold);
-  return`<div class="section" style="padding-top:10px">${sortBar2('holdSort1','holdSort2')}${groupedCards(holdFiltered,holdSort1,holdSort2,{holdToPublicBtn:true,deleteBtn:true,isDone:false,placeEditable:true,usualBtn:true})}</div>`;
+  return`<div class="section" style="padding-top:10px">${sortBar2('holdSort1','holdSort2')}${groupedCards(holdFiltered,holdSort1,holdSort2,{holdToPublicBtn:true,deleteBtn:true,isDone:false,placeEditable:true,folderEditable:true,usualBtn:true})}</div>`;
 }
 
 function renderDoneList(){
   if(!done.length)return'<div class="empty"><span class="empty-icon">🛍</span>購入済アイテムはありません</div>';
   const doneFiltered=filterByFolder(done);
-  return`<div class="section" style="padding-top:10px">${sortBar2('doneSort1','doneSort2')}${groupedCards(doneFiltered,doneSort1,doneSort2,{doneToPublicBtn:true,rebuyBtn:true,deleteBtn:true,isDone:true,placeEditable:true,usualBtn:true})}</div>`;
+  return`<div class="section" style="padding-top:10px">${sortBar2('doneSort1','doneSort2')}${groupedCards(doneFiltered,doneSort1,doneSort2,{doneToPublicBtn:true,rebuyBtn:true,deleteBtn:true,isDone:true,placeEditable:true,folderEditable:true,usualBtn:true})}</div>`;
 }
 
 /* ── マスタ管理タブ ─── */
@@ -1874,7 +1887,7 @@ async function deleteMaster(type, value){
 
 /* ── 共通カードHTML ─── */
 function itemCardHTML(i,opts={}){
-  const {checkBox,cancelBtn,editBtn,rebuyBtn,holdBtn,holdToPublicBtn,doneToPublicBtn,deleteBtn,isDone,catEditable,placeEditable,usualBtn}=opts;
+  const {checkBox,cancelBtn,editBtn,rebuyBtn,holdBtn,holdToPublicBtn,doneToPublicBtn,deleteBtn,isDone,catEditable,placeEditable,folderEditable,usualBtn}=opts;
   const catBadge=catEditable
     ?`<select class="cat-select-inline" onchange="updateCat('${i.id}',this.value)">${CATS.map(c=>`<option value="${c.id}"${c.id===(i.cat||'zappi')?' selected':''}>${c.label}</option>`).join('')}</select>`
     :`<span class="cat-badge ${getCatClass(i.cat)}">${getCatLabel(i.cat||'zappi')}</span>`;
@@ -1910,6 +1923,12 @@ function itemCardHTML(i,opts={}){
         ${placeEditable?placeBadge:(i.place?`<span>📍${esc(i.place)}</span>`:'')}
         ${i.partial?'<span class="partial-badge">🔸買い残し</span>':''}
       </div>
+      ${folderEditable&&folders.length?`<div class="item-meta" style="margin-top:3px">
+        <select class="cat-select-inline" onchange="updateFolder('${i.id}','${sheet}',this.value)" style="max-width:130px">
+          <option value="">📁 通常</option>
+          ${folders.map(f=>`<option value="${esc(f.id)}"${i.folder===f.id?' selected':''}>📁 ${esc(f.name)}</option>`).join('')}
+        </select>
+      </div>`:''}
       <div class="item-meta" style="margin-top:3px">
         ${i.requester?`<span class="requester-tag">👤 ${esc(i.requester)}</span>`:''}
         ${i.garden?`<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:#e3eef2;color:#5a8a9c;font-weight:600">🏫 ${esc(i.garden)}</span>`:''}
