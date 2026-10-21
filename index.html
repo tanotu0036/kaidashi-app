@@ -14,6 +14,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Hiragino Kaku
 .header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:10px 12px;border-bottom:1px solid #b8d8e8;background:#8fb8c8;position:sticky;top:0;z-index:10;gap:6px}
 .header-garden{font-size:15px;font-weight:700;color:#fff;text-align:center;padding:4px 8px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .header-garden:hover{opacity:.8}
+.header-garden>div:first-child{overflow:hidden;text-overflow:ellipsis}
+.header-version{font-size:10px;font-weight:500;color:rgba(255,255,255,.8);line-height:1.2;margin-top:1px;display:inline-block;padding:1px 4px}
 .header-left{display:flex;justify-content:flex-start}
 .header-right{display:flex;justify-content:flex-end}
 .mode-btn{font-size:12px;padding:6px 12px;border:1px solid rgba(255,255,255,.5);border-radius:20px;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;white-space:nowrap;font-weight:500}
@@ -189,7 +191,10 @@ input[type=file]{display:none}
     <div class="header-left">
       <button class="header-side-btn" id="staff-btn" onclick="goStaff()">リクエスト画面</button>
     </div>
-    <div class="header-garden" id="header-garden" onclick="changeGarden()">園を選択してください</div>
+    <div class="header-garden" onclick="changeGarden()">
+      <div id="header-garden">園を選択してください</div>
+      <div class="header-version" id="header-version" onclick="checkVersionNow(event)"></div>
+    </div>
     <div class="header-right">
       <button class="mode-btn" id="mode-toggle" onclick="goAdmin()">買出し画面</button>
     </div>
@@ -206,7 +211,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-10-21-01'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-21-02'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -264,6 +269,8 @@ function selectGarden(name){
 function updateGardenHeader(){
   const el=document.getElementById('header-garden');
   if(el) el.textContent=currentGarden||'園を選択してください';
+  const ver=document.getElementById('header-version');
+  if(ver) ver.textContent='ver '+APP_VERSION;
   const staffBtn=document.getElementById('staff-btn');
   const adminBtn=document.getElementById('mode-toggle');
   if(staffBtn){
@@ -2114,18 +2121,33 @@ async function deleteItem(id,list){
   setupPullToRefresh();
 })();
 
+async function fetchLatestVersion(){
+  const res=await fetch(window.location.href.split('?')[0]+'?_v='+Date.now(),{cache:'no-store'});
+  const match=(await res.text()).match(/APP_VERSION='([^']+)'/);
+  return match?match[1]:'';
+}
+// キャッシュを避けて最新版を開き直す
+function reloadToLatest(ver){location.replace(window.location.href.split('?')[0]+'?v='+encodeURIComponent(ver||Date.now()));}
 function startVersionWatcher(){
   setInterval(async()=>{
     try{
-      const res=await fetch(window.location.href.split('?')[0]+'?_v='+Date.now(),{cache:'no-store'});
-      const text=await res.text();
-      const match=text.match(/APP_VERSION='([^']+)'/);
-      if(match&&match[1]&&match[1]!==APP_VERSION){
-        console.log('新しいバージョンを検出:',match[1],'→ リロードします');
-        location.reload(true);
+      const latest=await fetchLatestVersion();
+      if(latest&&latest!==APP_VERSION){
+        console.log('新しいバージョンを検出:',latest,'→ リロードします');
+        reloadToLatest(latest);
       }
     }catch(e){/* オフライン時などは無視 */}
   }, 5*60*1000); // 5分ごと
+}
+// ヘッダーのバージョン表記をタップ：最新版があれば更新、無ければその旨を表示
+async function checkVersionNow(e){
+  e.stopPropagation();
+  showToast('最新版を確認中…');
+  try{
+    const latest=await fetchLatestVersion();
+    if(latest&&latest!==APP_VERSION){showToast('新しいバージョン '+latest+' に更新します');setTimeout(()=>reloadToLatest(latest),600);}
+    else showToast('最新版です（'+APP_VERSION+'）');
+  }catch(err){showToast('確認できませんでした');}
 }
 
 /* ── 下スワイプでリロード（Pull to Refresh） ── */
