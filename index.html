@@ -171,6 +171,14 @@ input[type=file]{display:none}
 .pull-refresh-indicator .spin{width:14px;height:14px;border:2px solid #d4e6ec;border-top-color:#8fb8c8;border-radius:50%;display:inline-block}
 .pull-refresh-indicator .spin.active{animation:spin .7s linear infinite}
 
+.item-card.ordered{background:#e2f4ec;border:2px solid #3f9a78}
+.ordered-badge{display:inline-block;font-size:13px;font-weight:700;color:#fff;background:#2f8f6c;border-radius:8px;padding:3px 10px;margin-bottom:4px}
+.ordered-date{font-size:11px;font-weight:700;color:#2f7f60;margin-top:3px}
+.buy-btn.order{background:linear-gradient(135deg,#f0b860,#d9963a)}
+.buy-btn.receive{background:linear-gradient(135deg,#5fb893,#3f9a78)}
+.net-toggle{font-size:11px;padding:3px 8px;border-radius:20px;border:1px solid #c8dfe6;background:#fff;color:#7a98a2;cursor:pointer;white-space:nowrap}
+.net-toggle.on{background:#e2f4ec;border-color:#3f9a78;color:#2f7f60;font-weight:700}
+.net-toggle:disabled{cursor:default}
 .folder-count{display:inline-block;margin-left:5px;font-size:10px;font-weight:700;color:#5a8a9c;background:rgba(255,255,255,.7);border-radius:10px;padding:0 6px;line-height:16px;vertical-align:middle}
 .folder-chip.active .folder-count{color:#3a7a9c;background:rgba(255,255,255,.9)}
 </style>
@@ -211,7 +219,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-10-21-03'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-30-01'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -227,9 +235,10 @@ const CATS=[
   {id:'fukuri',label:'福利厚生費'},
   {id:'zappi',label:'雑費'},
 ];
-const DEFAULT_PLACES=['ダイソー','セリア','ドラッグストア','ホームセンター','文房具店','Amazon'];
+const DEFAULT_PLACES=['ダイソー','セリア','ドラッグストア','ホームセンター','文房具店','Amazon','ネット注文'];
+const DEFAULT_NET_PLACES=['Amazon','ネット注文']; // 常にネット注文扱いの店
 
-let pending=[],done=[],masterRequesters=[],masterPlaces=[];
+let pending=[],done=[],masterRequesters=[],masterPlaces=[],masterNetPlaces=[];
 let mode='staff',staffTab='request',adminTab='pending';
 let sortKey1='place',sortKey2='cat';
 let hold=[];
@@ -258,7 +267,7 @@ function selectGarden(name){
   updateGardenHeader();
   // 園が変わったらデータを再読み込み
   if(prev!==name){
-    pending=[];done=[];hold=[];masterRequesters=[];masterPlaces=[];
+    pending=[];done=[];hold=[];masterRequesters=[];masterPlaces=[];masterNetPlaces=[];
     staffTab='request';adminTab='pending';
     loadAllFast().then(fromCache=>{
       rerenderKeepingForm();
@@ -298,7 +307,7 @@ async function apiPost(payload){
 }
 function applyData(d){
   pending=d.pending||[];done=d.done||[];hold=d.hold||[];folders=d.folders||[];usualItems=d.usualItems||[];
-  masterRequesters=d.masters?.requesters||[];masterPlaces=d.masters?.places||[];
+  masterRequesters=d.masters?.requesters||[];masterPlaces=d.masters?.places||[];masterNetPlaces=d.masters?.netPlaces||[];
 }
 // 前回取得したデータを園ごとに端末へ保存し、次回の起動時にすぐ表示する
 const DATA_CACHE_PREFIX='kaidashi_cache_v1:';
@@ -1266,7 +1275,7 @@ async function submitRebuy(srcId){
   if(!src)return;
   const newItem={...src,id:String(Date.now()),garden:currentGarden,requester,qty,place,memo,
                  created:new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'})};
-  delete newItem.boughtAt;delete newItem.heldAt;delete newItem.imgBig;
+  delete newItem.boughtAt;delete newItem.heldAt;delete newItem.imgBig;delete newItem.orderedAt;
 
   // mastersも即時更新
   if(requester&&!masterRequesters.includes(requester))masterRequesters.push(requester);
@@ -1682,7 +1691,10 @@ function renderMasterTab(){
         <span class="drag-handle">☰</span>
         <span style="font-size:14px;color:#2a4a55">📍 ${esc(p)}</span>
       </div>
-      <button class="icon-btn" data-type="place" data-idx="${idx}" onclick="deleteMasterByIdx(this)" title="削除">🗑</button>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button class="net-toggle${isNetPlace(p)?' on':''}" data-idx="${idx}" ${DEFAULT_NET_PLACES.includes(p)?'disabled':'onclick="toggleNetPlace(this)"'}>ネット注文</button>
+        <button class="icon-btn" data-type="place" data-idx="${idx}" onclick="deleteMasterByIdx(this)" title="削除">🗑</button>
+      </div>
     </div>`).join('');
   const fRows=folders.map((f,idx)=>
     `<div class="master-row" data-value="${esc(f.id)}">
@@ -1702,7 +1714,7 @@ function renderMasterTab(){
       </div>
     </div>
     <div class="form-card" style="margin-bottom:12px">
-      <div style="font-size:13px;font-weight:700;color:#5a8a9c;margin-bottom:4px">📍 購入場所マスタ</div><div style="font-size:11px;color:#a8c4cc;margin-bottom:8px">☰を押しながら並び替えると、要購入画面のグループ順に反映されます</div>
+      <div style="font-size:13px;font-weight:700;color:#5a8a9c;margin-bottom:4px">📍 購入場所マスタ</div><div style="font-size:11px;color:#a8c4cc;margin-bottom:8px">☰を押しながら並び替えると、要購入画面のグループ順に反映されます。「ネット注文」をオンにした店の品物は、購入ではなく発注ボタンになります（Amazonと「ネット注文」は常にオン）</div>
       <div id="place-list">${masterPlaces.length===0?'<div style="font-size:13px;color:#8ab0cc;margin-bottom:8px">登録された場所はありません</div>':pRows}</div>
       <div style="display:flex;gap:8px;margin-top:10px">
         <input type="text" id="new-place" placeholder="新しい購入場所" style="flex:1;font-size:13px;padding:7px 10px">
@@ -1906,12 +1918,14 @@ function itemCardHTML(i,opts={}){
     :(i.place?`<span>📍${esc(i.place)}</span>`:'');
   const sheet=isDone?'done':holdToPublicBtn?'hold':'pending';
   const imgSlot=imgSlotHTML(i,sheet);
-  return`<div class="item-card${isDone?' done':''}${i.partial?' partial':''}">
+  const ordered=!!i.orderedAt&&!isDone;
+  return`<div class="item-card${isDone?' done':''}${i.partial?' partial':''}${ordered?' ordered':''}">
     <div class="img-col">
       ${checkBox?`<input type="checkbox" class="chk" id="chk-${i.id}" ${selectedItems.has(i.id)?'checked':''} onchange="toggleSelect('${i.id}',this.checked)">`:''}
       ${imgSlot}
     </div>
     <div class="item-info">
+      ${ordered?'<div class="ordered-badge">📦 発注済み</div>':''}
       <div class="item-name${isDone?' done':''}">${isUsual(i.name)?'⭐ ':''}${esc(i.name)}</div>
       <div class="item-qty${isDone?' done':''}" style="margin-top:1px">${
   (isDone&&i.requestedQty&&i.boughtQty&&i.requestedQty!==i.boughtQty)
@@ -1936,25 +1950,61 @@ function itemCardHTML(i,opts={}){
       ${i.url?`<a class="url-link" href="${esc(i.url)}" target="_blank">🔗 ${shortUrl(i.url)}</a>`:''}
       ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
       <div style="font-size:11px;color:#7a98a2;margin-top:3px">${fmtDate(isDone?(i.boughtAt||i.created):i.created)}</div>
+      ${ordered?`<div class="ordered-date">発注日：${esc(fmtDate(i.orderedAt))}</div>`:''}
       ${usualBtn&&!isUsual(i.name)?`<button onclick="addToUsualFromCard('${i.id}')" style="margin-top:6px;font-size:11px;padding:3px 10px;border:1px dashed #8fb8c8;border-radius:20px;background:transparent;color:#5a8a9c;cursor:pointer">⭐ いつものに追加</button>`:''}
     </div>
     <div class="actions-col" style="justify-content:space-between;height:100%;align-items:flex-end">
       <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
         <div style="display:flex;gap:4px;align-items:center">
-          ${cancelBtn?`<button class="small-btn" onclick="cancelItem('${i.id}')">取消</button>`:''}
-          ${editBtn?`<button class="edit-btn" onclick="openEditModal('${i.id}')">訂正</button>`:''}
+          ${cancelBtn&&!ordered?`<button class="small-btn" onclick="cancelItem('${i.id}')">取消</button>`:''}
+          ${editBtn&&!ordered?`<button class="edit-btn" onclick="openEditModal('${i.id}')">訂正</button>`:''}
         </div>
         <div style="display:flex;gap:4px;align-items:center">
-          ${deleteBtn?`<button class="icon-btn" onclick="deleteItem('${i.id}','${sheet}')">🗑</button>`:''}
-          ${holdBtn?`<button class="hold-btn" onclick="holdItem('${i.id}')">保留</button>`:''}
+          ${deleteBtn&&!ordered?`<button class="icon-btn" onclick="deleteItem('${i.id}','${sheet}')">🗑</button>`:''}
+          ${holdBtn&&!ordered?`<button class="hold-btn" onclick="holdItem('${i.id}')">保留</button>`:''}
+          ${holdBtn&&ordered?`<button class="small-btn" onclick="cancelOrder('${i.id}')">発注取消</button>`:''}
         </div>
         ${holdToPublicBtn?`<button class="edit-btn" onclick="holdToPublic('${i.id}')">要購入へ</button>`:''}
         ${doneToPublicBtn?`<button class="revert-btn" onclick="doneToPublic('${i.id}')">要購入へ</button>`:''}
         ${rebuyBtn?`<button class="rebuy-btn" onclick="rebuyItem('${i.id}')">🔄 再購入</button>`:''}
       </div>
-      ${holdBtn?`<button class="buy-btn" onclick="checkItem('${i.id}',true)">購入</button>`:''}
+      ${holdBtn?(ordered?`<button class="buy-btn receive" onclick="moveToDoneFull('${i.id}')">受取り</button>`
+        :isNetPlace(i.place)?`<button class="buy-btn order" onclick="orderItem('${i.id}')">発注</button>`
+        :`<button class="buy-btn" onclick="checkItem('${i.id}',true)">購入</button>`):''}
     </div>
   </div>`;
+}
+
+/* ── ネット注文（発注→受取り） ─── */
+function isNetPlace(p){return DEFAULT_NET_PLACES.includes(p)||masterNetPlaces.includes(p);}
+async function setOrderedAt(id,orderedAt,msg){
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const old=pending[idx].orderedAt||'';
+  pending[idx]={...pending[idx],orderedAt};
+  renderAdmin();showToast(msg);
+  try{await apiPost({action:'updateItem',id:String(id),fields:{orderedAt},sheet:'pending'});}
+  catch(e){pending[idx]={...pending[idx],orderedAt:old};renderAdmin();showErr('失敗: '+e.message);}
+}
+function orderItem(id){
+  const orderedAt=new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+  setOrderedAt(id,orderedAt,'発注済みにしました');
+}
+function cancelOrder(id){
+  if(!confirm('発注済みを取り消しますか？'))return;
+  setOrderedAt(id,'','発注を取り消しました');
+}
+async function toggleNetPlace(btn){
+  const value=masterPlaces[parseInt(btn.dataset.idx)];
+  if(!value)return;
+  const on=masterNetPlaces.includes(value);
+  masterNetPlaces=on?masterNetPlaces.filter(p=>p!==value):[...masterNetPlaces,value];
+  renderAdmin();
+  try{await apiPost({action:on?'deleteMaster':'saveMasterDirect',masterType:'netPlace',value,garden:currentGarden});}
+  catch(e){
+    masterNetPlaces=on?[...masterNetPlaces,value]:masterNetPlaces.filter(p=>p!==value);
+    renderAdmin();showErr('更新失敗: '+e.message);
+  }
 }
 
 async function holdItem(id){

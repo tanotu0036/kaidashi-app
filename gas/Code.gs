@@ -1,6 +1,6 @@
 const SS = SpreadsheetApp.getActiveSpreadsheet();
 
-const COLS = ['id','requester','name','qty','cat','place','url','memo','img','created','boughtAt','heldAt','requestedQty','boughtQty','garden','folder','partial','imgFull'];
+const COLS = ['id','requester','name','qty','cat','place','url','memo','img','created','boughtAt','heldAt','requestedQty','boughtQty','garden','folder','partial','imgFull','orderedAt'];
 const USUAL_COLS = ['id','name','qty','cat','place','memo','img','garden','folder','order','imgFull'];
 
 function getSheet(name) {
@@ -111,6 +111,7 @@ function doPost(e) {
         src.boughtQty    = '';
         src.created = new Date().toLocaleDateString('ja-JP');
         delete src.boughtAt;
+        delete src.orderedAt;
         appendItem('pending', src);
       }
 
@@ -294,6 +295,7 @@ function moveRow(fromSheet, toSheet, id, extra = {}) {
 function updateItemFields(sheetName, id, fields) {
   const sh = getSheet(sheetName);
   if (fields && 'imgFull' in fields) ensureHeaders(sh, ['imgFull']);
+  if (fields && 'orderedAt' in fields) ensureHeaders(sh, ['orderedAt']);
   const rows = sh.getDataRange().getValues();
   const headers = rows[0];
   const idCol = headers.indexOf('id');
@@ -311,17 +313,18 @@ function updateItemFields(sheetName, id, fields) {
 function getMasters(garden) {
   const sh = getSheet('masters');
   const rows = sh.getDataRange().getValues();
-  if (rows.length <= 1) return { requesters: [], places: [] };
+  if (rows.length <= 1) return { requesters: [], places: [], netPlaces: [] };
   const headers = rows[0];
   const gardenCol = headers.indexOf('garden');
   const orderCol = headers.indexOf('order');
-  const requesterEntries = [], placeEntries = [];
+  const requesterEntries = [], placeEntries = [], netEntries = [];
   rows.slice(1).forEach(r => {
     const g = gardenCol >= 0 ? String(r[gardenCol] ?? '') : '';
     if (garden && g !== garden && g !== '') return;
     const ord = orderCol >= 0 && r[orderCol] !== '' ? Number(r[orderCol]) : 999999;
     if (r[0] === 'requester' && r[1]) requesterEntries.push({ value: String(r[1]), order: ord });
     if (r[0] === 'place'     && r[1]) placeEntries.push({ value: String(r[1]), order: ord });
+    if (r[0] === 'netPlace'  && r[1]) netEntries.push({ value: String(r[1]), order: ord });
   });
   const dedupe = (entries) => {
     const seen = new Map();
@@ -332,7 +335,7 @@ function getMasters(garden) {
       .sort((a, b) => a[1] - b[1])
       .map(([value]) => value);
   };
-  return { requesters: dedupe(requesterEntries), places: dedupe(placeEntries) };
+  return { requesters: dedupe(requesterEntries), places: dedupe(placeEntries), netPlaces: dedupe(netEntries) };
 }
 
 function saveMaster(type, value, garden) {
