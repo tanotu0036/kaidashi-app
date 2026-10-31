@@ -219,7 +219,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-10-31-02'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-31-03'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -1911,7 +1911,6 @@ async function deleteMaster(type, value){
   if(!confirm(`「${value}」を削除しますか？`))return;
   showLoading('削除中…');
   try{
-    // 全園共通の項目はGAS側でこの園だけ非表示になる（他の園には残る）
     await apiPost({action:'deleteMaster',masterType:type,value,garden:currentGarden});
     if(type==='place'&&masterNetPlaces.includes(value)){
       await apiPost({action:'deleteMaster',masterType:'netPlace',value,garden:currentGarden});
