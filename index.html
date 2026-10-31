@@ -256,7 +256,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-10-31-07'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-31-08'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -1010,17 +1010,17 @@ function requestedStatus(itemName){
 function optStatusHTML(s){
   if(!s)return'';
   return(s.req?`<span class="opt-status">依頼中 ${s.req}${esc(s.unit)}</span>`:'')
-    +(s.ord?`<span class="opt-status ordered">発注済み ${s.ord}${esc(s.unit)}</span>`:'');
+    +(s.ord?`<span class="opt-status ordered">発注済み・到着待ち ${s.ord}${esc(s.unit)}</span>`:'');
 }
 // 色などの選択肢が無い依頼の重複表示
 function dupBannerHTML(itemName){
   const dup=pending.filter(i=>i.name===itemName&&!parseOptions(i));
   if(!dup.length)return'';
-  return`<div class="dup-banner">⚠ すでに依頼があります<br>${dup.map(i=>`${i.orderedAt?'発注済み':'依頼中'} ${esc(i.qty||'個数未記入')}${i.requester?`（${esc(i.requester)}）`:''}`).join('<br>')}</div>`;
+  return`<div class="dup-banner">⚠ すでに依頼があります<br>${dup.map(i=>`${i.orderedAt?'発注済み・到着待ち':'依頼中'} ${esc(i.qty||'個数未記入')}${i.requester?`（${esc(i.requester)}）`:''}`).join('<br>')}</div>`;
 }
 function optRowHTML(name,qty,unit,req,status){
   const on=qty>0;
-  return`<div class="opt-row${on?'':' off'}" data-name="${esc(name)}">
+  return`<div class="opt-row${on?'':' off'}" data-name="${esc(name)}" data-req="${req||''}">
     <label><input type="checkbox" class="chk" ${on?'checked':''} onchange="optCheck(this)"><span>${esc(name)}</span>${optStatusHTML(status)}</label>
     <div class="opt-qty">
       <button type="button" class="opt-step" onclick="optStep(this,-1)">−</button>
@@ -1049,7 +1049,11 @@ function optSetRow(row,qty){
 }
 function optCheck(chk){
   const row=chk.closest('.opt-row');
-  optSetRow(row,chk.checked?(parseInt(row.querySelector('input[type=number]').value)||1):0);
+  optSetRow(row,chk.checked?(parseInt(row.querySelector('input[type=number]').value)||parseInt(row.dataset.req)||1):0);
+}
+// 全行を依頼どおりの数量でチェック
+function optCheckAll(p){
+  [...document.getElementById(p+'-opt-rows').children].forEach(r=>optSetRow(r,parseInt(r.dataset.req)||1));
 }
 function optStep(btn,d){
   const row=btn.closest('.opt-row');
@@ -1124,7 +1128,8 @@ function openOptionBuyModal(id){
       <button class="modal-close" onclick="closeModal()">✕</button>
       <div class="modal-title">🛍 買えた${esc(o.label)}と数量</div>
       <div style="background:#eef4fb;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#2a3f5f"><strong>${esc(item.name)}</strong>　依頼 ${esc(item.qty)}</div>
-      <div id="ob-opt-rows" data-unit="${esc(o.unit)}">${o.items.map(x=>optRowHTML(x.name,x.qty,o.unit,x.qty)).join('')}</div>
+      <button type="button" class="small-btn" style="margin-bottom:6px;padding:7px 12px" onclick="optCheckAll('ob')">すべて買えた</button>
+      <div id="ob-opt-rows" data-unit="${esc(o.unit)}">${o.items.map(x=>optRowHTML(x.name,0,o.unit,x.qty)).join('')}</div>
       <div style="font-size:12px;color:#a3702a;margin:10px 0">足りない分は買い残しとして要購入に残ります</div>
       <button class="submit-btn" onclick="confirmOptionBuy('${id}')">購入済みにする</button>
     </div>
@@ -2388,7 +2393,7 @@ function itemCardHTML(i,opts={}){
       ${imgSlot}
     </div>
     <div class="item-info">
-      ${ordered?'<div class="ordered-badge">📦 発注済み</div>':''}
+      ${ordered?'<div class="ordered-badge">📦 発注済み（到着待ち）</div>':''}
       <div class="item-name${isDone?' done':''}">${isUsual(i.name)?'⭐ ':''}${esc(i.name)}</div>
       <div class="item-qty${isDone?' done':''}" style="margin-top:1px">${
   (isDone&&i.requestedQty&&i.boughtQty&&i.requestedQty!==i.boughtQty)
@@ -2435,7 +2440,7 @@ function itemCardHTML(i,opts={}){
         ${rebuyBtn?`<button class="rebuy-btn" onclick="rebuyItem('${i.id}')">🔄 再購入</button>`:''}
       </div>
       ${holdBtn?(ordered?`<button class="buy-btn receive" onclick="checkItem('${i.id}',true)">受取り</button>`
-        :isNetPlace(i.place)?`<button class="buy-btn order" onclick="orderItem('${i.id}')">発注</button>`
+        :isNetPlace(i.place)?`<button class="buy-btn order" onclick="openOrderModal('${i.id}')">発注</button>`
         :`<button class="buy-btn" onclick="checkItem('${i.id}',true)">購入</button>`):''}
     </div>
   </div>`;
@@ -2452,9 +2457,74 @@ async function setOrderedAt(id,orderedAt,msg){
   try{await apiPost({action:'updateItem',id:String(id),fields:{orderedAt},sheet:'pending'});}
   catch(e){pending[idx]={...pending[idx],orderedAt:old};renderAdmin();showErr('失敗: '+e.message);}
 }
-function orderItem(id){
-  const orderedAt=new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
-  setOrderedAt(id,orderedAt,'発注済みにしました');
+function orderDate(){return new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});}
+function plainQtyParts(item){
+  const m=String(item.qty||'').match(/(\d+)/);
+  return{num:m?parseInt(m[1]):0,unit:String(item.qty||'').replace(/\d+/,'').trim()||'個'};
+}
+// 発注：1個だけの品物はそのまま発注済みに。複数あるときは発注できた数量を聞く
+function openOrderModal(id){
+  const item=pending.find(i=>i.id===id);
+  if(!item)return;
+  const o=parseOptions(item);
+  const {num,unit}=plainQtyParts(item);
+  if(!o&&num<=1){setOrderedAt(id,orderDate(),'発注済みにしました');return;}
+  const rows=o?o.items.map(x=>optRowHTML(x.name,0,o.unit,x.qty)).join(''):optRowHTML(item.name,0,unit,num);
+  document.getElementById('modal-container').innerHTML=`
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-title">📦 発注できた数量</div>
+      <div style="background:#eef4fb;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#2a3f5f"><strong>${esc(item.name)}</strong>　依頼 ${esc(item.qty)}</div>
+      <button type="button" class="small-btn" style="margin-bottom:6px;padding:7px 12px" onclick="optCheckAll('od')">すべて発注できた</button>
+      <div id="od-opt-rows" data-unit="${esc(o?o.unit:unit)}">${rows}</div>
+      <div style="font-size:12px;color:#a3702a;margin:10px 0">発注できなかった分は依頼中のカードとして残ります</div>
+      <button class="submit-btn" onclick="confirmOrder('${id}')">発注済みにする</button>
+    </div>
+  </div>`;
+}
+async function confirmOrder(id){
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0){closeModal();return;}
+  const src=pending[idx];
+  const o=parseOptions(src);
+  const ordered=readOptRows('od');
+  if(warnRequired([[!ordered.length,'od-opt-rows','発注できた数量']]))return;
+  let orderedFields,restFields=null;
+  if(o){
+    const rest=o.items.map(x=>{
+      const b=ordered.find(y=>y.name===x.name);
+      return{name:x.name,qty:x.qty-(b?b.qty:0)};
+    }).filter(x=>x.qty>0);
+    orderedFields={qty:optTotal(ordered,o.unit),options:optionsJSON(o,ordered)};
+    if(rest.length)restFields={qty:optTotal(rest,o.unit),options:optionsJSON(o,rest),partial:'1'};
+  }else{
+    const {num,unit}=plainQtyParts(src);
+    const n=ordered[0].qty;
+    orderedFields={qty:n+unit};
+    if(n<num)restFields={qty:(num-n)+unit,partial:'1'};
+  }
+  closeModal();
+  const orderedAt=orderDate();
+  if(!restFields){
+    pending[idx]={...src,...orderedFields};
+    await setOrderedAt(id,orderedAt,'発注済みにしました');
+    if(o||orderedFields.qty!==src.qty)apiPost({action:'updateItem',id:String(id),fields:orderedFields,sheet:'pending'}).catch(e=>showErr('更新失敗: '+e.message));
+    return;
+  }
+  // 一部だけ発注：発注済みのカードを新しく作り、元のカードは残りの数量にする
+  const orderedItem={...src,...orderedFields,id:String(Date.now()),orderedAt,partial:''};
+  pending[idx]={...src,...restFields};
+  pending.splice(idx,0,orderedItem);
+  renderAdmin();
+  showToast(`${orderedFields.qty}発注済み・残り${restFields.qty}は依頼中のままです`);
+  try{
+    await apiPost({action:'addPending',item:orderedItem});
+    await apiPost({action:'updateItem',id:String(id),fields:restFields,sheet:'pending'});
+  }catch(e){
+    showErr('失敗: '+e.message);
+    loadAll().then(()=>renderAdmin());
+  }
 }
 function cancelOrder(id){
   if(!confirm('発注済みを取り消しますか？'))return;
