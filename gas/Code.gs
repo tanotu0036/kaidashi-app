@@ -310,6 +310,9 @@ function updateItemFields(sheetName, id, fields) {
   }
 }
 
+// 全園共通（園名なし）の項目を、特定の園でだけ非表示にするための行の type
+const HIDE_TYPES = { requester: 'hideRequester', place: 'hidePlace' };
+
 function getMasters(garden) {
   const sh = getSheet('masters');
   const rows = sh.getDataRange().getValues();
@@ -318,9 +321,15 @@ function getMasters(garden) {
   const gardenCol = headers.indexOf('garden');
   const orderCol = headers.indexOf('order');
   const requesterEntries = [], placeEntries = [], netEntries = [];
+  const hidden = new Set();
+  rows.slice(1).forEach(r => {
+    const g = gardenCol >= 0 ? String(r[gardenCol] ?? '') : '';
+    if (garden && g === garden && Object.values(HIDE_TYPES).includes(r[0])) hidden.add(r[0] + ':' + r[1]);
+  });
   rows.slice(1).forEach(r => {
     const g = gardenCol >= 0 ? String(r[gardenCol] ?? '') : '';
     if (garden && g !== garden && g !== '') return;
+    if (HIDE_TYPES[r[0]] && hidden.has(HIDE_TYPES[r[0]] + ':' + r[1])) return;
     const ord = orderCol >= 0 && r[orderCol] !== '' ? Number(r[orderCol]) : 999999;
     if (r[0] === 'requester' && r[1]) requesterEntries.push({ value: String(r[1]), order: ord });
     if (r[0] === 'place'     && r[1]) placeEntries.push({ value: String(r[1]), order: ord });
@@ -341,6 +350,7 @@ function getMasters(garden) {
 function saveMaster(type, value, garden) {
   if (!value) return;
   const sh = getSheet('masters');
+  if (garden && HIDE_TYPES[type]) deleteMasterRow(HIDE_TYPES[type], value, garden); // 登録し直したら非表示を解除
   const rows = sh.getDataRange().getValues();
   const headers = rows[0];
   const gardenCol = headers.indexOf('garden');
@@ -364,11 +374,19 @@ function deleteMasterRow(type, value, garden) {
   const rows = sh.getDataRange().getValues();
   const headers = rows[0];
   const gardenCol = headers.indexOf('garden');
+  let shared = false, alreadyHidden = false;
   for (let i = rows.length - 1; i >= 1; i--) {
     const g = gardenCol >= 0 ? String(rows[i][gardenCol] ?? '') : '';
-    if (String(rows[i][0]) === String(type) && String(rows[i][1]) === String(value) && g === (garden||'')) {
+    if (String(rows[i][1]) !== String(value)) continue;
+    if (String(rows[i][0]) === String(type) && g === '') shared = true;
+    if (String(rows[i][0]) === HIDE_TYPES[type] && g === garden) alreadyHidden = true;
+    if (String(rows[i][0]) === String(type) && g === (garden||'')) {
       sh.deleteRow(i + 1);
     }
+  }
+  // 全園共通の項目は消さず、この園でだけ非表示にする
+  if (garden && HIDE_TYPES[type] && shared && !alreadyHidden) {
+    sh.appendRow([HIDE_TYPES[type], value, garden, '']);
   }
 }
 
