@@ -233,6 +233,14 @@ input[type=file]{display:none}
 .opt-row.off .opt-qty{opacity:.4}
 .folder-count{display:inline-block;margin-left:5px;font-size:10px;font-weight:700;color:#5a8a9c;background:rgba(255,255,255,.7);border-radius:10px;padding:0 6px;line-height:16px;vertical-align:middle}
 .folder-chip.active .folder-count{color:#3a7a9c;background:rgba(255,255,255,.9)}
+/* 定番マスタのグループ */
+.usual-group{background:#fff;border:1px solid #c8dfe6;border-radius:10px;padding:8px 10px;margin-bottom:8px}
+.usual-group-title{font-size:12px;font-weight:700;color:#5a8a9c;padding-bottom:4px;border-bottom:1px solid #e8f0f2}
+.usual-group-title span{font-weight:400;color:#8ab0cc;margin-left:6px;font-size:11px}
+.usual-group .master-row:last-child{border-bottom:none}
+.theme-leather .usual-group{background:#fbf7ec;border-color:#cdbf9d}
+.theme-leather .usual-group-title{color:#5d4a23;border-bottom-color:#cdbf9d}
+.theme-leather .usual-group-title span{color:#7d6f55}
 /* デザイン切り替えボタン */
 .theme-toggle{display:flex;border:1px solid #8fb8c8;border-radius:8px;overflow:hidden}
 .theme-toggle button{flex:1;padding:8px 0;border:none;background:#fff;color:#5a8a9c;font-size:13px;cursor:pointer}
@@ -370,7 +378,7 @@ body.theme-leather{background:#1a1816;background-image:radial-gradient(rgba(255,
 </div>
 
 <script>
-const APP_VERSION='2026-10-31-16'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-31-17'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -2344,7 +2352,7 @@ function renderMasterTab(){
       </div>
     </div>`).join('');
   const manualUsual=usualMasterSort==='manual';
-  const uRows=sortedUsualForMaster().map(u=>{
+  const uRow=u=>{
     return`<div class="master-row" data-value="${esc(u.id)}">
       <div class="master-row-left" style="min-width:0">
         ${manualUsual?'<span class="drag-handle">☰</span>':''}
@@ -2355,7 +2363,18 @@ function renderMasterTab(){
         <button class="icon-btn" onclick="deleteUsualItem('${u.id}','${esc(u.name).replace(/'/g,"\\'")}')" title="削除">🗑</button>
       </div>
     </div>`;
-  }).join('');
+  };
+  // 購入場所・経費の種類で並べるときは、グループごとにカードを分ける
+  const uGroupKey=u=>usualMasterSort==='place'?(u.place||'場所未定'):usualMasterSort==='cat'?getCatLabel(u.cat||'zappi'):'';
+  const uGroups=[];
+  sortedUsualForMaster().forEach(u=>{
+    const key=uGroupKey(u);
+    const last=uGroups[uGroups.length-1];
+    if(last&&last.key===key)last.items.push(u);else uGroups.push({key,items:[u]});
+  });
+  const uRows=uGroups.map(g=>g.key
+    ?`<div class="usual-group"><div class="usual-group-title">${usualMasterSort==='place'?'📍':'🏷'} ${esc(g.key)}<span>${g.items.length}件</span></div>${g.items.map(uRow).join('')}</div>`
+    :g.items.map(uRow).join('')).join('');
   const leather=isLeatherTheme();
   return`<div class="section">
     <div class="form-card" style="margin-bottom:12px">
@@ -2571,8 +2590,12 @@ function sortedUsualForMaster(){
   const rank=(order,v)=>{const i=order.indexOf(v);return i<0?order.length:i;};
   const places=allPlaces(),cats=CATS.map(c=>c.id);
   return[...usualItems].sort((a,b)=>{
-    if(usualMasterSort==='place')return rank(places,a.place)-rank(places,b.place)||byName(a,b);
-    if(usualMasterSort==='cat')return rank(cats,a.cat)-rank(cats,b.cat)||byName(a,b);
+    // 同じグループが必ず隣り合うように、マスタに無い場所は名前順、未定は最後にする
+    if(usualMasterSort==='place'){
+      const pr=u=>u.place?rank(places,u.place):places.length+1;
+      return pr(a)-pr(b)||String(a.place||'').localeCompare(String(b.place||''),'ja')||byName(a,b);
+    }
+    if(usualMasterSort==='cat')return rank(cats,a.cat||'zappi')-rank(cats,b.cat||'zappi')||String(a.cat||'').localeCompare(String(b.cat||''))||byName(a,b);
     return byName(a,b);
   });
 }
