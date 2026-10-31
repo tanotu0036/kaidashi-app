@@ -384,7 +384,7 @@ body.theme-leather{background:#1a1816;background-image:radial-gradient(rgba(255,
 </div>
 
 <script>
-const APP_VERSION='2026-10-31-18'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-31-19'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -1286,16 +1286,17 @@ function openOptionBuyModal(id){
   const item=pending.find(i=>i.id===id);
   const o=parseOptions(item);
   if(!o)return;
+  const rc=!!item.orderedAt; // 発注済みなら受取りの文言にする
   document.getElementById('modal-container').innerHTML=`
   <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
     <div class="modal">
       <button class="modal-close" onclick="closeModal()">✕</button>
-      <div class="modal-title">🛍 買えた${esc(o.label)}と数量</div>
+      <div class="modal-title">${rc?`📦 届いた${esc(o.label)}と数量`:`🛍 買えた${esc(o.label)}と数量`}</div>
       <div style="background:#eef4fb;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#2a3f5f"><strong>${esc(item.name)}</strong>　依頼 ${esc(item.qty)}</div>
-      <button type="button" class="small-btn" style="margin-bottom:6px;padding:7px 12px" onclick="optCheckAll('ob')">すべて買えた</button>
+      <button type="button" class="small-btn" style="margin-bottom:6px;padding:7px 12px" onclick="optCheckAll('ob')">${rc?'すべて届いた':'すべて買えた'}</button>
       <div id="ob-opt-rows" data-unit="${esc(o.unit)}">${o.items.map(x=>optRowHTML(x.name,0,o.unit,x.qty)).join('')}</div>
-      <div style="font-size:12px;color:#a3702a;margin:10px 0">足りない分は買い残しとして要購入に残ります</div>
-      <button class="submit-btn" onclick="confirmOptionBuy('${id}')">購入済みにする</button>
+      <div style="font-size:12px;color:#a3702a;margin:10px 0">${rc?'まだ届いていない分は到着待ちに残ります':'足りない分は買い残しとして要購入に残ります'}</div>
+      <button class="submit-btn" onclick="confirmOptionBuy('${id}')">${rc?'受取り済みにする':'購入済みにする'}</button>
     </div>
   </div>`;
 }
@@ -1305,7 +1306,8 @@ async function confirmOptionBuy(id){
   const src=pending[idx];
   const o=parseOptions(src);
   const bought=readOptRows('ob');
-  if(warnRequired([[!bought.length,'ob-opt-rows','買えた'+o.label+'と数量']]))return;
+  const rc=!!src.orderedAt;
+  if(warnRequired([[!bought.length,'ob-opt-rows',(rc?'届いた':'買えた')+o.label+'と数量']]))return;
   const rest=o.items.map(x=>{
     const b=bought.find(y=>y.name===x.name);
     return{name:x.name,qty:x.qty-(b?b.qty:0)};
@@ -1319,13 +1321,13 @@ async function confirmOptionBuy(id){
     const remainingQty=optTotal(rest,o.unit),remainingOptions=optionsJSON(o,rest);
     pending[idx]={...src,qty:remainingQty,options:remainingOptions,partial:'1'};
     done.unshift(doneItem);
-    renderAdmin();showToast(`${boughtQty}購入済み・残り${remainingQty}を要購入に残しました`);
+    renderAdmin();showToast(rc?`${boughtQty}受取り済み・残り${remainingQty}は到着待ちのままです`:`${boughtQty}購入済み・残り${remainingQty}を要購入に残しました`);
     try{await apiPost({action:'partialBuy',id:String(id),boughtAt,boughtQty,requestedQty:src.qty,remainingQty,boughtOptions,remainingOptions});}
     catch(e){pending[idx]=src;done.shift();renderAdmin();showErr('失敗: '+e.message);}
   }else{
     pending.splice(idx,1);
     done.unshift(doneItem);
-    renderAdmin();showToast('全数購入済みにしました ✓');
+    renderAdmin();showToast(rc?'すべて受取り済みにしました ✓':'全数購入済みにしました ✓');
     try{await apiPost({action:'moveToDone',id:String(id),boughtAt,boughtQty,requestedQty:src.qty,options:boughtOptions});}
     catch(e){pending.splice(idx,0,src);done.shift();renderAdmin();showErr('失敗: '+e.message);}
   }
@@ -2741,7 +2743,7 @@ function itemCardHTML(i,opts={}){
       <div class="item-meta">
         ${catBadge}
         ${placeEditable?placeBadge:(i.place?`<span>📍${esc(i.place)}</span>`:'')}
-        ${i.partial?'<span class="partial-badge">🔸買い残し</span>':''}
+        ${i.partial?`<span class="partial-badge">🔸${ordered?'一部到着済み':'買い残し'}</span>`:''}
       </div>
       ${folderEditable&&folders.length?`<div class="item-meta" style="margin-top:3px">
         <select class="cat-select-inline" onchange="updateFolder('${i.id}','${sheet}',this.value)" style="max-width:130px">
@@ -2948,22 +2950,23 @@ async function moveToDoneFull(id){
 
 function openPartialBuyModal(id, originalNum, originalQty){
   const unit=String(originalQty).replace(/\d+/,'').trim()||'個';
+  const rc=!!pending.find(i=>i.id===id)?.orderedAt; // 発注済みなら受取りの文言にする
   document.getElementById('modal-container').innerHTML=`
   <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
     <div class="modal">
       <button class="modal-close" onclick="closeModal()">✕</button>
-      <div class="modal-title">🛍 購入数を入力</div>
+      <div class="modal-title">${rc?'📦 届いた数を入力':'🛍 購入数を入力'}</div>
       <div style="background:#eef4fb;border-radius:10px;padding:10px 12px;margin-bottom:16px;font-size:13px;color:#2a3f5f">
         依頼数：<strong>${originalQty}</strong>
       </div>
-      <button class="submit-btn" onclick="buyAllFull('${id}',${originalNum},'${originalQty}')" style="background:linear-gradient(135deg,#6ab87a,#4a9a5a);margin-bottom:14px">✓ 全部購入（${originalQty}）</button>
+      <button class="submit-btn" onclick="buyAllFull('${id}',${originalNum},'${originalQty}')" style="background:linear-gradient(135deg,#6ab87a,#4a9a5a);margin-bottom:14px">✓ ${rc?'全部届いた':'全部購入'}（${originalQty}）</button>
       <div style="display:flex;align-items:center;gap:10px;margin:12px 0;color:#a8c4cc;font-size:12px">
         <div style="flex:1;height:1px;background:#e8f0f2"></div>
-        一部だけ購入した場合
+        ${rc?'一部だけ届いた場合':'一部だけ購入した場合'}
         <div style="flex:1;height:1px;background:#e8f0f2"></div>
       </div>
       <div class="form-row">
-        <label style="text-align:center;display:block;margin-bottom:8px">購入できた数</label>
+        <label style="text-align:center;display:block;margin-bottom:8px">${rc?'届いた数':'購入できた数'}</label>
         <div class="drum-wrap">
           <div class="drum-picker" id="drum-picker">
             <div class="drum-highlight"></div>
@@ -2975,7 +2978,7 @@ function openPartialBuyModal(id, originalNum, originalQty){
       <div style="font-size:13px;color:#4a8ad0;margin:4px 0 16px;text-align:center;font-weight:500" id="remaining-label">
         残り：待機中
       </div>
-      <button class="small-btn" onclick="confirmPartialBuy('${id}',${originalNum},'${originalQty}')" style="width:100%;padding:10px;text-align:center;font-size:13px">この数量を購入済みにする</button>
+      <button class="small-btn" onclick="confirmPartialBuy('${id}',${originalNum},'${originalQty}')" style="width:100%;padding:10px;text-align:center;font-size:13px">${rc?'この数量を受取り済みにする':'この数量を購入済みにする'}</button>
     </div>
   </div>`;
   // ドラムロール初期化（テンプレートリテラルの外で実行）
@@ -3012,7 +3015,7 @@ async function confirmPartialBuy(id, originalNum, originalQty){
     done.unshift(doneItem);
     closeModal();
     renderAdmin();
-    showToast(`${boughtNum}${unit}購入済み・残り${remaining}${unit}を要購入に残しました`);
+    showToast(srcItem.orderedAt?`${boughtNum}${unit}受取り済み・残り${remaining}${unit}は到着待ちのままです`:`${boughtNum}${unit}購入済み・残り${remaining}${unit}を要購入に残しました`);
     try{
       await apiPost({action:'partialBuy',id:String(id),boughtAt,
         boughtQty:`${boughtNum}${unit}`,requestedQty:originalQty,
@@ -3028,7 +3031,7 @@ async function confirmPartialBuy(id, originalNum, originalQty){
     done.unshift(doneItem);
     closeModal();
     renderAdmin();
-    showToast('全数購入済みにしました ✓');
+    showToast(srcItem.orderedAt?'すべて受取り済みにしました ✓':'全数購入済みにしました ✓');
     try{
       await apiPost({action:'moveToDone',id:String(id),boughtAt,
         boughtQty:`${boughtNum}${unit}`,requestedQty:originalQty});
