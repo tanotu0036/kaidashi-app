@@ -233,6 +233,103 @@ input[type=file]{display:none}
 .opt-row.off .opt-qty{opacity:.4}
 .folder-count{display:inline-block;margin-left:5px;font-size:10px;font-weight:700;color:#5a8a9c;background:rgba(255,255,255,.7);border-radius:10px;padding:0 6px;line-height:16px;vertical-align:middle}
 .folder-chip.active .folder-count{color:#3a7a9c;background:rgba(255,255,255,.9)}
+/* デザイン切り替えボタン */
+.theme-toggle{display:flex;border:1px solid #8fb8c8;border-radius:8px;overflow:hidden}
+.theme-toggle button{flex:1;padding:8px 0;border:none;background:#fff;color:#5a8a9c;font-size:13px;cursor:pointer}
+.theme-toggle button.on{background:#8fb8c8;color:#fff;font-weight:700}
+
+/* ── 買出し画面：黒革×真鍮×液晶（body.theme-leather のときだけ効く） ── */
+body.theme-leather{background:#1a1816;background-image:radial-gradient(rgba(255,255,255,.035) 1px,transparent 1px);background-size:4px 4px}
+.theme-leather .header{background:#100f0d;border-bottom:1px solid #b08f55}
+.theme-leather .header-garden{color:#e3c988}
+.theme-leather .header-version{color:#a39a84}
+.theme-leather .header-side-btn,.theme-leather .mode-btn{border-color:#b08f55;color:#d9cdb2}
+.theme-leather .mode-btn.active{background:#b08f55;border-color:#b08f55;color:#1a1816}
+/* 液晶パネル */
+.lcd-panel{margin:12px 12px 0;padding:10px;background:#aeb79e;color:#1b1f18;border:1px solid #b08f55;border-radius:4px;box-shadow:inset 0 2px 7px rgba(0,0,0,.35);font-family:ui-monospace,Menlo,Consolas,'Hiragino Sans',monospace}
+.lcd-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+.lcd-garden{font-size:11px;line-height:1.4;min-width:0}
+.lcd-clock{position:relative;font-size:28px;font-weight:600;line-height:1;letter-spacing:.06em;flex-shrink:0}
+.lcd-ghost{position:absolute;right:0;top:0;opacity:.09}
+.lcd-counts{display:grid;grid-template-columns:repeat(3,1fr);text-align:center;margin-top:8px}
+.lcd-counts>div+div{border-left:1px solid rgba(27,31,24,.4)}
+.lcd-counts b{display:block;font-size:22px;font-weight:600;line-height:1.1}
+.lcd-counts span{font-size:11px}
+@keyframes lcd-blink{50%{opacity:.25}}
+.lcd-blink{animation:lcd-blink 1.6s steps(1) infinite}
+.lcd-panel .tabs{padding:0;margin-top:9px;gap:0;border:1px solid #1b1f18;border-radius:3px;overflow:hidden}
+.lcd-panel .tab{background:transparent;color:#1b1f18;border-radius:0;font-size:11px;font-weight:500;padding:8px 1px;box-shadow:none;font-family:inherit}
+.lcd-panel .tab.active{background:#1b1f18;color:#aeb79e;font-weight:700;box-shadow:none}
+/* フォルダ・ソート・見出し */
+.theme-leather .folder-chip{background:transparent;border:1px solid rgba(176,143,85,.55);color:#d9cdb2}
+.theme-leather .folder-chip.active{background:#b08f55;border-color:#b08f55;color:#1a1816}
+.theme-leather .folder-count{background:rgba(255,255,255,.12);color:inherit}
+.theme-leather .folder-chip.active .folder-count{background:rgba(0,0,0,.15);color:#1a1816}
+.theme-leather .sort-label{color:#c8a768}
+.theme-leather .sort-bar select{background:transparent;border-color:rgba(176,143,85,.55);color:#e9e1cf}
+.theme-leather .sort-bar select option{color:#261f15}
+.theme-leather .group-label{color:#c8a768;letter-spacing:.1em}
+.theme-leather .group-label::after{content:'';flex:1;height:1px;background:rgba(176,143,85,.4)}
+.theme-leather .group-label span{color:#a39a84!important}
+.theme-leather .empty{color:#a39a84}
+.theme-leather .action-bar{background:#100f0d;border-color:#b08f55}
+.theme-leather .sel-count{color:#e3c988}
+.theme-leather .action-bar-btn{background:transparent;border:1px solid #b08f55;color:#e3c988}
+.theme-leather .toast{background:#b08f55;color:#1a1816}
+.theme-leather .toast.warn{background:#a8281e;color:#fff}
+/* カード（紙） */
+.theme-leather .item-card{background:#f6f0e0;border:1px solid #cdbf9d;border-radius:7px;box-shadow:none;color:#261f15}
+.theme-leather .item-card.partial{background:#f6ead0;border-color:#c9a86a}
+.theme-leather .item-card.ordered{background:#edf1e2;border:1px solid #4d6a48}
+.theme-leather .item-name,.theme-leather .item-qty{color:#261f15}
+.theme-leather .item-name{font-family:Georgia,'Hiragino Mincho ProN','Yu Mincho',serif;font-size:15px;font-weight:600;letter-spacing:.03em}
+.theme-leather .item-qty{font-weight:600;font-size:13px}
+.theme-leather .item-meta{color:#7d6f55}
+.theme-leather .chk{accent-color:#261f15}
+.theme-leather .img-slot{background:#e8dec6;border-color:#cdbf9d}
+.theme-leather .img-slot-empty{color:#a39474}
+.theme-leather .cat-select-inline{background:transparent;border-color:#cdbf9d;color:#4f4635}
+.theme-leather .cat-badge,.theme-leather .requester-tag,.theme-leather .item-meta span[style]{background:transparent!important;color:#6d6048!important;padding:0 4px 0 0;font-weight:500}
+.theme-leather .partial-badge{background:transparent;color:#8a5a12;border:1px solid #8a5a12;padding:1px 6px;border-radius:2px}
+.theme-leather .ordered-badge{background:#34523a;color:#edf1e2;border-radius:2px;font-size:12px}
+.theme-leather .ordered-date{color:#34523a}
+.theme-leather .opt-list{background:transparent;border:none;border-top:1px solid #cdbf9d;border-bottom:1px solid #cdbf9d;border-radius:0}
+.theme-leather .opt-list-row{color:#261f15;font-weight:500}
+.theme-leather .opt-list-row+.opt-list-row{border-top:1px dotted #cdbf9d}
+.theme-leather .opt-list-qty{color:#261f15}
+.theme-leather .opt-add-chip{border-color:#b5a988;color:#7d6f55}
+.theme-leather .url-link{color:#7a5a24}
+/* ボタン：インクの押印 */
+.theme-leather .buy-btn{--ink:#a8281e;width:58px;height:58px;padding:0;background:transparent;color:var(--ink);border:3px double var(--ink);border-radius:50%;transform:rotate(-6deg);font-family:Georgia,'Hiragino Mincho ProN','Yu Mincho',serif;font-size:14px;transition:transform .07s,background .07s,color .07s}
+.theme-leather .buy-btn.order{--ink:#9a6414;background:transparent}
+.theme-leather .buy-btn.receive{--ink:#2f6a4c;background:transparent;font-size:13px}
+.theme-leather .buy-btn:hover{opacity:1}
+.theme-leather .buy-btn:active{transform:rotate(-6deg) translateY(2px) scale(.96);background:var(--ink);color:#f6f0e0}
+.theme-leather .hold-btn,.theme-leather .edit-btn,.theme-leather .small-btn,.theme-leather .revert-btn,.theme-leather .rebuy-btn{background:transparent;border:1px solid #9c8e70;color:#5d5340;font-weight:600;min-width:0;padding:7px 8px;font-size:11px;border-radius:5px}
+.theme-leather .icon-btn{border-color:#9c8e70;color:#5d5340;background:transparent}
+.theme-leather .actions-col button[onclick^="addToUsual"]{color:#7d6f55}
+/* マスタ・モーダル（紙） */
+.theme-leather .form-card{background:#f6f0e0;border-color:#cdbf9d;box-shadow:none}
+.theme-leather .form-card div[style*="color:#5a8a9c"]{color:#5d4a23!important}
+.theme-leather .form-card div[style*="color:#a8c4cc"],.theme-leather .form-card div[style*="color:#8ab0cc"]{color:#7d6f55!important}
+.theme-leather .master-row{background:transparent;border-bottom-color:#cdbf9d}
+.theme-leather .drag-handle{color:#9c8e70}
+.theme-leather .form-card button[onclick^="add"],.theme-leather .form-card button[onclick^="openUsualEditModal('')"]{background:#1a1816!important;color:#e3c988!important}
+.theme-leather .theme-toggle{border-color:#b08f55}
+.theme-leather .theme-toggle button{background:transparent;color:#5d5340}
+.theme-leather .theme-toggle button.on{background:#1a1816;color:#e3c988}
+.theme-leather input[type=text],.theme-leather input[type=url],.theme-leather input[type=number],.theme-leather select,.theme-leather textarea{background:#fbf7ec;border-color:#cdbf9d;color:#261f15}
+.theme-leather .modal-overlay{background:rgba(0,0,0,.6)}
+.theme-leather .modal{background:#f6f0e0;border-top:2px solid #b08f55;color:#261f15}
+.theme-leather .modal label{color:#5d5340}
+.theme-leather .modal-title{color:#5d4a23;font-family:Georgia,'Hiragino Mincho ProN','Yu Mincho',serif}
+.theme-leather .modal-close{color:#7d6f55}
+.theme-leather .modal div[style*="#eef4fb"]{background:#e8dec6!important}
+.theme-leather .submit-btn{background:#1a1816;color:#e3c988}
+.theme-leather .opt-row{border-bottom-color:#cdbf9d}
+.theme-leather .opt-row label{color:#261f15}
+.theme-leather .opt-step{background:transparent;border-color:#9c8e70;color:#5d5340}
+.theme-leather .opt-new button{background:#1a1816;color:#e3c988}
 </style>
 </head>
 <body>
@@ -271,7 +368,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-10-31-12'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-31-13'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -876,6 +973,7 @@ function restoreRequestFormState(state){
 }
 
 function renderStaff(){
+  document.body.classList.remove('theme-leather');
   document.body.dataset.view=staffTab; // タブに合わせて背景色を変える
   document.getElementById('staff-view').innerHTML=`
   <div class="tabs staff-tabs">
@@ -1867,15 +1965,49 @@ async function saveEdit(id){
 }
 
 /* ════ 管理者ビュー ════ */
+/* ── 買出し画面のデザイン切り替え（端末ごとに記憶） ── */
+const ADMIN_THEME_KEY='kaidashi_admin_theme';
+function isLeatherTheme(){
+  try{return localStorage.getItem(ADMIN_THEME_KEY)==='leather';}catch(e){return false;}
+}
+function setAdminTheme(theme){
+  try{localStorage.setItem(ADMIN_THEME_KEY,theme);}catch(e){}
+  renderAdmin();
+  showToast(theme==='leather'?'黒革のデザインにしました':'元のデザインに戻しました');
+}
+function applyBodyTheme(){document.body.classList.toggle('theme-leather',mode==='admin'&&isLeatherTheme());}
+function lcdTime(){
+  const d=new Date();
+  return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+}
+setInterval(()=>{const el=document.getElementById('lcd-clock');if(el)el.textContent=lcdTime();},20000);
+function lcdPanelHTML(tabsHTML){
+  const two=n=>String(n).padStart(2,'0');
+  const waiting=pending.filter(i=>i.orderedAt).length;
+  return`<div class="lcd-panel">
+    <div class="lcd-top">
+      <div class="lcd-garden">${esc(currentGarden)}</div>
+      <div class="lcd-clock"><span class="lcd-ghost">88:88</span><span id="lcd-clock">${lcdTime()}</span></div>
+    </div>
+    <div class="lcd-counts">
+      <div><b>${two(pending.length-waiting)}</b><span>要購入</span></div>
+      <div><b class="${waiting?'lcd-blink':''}">${two(waiting)}</b><span>到着待ち</span></div>
+      <div><b>${two(done.length)}</b><span>購入済</span></div>
+    </div>
+    ${tabsHTML}
+  </div>`;
+}
 function renderAdmin(){
   delete document.body.dataset.view;
-  document.getElementById('admin-view').innerHTML=`
-  <div class="tabs">
+  applyBodyTheme();
+  const tabsHTML=`<div class="tabs">
     <button class="tab ${adminTab==='pending'?'active':''}" onclick="setAdminTab('pending')">要購入 (${pending.length})</button>
     <button class="tab ${adminTab==='hold'?'active':''}" onclick="setAdminTab('hold')">保留 (${hold.length})</button>
     <button class="tab ${adminTab==='done'?'active':''}" onclick="setAdminTab('done')">購入済 (${done.length})</button>
     <button class="tab ${adminTab==='master'?'active':''}" onclick="setAdminTab('master')">マスタ</button>
-  </div>
+  </div>`;
+  document.getElementById('admin-view').innerHTML=`
+  ${isLeatherTheme()?lcdPanelHTML(tabsHTML):tabsHTML}
   ${adminTab!=='master'?renderFolderBar(true):''}  ${adminTab==='pending'?renderActionBar():''}
   ${adminTab==='pending'?renderPendingList():adminTab==='hold'?renderHoldList():adminTab==='done'?renderDoneList():renderMasterTab()}`;
   if(adminTab==='master'){
@@ -2199,7 +2331,16 @@ function renderMasterTab(){
       </div>
     </div>`;
   }).join('');
+  const leather=isLeatherTheme();
   return`<div class="section">
+    <div class="form-card" style="margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:#5a8a9c;margin-bottom:6px">🎨 買出し画面のデザイン</div>
+      <div class="theme-toggle">
+        <button class="${leather?'':'on'}" onclick="setAdminTheme('classic')">元のデザイン</button>
+        <button class="${leather?'on':''}" onclick="setAdminTheme('leather')">黒革</button>
+      </div>
+      <div style="font-size:11px;color:#a8c4cc;margin-top:6px">この端末だけに適用されます</div>
+    </div>
     <div class="form-card" style="margin-bottom:12px">
       <div style="font-size:13px;font-weight:700;color:#5a8a9c;margin-bottom:4px">⭐ 定番マスタ</div>
       <div style="font-size:11px;color:#a8c4cc;margin-bottom:8px">☰を押しながら並び替えると、「定番」の表示順に反映されます。色やサイズは✏️から編集できます</div>
