@@ -31,10 +31,17 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Hiragino Kaku
 .tabs{display:flex;gap:6px;padding:12px 16px 0}
 .tab{flex:1;padding:9px 4px;font-size:13px;font-weight:600;border:none;border-radius:12px;background:#d4e6ee;color:#5a8a9c;cursor:pointer;text-align:center;white-space:nowrap}
 .tab.active{background:#8fb8c8;color:#fff;box-shadow:0 1px 6px rgba(143,184,200,.3)}
-.staff-tabs .tab{--c:#5a8a9c;background:#fff;color:var(--c);border:2px solid var(--c)}
+.staff-tabs{padding:12px 10px 0;gap:4px}
+.staff-tabs .tab{--c:#5a8a9c;background:#fff;color:var(--c);border:2px solid var(--c);font-size:12px;padding:9px 2px}
 .staff-tabs .tab.active{background:var(--c);color:#fff;box-shadow:none;font-weight:700}
 .staff-tabs .tab.t-request{--c:#d4607a}
 .staff-tabs .tab.t-usual{--c:#2d5a8e}
+.staff-tabs .tab.t-history{--c:#3f8a5a}
+.app{background:transparent}
+body[data-view=request]{background:#fbe0e7}
+body[data-view=usual]{background:#dce7f4}
+body[data-view=mylist]{background:#e3eff4}
+body[data-view=history]{background:#dff0e4}
 .section{padding:14px 16px}
 .form-card{background:#fffdf8;border:1px solid #e8f0f2;border-radius:16px;padding:16px;box-shadow:0 2px 12px rgba(143,184,200,.1)}
 .form-row{margin-bottom:12px}
@@ -257,7 +264,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-10-31-09'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-31-10'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -277,7 +284,7 @@ const DEFAULT_PLACES=['ダイソー','セリア','ドラッグストア','ホー
 const DEFAULT_NET_PLACES=['Amazon','ネット注文']; // 常にネット注文扱いの店
 
 let pending=[],done=[],masterRequesters=[],masterPlaces=[],masterNetPlaces=[];
-let mode='staff',staffTab='request',adminTab='pending';
+let mode='staff',staffTab='mylist',adminTab='pending';
 let sortKey1='place',sortKey2='cat';
 let hold=[];
 let holdSort1='date',holdSort2='none';
@@ -306,7 +313,7 @@ function selectGarden(name){
   // 園が変わったらデータを再読み込み
   if(prev!==name){
     pending=[];done=[];hold=[];masterRequesters=[];masterPlaces=[];masterNetPlaces=[];
-    staffTab='request';adminTab='pending';
+    staffTab='mylist';adminTab='pending';
     loadAllFast().then(fromCache=>{
       rerenderKeepingForm();
       if(fromCache)loadAll(true).then(changed=>{if(changed)rerenderKeepingForm();});
@@ -862,12 +869,13 @@ function restoreRequestFormState(state){
 }
 
 function renderStaff(){
+  document.body.dataset.view=staffTab; // タブに合わせて背景色を変える
   document.getElementById('staff-view').innerHTML=`
   <div class="tabs staff-tabs">
+    <button class="tab ${staffTab==='mylist'?'active':''}" onclick="setStaffTab('mylist')">依頼中 (${filterByFolder(pending).length})</button>
     <button class="tab t-request ${staffTab==='request'?'active':''}" onclick="setStaffTab('request')">リクエスト</button>
     <button class="tab t-usual ${staffTab==='usual'?'active':''}" onclick="setStaffTab('usual')">⭐ いつもの</button>
-    <button class="tab ${staffTab==='mylist'?'active':''}" onclick="setStaffTab('mylist')">依頼中 (${filterByFolder(pending).length})</button>
-    <button class="tab ${staffTab==='history'?'active':''}" onclick="setStaffTab('history')">購入履歴 (${filterByFolder(done).length})</button>
+    <button class="tab t-history ${staffTab==='history'?'active':''}" onclick="setStaffTab('history')">購入履歴 (${filterByFolder(done).length})</button>
   </div>
   ${staffTab!=='usual'?renderFolderBar(false):''}
   <div id="staff-content"></div>`;
@@ -1851,6 +1859,7 @@ async function saveEdit(id){
 
 /* ════ 管理者ビュー ════ */
 function renderAdmin(){
+  delete document.body.dataset.view;
   document.getElementById('admin-view').innerHTML=`
   <div class="tabs">
     <button class="tab ${adminTab==='pending'?'active':''}" onclick="setAdminTab('pending')">要購入 (${pending.length})</button>
