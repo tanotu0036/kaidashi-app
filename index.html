@@ -206,7 +206,7 @@ input[type=file]{display:none}
 .opt-list-row{display:flex;justify-content:space-between;gap:10px;padding:4px 9px;font-size:13px;font-weight:600;color:#2a4a55;word-break:break-all}
 .opt-list-row+.opt-list-row{border-top:1px solid #e3eef2}
 .opt-list-qty{flex-shrink:0;color:#2f6a80;font-weight:700}
-.usual-go-btn{width:64px;padding:12px 4px;font-size:12px;line-height:1.35}
+.buy-btn.usual-go-btn{width:64px;padding:12px 4px;font-size:12px;line-height:1.35;background:#d4607a}
 .opt-row label{flex-wrap:wrap}
 .opt-status{font-size:11px;font-weight:700;padding:2px 7px;border-radius:7px;background:#fbe9c8;color:#8a5a12;white-space:nowrap}
 .opt-status.ordered{background:#d3efe2;color:#22704f}
@@ -271,7 +271,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-10-31-11'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-31-12'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -1242,7 +1242,7 @@ function renderUsualTab(){
           ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
         </div>
         <div class="actions-col" style="justify-content:center">
-          <button class="buy-btn usual-go-btn" style="background:linear-gradient(135deg,#8fb8c8,#6fa0b4)" onclick="openUsualSendModal('${i.id}')">購入依頼<br>へ進む</button>
+          <button class="buy-btn usual-go-btn" onclick="openUsualSendModal('${i.id}')">購入依頼<br>へ進む</button>
         </div>
       </div>`;
     if(s1==='none'){return items.map(card).join('');}
