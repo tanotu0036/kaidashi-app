@@ -103,6 +103,8 @@ input[type=file]{display:none}
 .url-link:hover{text-decoration:underline}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#8fb8c8;color:#fff;font-size:13px;padding:10px 22px;border-radius:20px;opacity:0;transition:opacity .3s;white-space:nowrap;pointer-events:none;z-index:200;box-shadow:0 4px 16px rgba(143,184,200,.35)}
 .toast.show{opacity:1}
+.toast.warn{background:#c9503c;font-weight:700;white-space:normal;width:max-content;max-width:90vw;text-align:center}
+.invalid,input.invalid,select.invalid,textarea.invalid{border:2px solid #c9503c!important;background:#fdf0ec!important;border-radius:10px}
 .err-banner{background:#fbe8e2;border:1px solid #e0b09c;border-radius:10px;padding:10px 14px;margin:10px 16px 0;font-size:13px;color:#a3502f;display:none}
 .modal-overlay{position:fixed;inset:0;background:rgba(42,74,85,.45);z-index:150;display:flex;align-items:flex-end;justify-content:center}
 .modal{background:#fffdf8;border-radius:20px 20px 0 0;padding:20px 16px 32px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto}
@@ -182,6 +184,11 @@ input[type=file]{display:none}
 /* 色・サイズなどの選択肢 */
 .opt-pills{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
 .opt-pill{font-size:12px;font-weight:600;padding:2px 8px;border-radius:7px;background:#d8e8ee;color:#2f6a80}
+.opt-list{margin-top:5px;border:1px solid #c8dfe6;border-radius:8px;overflow:hidden;background:#fff}
+.opt-list-row{display:flex;justify-content:space-between;gap:10px;padding:4px 9px;font-size:13px;font-weight:600;color:#2a4a55;word-break:break-all}
+.opt-list-row+.opt-list-row{border-top:1px solid #e3eef2}
+.opt-list-qty{flex-shrink:0;color:#2f6a80;font-weight:700}
+.usual-go-btn{width:64px;padding:12px 4px;font-size:12px;line-height:1.35}
 .opt-add-chip{font-size:11px;margin-top:5px;padding:3px 10px;border:1px dashed #8fb8c8;border-radius:20px;background:transparent;color:#5a8a9c;cursor:pointer}
 .opt-kinds{display:flex;flex-wrap:wrap;gap:6px}
 .opt-kind{font-size:13px;padding:5px 12px;border:1px solid #c8dfe6;border-radius:20px;background:#fff;color:#5a8a9c;cursor:pointer}
@@ -239,7 +246,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-10-31-04'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-31-05'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -313,7 +320,33 @@ function changeGarden(){
   showGardenOverlay();
 }
 
-function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
+let toastTimer=null;
+function showToast(msg,warn=false){
+  const t=document.getElementById('toast');
+  t.textContent=msg;t.classList.toggle('warn',warn);t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('show'),warn?4000:2400);
+}
+// 必須項目のチェック。[欠けているか, 欄のid, 項目名] を受け取り、未入力の欄を赤くして警告する。未入力があれば true
+function warnRequired(checks){
+  document.querySelectorAll('.invalid').forEach(el=>el.classList.remove('invalid'));
+  const missing=checks.filter(c=>c[0]);
+  if(!missing.length)return false;
+  missing.forEach(([,id])=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.classList.add('invalid');
+    const clear=()=>el.classList.remove('invalid');
+    el.addEventListener('input',clear,{once:true});
+    el.addEventListener('change',clear,{once:true});
+  });
+  const first=document.getElementById(missing[0][1]);
+  if(first){first.scrollIntoView({block:'center',behavior:'smooth'});if(first.focus)first.focus({preventScroll:true});}
+  showToast('⚠ 必須項目が未入力です：'+missing.map(c=>c[2]).join('・'),true);
+  return true;
+}
+// 「新しい名前を入力」を選んでいるときは入力欄を、それ以外はプルダウンを指す
+function selectFieldId(id){return document.getElementById(id)?.value==='__new__'?id+'-new':id;}
 
 /* ── API ─── */
 async function apiGet(){
@@ -930,9 +963,11 @@ function readUsualOptFields(p){
   const list=[...document.getElementById(p+'-opt-chips').children].map(c=>c.dataset.name);
   let unit=document.getElementById(p+'-opt-unit').value;
   if(unit==='__new__')unit=(document.getElementById(p+'-opt-unit-new').value||'').trim();
-  if(!label){showToast('選ぶ内容の名前を入力してください');return null;}
-  if(!list.length){showToast('選択肢を1つ以上追加してください');return null;}
-  if(!unit){showToast('単位を入力してください');return null;}
+  if(warnRequired([
+    [!label,p+'-opt-label','選ぶ内容の名前'],
+    [!list.length,p+'-opt-new','選択肢'],
+    [!unit,p+'-opt-unit-new','単位'],
+  ]))return null;
   return{optionLabel:label,optionList:JSON.stringify(list),unit};
 }
 
@@ -963,6 +998,7 @@ function optSetRow(row,qty){
   row.querySelector('input[type=number]').value=qty>0?qty:'';
   row.querySelector('input[type=checkbox]').checked=qty>0;
   row.classList.toggle('off',!(qty>0));
+  row.parentElement?.classList.remove('invalid');
 }
 function optCheck(chk){
   const row=chk.closest('.opt-row');
@@ -1018,7 +1054,7 @@ async function saveOptionsModal(id){
   if(idx<0){closeModal();return;}
   const o=parseOptions(pending[idx]);
   const items=readOptRows('om');
-  if(!items.length){showToast(o.label+'を1つ以上選んでください');return;}
+  if(warnRequired([[!items.length,'om-opt-rows',o.label+'と数量']]))return;
   const fields={qty:optTotal(items,o.unit),options:optionsJSON(o,items)};
   const old=pending[idx];
   pending[idx]={...old,...fields};
@@ -1053,7 +1089,7 @@ async function confirmOptionBuy(id){
   const src=pending[idx];
   const o=parseOptions(src);
   const bought=readOptRows('ob');
-  if(!bought.length){showToast('買えた'+o.label+'を選んでください');return;}
+  if(warnRequired([[!bought.length,'ob-opt-rows','買えた'+o.label+'と数量']]))return;
   const rest=o.items.map(x=>{
     const b=bought.find(y=>y.name===x.name);
     return{name:x.name,qty:x.qty-(b?b.qty:0)};
@@ -1105,7 +1141,7 @@ function renderUsualTab(){
           ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
         </div>
         <div class="actions-col" style="justify-content:center">
-          <button class="buy-btn" style="background:linear-gradient(135deg,#8fb8c8,#6fa0b4)" onclick="openUsualSendModal('${i.id}')">送る</button>
+          <button class="buy-btn usual-go-btn" style="background:linear-gradient(135deg,#8fb8c8,#6fa0b4)" onclick="openUsualSendModal('${i.id}')">購入依頼<br>へ進む</button>
         </div>
       </div>`;
     if(s1==='none'){return items.map(card).join('');}
@@ -1190,7 +1226,7 @@ function toggleUsualAddForm(){
 
 async function submitUsualItem(){
   const name=(document.getElementById('u-name').value||'').trim();
-  if(!name){showToast('品名は必須です');return;}
+  if(warnRequired([[!name,'u-name','品名']]))return;
   const qty=(document.getElementById('u-qty').value||'').trim();
   const cat=document.getElementById('u-cat').value;
   const place=document.getElementById('u-place').value;
@@ -1279,7 +1315,7 @@ function openUsualEditModal(id){
 
 async function saveUsualEdit(id){
   const name=(document.getElementById('ue-name').value||'').trim();
-  if(!name){showToast('品名は必須です');return;}
+  if(warnRequired([[!name,'ue-name','品名']]))return;
   const qty=(document.getElementById('ue-qty').value||'').trim();
   const cat=document.getElementById('ue-cat').value;
   const place=document.getElementById('ue-place').value;
@@ -1332,7 +1368,7 @@ function openUsualSendModal(id){
       ${src.optionLabel
         ?optRowsHTML('us',src.optionLabel,src.unit||'個',usualOptList(src),{})
         :`<div class="form-row">
-        <label>個数</label>
+        <label>個数 <span class="req">*</span></label>
         <input type="text" id="us-qty" value="${esc(src.qty)}" placeholder="例: 2個">
       </div>`}
       ${src.place?`<div style="font-size:12px;color:#5a8a9c;margin-bottom:12px">📍 ${esc(src.place)}</div>`:''}
@@ -1349,17 +1385,18 @@ async function submitUsualSend(usualId){
   if(!src)return;
   let requester=document.getElementById('us-requester').value;
   if(requester==='__new__')requester=(document.getElementById('us-requester-new').value||'').trim();
-  if(!requester){showToast('依頼者は必須です');return;}
-  let qty,options='';
+  const items=src.optionLabel?readOptRows('us'):null;
+  const plainQty=src.optionLabel?'':(document.getElementById('us-qty').value||'').trim();
+  if(warnRequired([
+    [!requester,selectFieldId('us-requester'),'依頼者'],
+    src.optionLabel?[!items.length,'us-opt-rows',src.optionLabel+'と数量']:[!plainQty,'us-qty','個数'],
+  ]))return;
+  let qty=plainQty,options='';
   if(src.optionLabel){
     const unit=src.unit||'個';
-    const items=readOptRows('us');
-    if(!items.length){showToast(src.optionLabel+'を1つ以上選んでください');return;}
     qty=optTotal(items,unit);
     options=optionsJSON({label:src.optionLabel,unit,usualId:src.id},items);
     saveNewOptionsToUsual(src.id,items.map(x=>x.name));
-  }else{
-    qty=(document.getElementById('us-qty').value||'').trim();
   }
   const place=src.place||'';
   const newItem={
@@ -1466,7 +1503,7 @@ async function submitItem(){
   if(requester==='__new__')requester=(document.getElementById('f-requester-new').value||'').trim();
   const name=(document.getElementById('f-name').value||'').trim();
   const qty=(document.getElementById('f-qty').value||'').trim();
-  if(!requester||!name||!qty){showToast('依頼者・品名・個数は必須です');return;}
+  if(warnRequired([[!requester,selectFieldId('f-requester'),'依頼者'],[!name,'f-name','品名'],[!qty,'f-qty','個数']]))return;
   let place=document.getElementById('f-place').value;
   if(place==='__new__')place=(document.getElementById('f-place-new').value||'').trim();
   const url=(document.getElementById('f-url').value||'').trim();
@@ -1565,9 +1602,11 @@ async function submitRebuy(srcId){
   if(requester==='__new__')requester=(document.getElementById('rb-requester-new').value||'').trim();
   const srcOpt=parseOptions(done.find(i=>i.id===srcId));
   const rbItems=srcOpt?readOptRows('rb'):null;
-  if(srcOpt&&!rbItems.length){showToast(srcOpt.label+'を1つ以上選んでください');return;}
-  const qty=srcOpt?optTotal(rbItems,srcOpt.unit):(document.getElementById('rb-qty').value||'').trim();
-  if(!requester||!qty){showToast('依頼者と個数は必須です');return;}
+  const qty=srcOpt?(rbItems.length?optTotal(rbItems,srcOpt.unit):''):(document.getElementById('rb-qty').value||'').trim();
+  if(warnRequired([
+    [!requester,selectFieldId('rb-requester'),'依頼者'],
+    srcOpt?[!qty,'rb-opt-rows',srcOpt.label+'と数量']:[!qty,'rb-qty','個数'],
+  ]))return;
   let place=document.getElementById('rb-place').value;
   if(place==='__new__')place=(document.getElementById('rb-place-new').value||'').trim();
   const memo=(document.getElementById('rb-memo').value||'').trim();
@@ -1669,9 +1708,11 @@ async function saveEdit(id){
   const name=(document.getElementById('e-name').value||'').trim();
   const itemOpt=parseOptions(pending.find(i=>i.id===id));
   const optItems=itemOpt?readOptRows('e'):null;
-  if(itemOpt&&!optItems.length){showToast(itemOpt.label+'を1つ以上選んでください');return;}
-  const qty=itemOpt?optTotal(optItems,itemOpt.unit):(document.getElementById('e-qty').value||'').trim();
-  if(!name||!qty){showToast('品名・個数は必須です');return;}
+  const qty=itemOpt?(optItems.length?optTotal(optItems,itemOpt.unit):''):(document.getElementById('e-qty').value||'').trim();
+  if(warnRequired([
+    [!name,'e-name','品名'],
+    itemOpt?[!qty,'e-opt-rows',itemOpt.label+'と数量']:[!qty,'e-qty','個数'],
+  ]))return;
   let place=document.getElementById('e-place').value;
   if(place==='__new__')place=(document.getElementById('e-place-new').value||'').trim();
   const url=(document.getElementById('e-url').value||'').trim();
@@ -2259,7 +2300,7 @@ function itemCardHTML(i,opts={}){
     : opt?`合計 ${esc(i.qty)}`
     : i.qty?`× ${esc(i.qty)}`:'<span class="qty-alert">個数未記入</span>'
 }</div>
-      ${opt?`<div class="opt-pills">${opt.items.map(x=>`<span class="opt-pill">${esc(x.name)} ${x.qty}${esc(opt.unit)}</span>`).join('')}</div>`:''}
+      ${opt?`<div class="opt-list">${opt.items.map(x=>`<div class="opt-list-row"><span>${esc(x.name)}</span><span class="opt-list-qty">${x.qty}${esc(opt.unit)}</span></div>`).join('')}</div>`:''}
       ${opt&&!isDone&&!ordered&&(holdBtn||editBtn)?`<button class="opt-add-chip" onclick="openOptionsModal('${i.id}')">＋ ${esc(opt.label)}を追加・変更</button>`:''}
       <div class="item-meta">
         ${catBadge}
@@ -2297,7 +2338,7 @@ function itemCardHTML(i,opts={}){
         ${doneToPublicBtn?`<button class="revert-btn" onclick="doneToPublic('${i.id}')">要購入へ</button>`:''}
         ${rebuyBtn?`<button class="rebuy-btn" onclick="rebuyItem('${i.id}')">🔄 再購入</button>`:''}
       </div>
-      ${holdBtn?(ordered?`<button class="buy-btn receive" onclick="moveToDoneFull('${i.id}')">受取り</button>`
+      ${holdBtn?(ordered?`<button class="buy-btn receive" onclick="checkItem('${i.id}',true)">受取り</button>`
         :isNetPlace(i.place)?`<button class="buy-btn order" onclick="orderItem('${i.id}')">発注</button>`
         :`<button class="buy-btn" onclick="checkItem('${i.id}',true)">購入</button>`):''}
     </div>
