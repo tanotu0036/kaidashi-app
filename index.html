@@ -189,6 +189,12 @@ input[type=file]{display:none}
 .opt-list-row+.opt-list-row{border-top:1px solid #e3eef2}
 .opt-list-qty{flex-shrink:0;color:#2f6a80;font-weight:700}
 .usual-go-btn{width:64px;padding:12px 4px;font-size:12px;line-height:1.35}
+.opt-row label{flex-wrap:wrap}
+.opt-status{font-size:11px;font-weight:700;padding:2px 7px;border-radius:7px;background:#fbe9c8;color:#8a5a12;white-space:nowrap}
+.opt-status.ordered{background:#d3efe2;color:#22704f}
+.dup-banner{background:#fbe9c8;color:#7a4f10;font-size:13px;font-weight:600;border-radius:10px;padding:9px 12px;margin-bottom:12px;line-height:1.5}
+.opt-edit-row{gap:6px}
+.opt-edit-row input{min-width:0}
 .opt-add-chip{font-size:11px;margin-top:5px;padding:3px 10px;border:1px dashed #8fb8c8;border-radius:20px;background:transparent;color:#5a8a9c;cursor:pointer}
 .opt-kinds{display:flex;flex-wrap:wrap;gap:6px}
 .opt-kind{font-size:13px;padding:5px 12px;border:1px solid #c8dfe6;border-radius:20px;background:#fff;color:#5a8a9c;cursor:pointer}
@@ -246,7 +252,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-10-31-05'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-31-06'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -922,7 +928,7 @@ function usualOptFieldsHTML(p,u){
     <input type="text" id="${p}-opt-label" placeholder="例: 柄" value="${kind==='custom'?esc(label):''}" style="margin-top:6px;display:${kind==='custom'?'block':'none'}">
     <div id="${p}-opt-body" style="margin-top:10px;display:${kind==='none'?'none':'block'}">
       <label>選択肢</label>
-      <div class="opt-chips" id="${p}-opt-chips">${(u?usualOptList(u):[]).map(optChipHTML).join('')}</div>
+      <div id="${p}-opt-chips">${(u?usualOptList(u):[]).map(optChipHTML).join('')}</div>
       <div class="opt-new">
         <input type="text" id="${p}-opt-new" placeholder="例: 赤">
         <button type="button" onclick="addOptChip('${p}')">追加</button>
@@ -936,8 +942,20 @@ function usualOptFieldsHTML(p,u){
     </div>
   </div>`;
 }
+// 選択肢の編集行（名前の変更・☰で並び替え・✕で削除）
 function optChipHTML(name){
-  return`<span class="opt-chip" data-name="${esc(name)}">${esc(name)}<button type="button" onclick="this.parentElement.remove()">✕</button></span>`;
+  return`<div class="master-row opt-edit-row">
+    <div class="master-row-left" style="flex:1;min-width:0">
+      <span class="drag-handle">☰</span>
+      <input type="text" value="${esc(name)}" style="padding:5px 8px">
+    </div>
+    <button type="button" class="icon-btn" onclick="this.parentElement.remove()" title="削除">✕</button>
+  </div>`;
+}
+function setupOptDrag(p){makeReorderable(p+'-opt-chips',null);}
+function readOptChips(p){
+  const names=[...document.querySelectorAll(`#${p}-opt-chips input`)].map(i=>i.value.trim()).filter(Boolean);
+  return[...new Set(names)];
 }
 function setOptKind(p,kind){
   document.querySelectorAll(`#${p}-opt-kinds .opt-kind`).forEach(b=>b.classList.toggle('active',b.dataset.kind===kind));
@@ -951,7 +969,7 @@ function addOptChip(p){
   const name=(inp.value||'').trim();
   if(!name)return;
   const box=document.getElementById(p+'-opt-chips');
-  if(![...box.children].some(c=>c.dataset.name===name))box.insertAdjacentHTML('beforeend',optChipHTML(name));
+  if(!readOptChips(p).includes(name)){box.insertAdjacentHTML('beforeend',optChipHTML(name));setupOptDrag(p);}
   inp.value='';inp.focus();
 }
 // 入力内容を読む。足りないときはトーストを出して null を返す
@@ -960,7 +978,7 @@ function readUsualOptFields(p){
   if(kind==='none')return{optionLabel:'',optionList:'',unit:''};
   addOptChip(p); // 追加ボタンを押し忘れた入力も取り込む
   const label=kind==='custom'?(document.getElementById(p+'-opt-label').value||'').trim():kind;
-  const list=[...document.getElementById(p+'-opt-chips').children].map(c=>c.dataset.name);
+  const list=readOptChips(p);
   let unit=document.getElementById(p+'-opt-unit').value;
   if(unit==='__new__')unit=(document.getElementById(p+'-opt-unit-new').value||'').trim();
   if(warnRequired([
@@ -972,10 +990,34 @@ function readUsualOptFields(p){
 }
 
 /* チェックボックス＋数量の行 */
-function optRowHTML(name,qty,unit,req){
+// 同じ品物がすでに依頼・発注されている数量（2重発注の防止用）。{選択肢名:{req,ord}}
+function requestedStatus(itemName){
+  const st={};
+  pending.filter(i=>i.name===itemName).forEach(i=>{
+    const o=parseOptions(i);
+    if(!o)return;
+    o.items.forEach(x=>{
+      st[x.name]=st[x.name]||{req:0,ord:0,unit:o.unit};
+      st[x.name][i.orderedAt?'ord':'req']+=x.qty;
+    });
+  });
+  return st;
+}
+function optStatusHTML(s){
+  if(!s)return'';
+  return(s.req?`<span class="opt-status">依頼中 ${s.req}${esc(s.unit)}</span>`:'')
+    +(s.ord?`<span class="opt-status ordered">発注済み ${s.ord}${esc(s.unit)}</span>`:'');
+}
+// 色などの選択肢が無い依頼の重複表示
+function dupBannerHTML(itemName){
+  const dup=pending.filter(i=>i.name===itemName&&!parseOptions(i));
+  if(!dup.length)return'';
+  return`<div class="dup-banner">⚠ すでに依頼があります<br>${dup.map(i=>`${i.orderedAt?'発注済み':'依頼中'} ${esc(i.qty||'個数未記入')}${i.requester?`（${esc(i.requester)}）`:''}`).join('<br>')}</div>`;
+}
+function optRowHTML(name,qty,unit,req,status){
   const on=qty>0;
   return`<div class="opt-row${on?'':' off'}" data-name="${esc(name)}">
-    <label><input type="checkbox" class="chk" ${on?'checked':''} onchange="optCheck(this)">${esc(name)}</label>
+    <label><input type="checkbox" class="chk" ${on?'checked':''} onchange="optCheck(this)"><span>${esc(name)}</span>${optStatusHTML(status)}</label>
     <div class="opt-qty">
       <button type="button" class="opt-step" onclick="optStep(this,-1)">−</button>
       <input type="number" inputmode="numeric" min="0" value="${on?qty:''}" oninput="optTyped(this)">
@@ -984,10 +1026,11 @@ function optRowHTML(name,qty,unit,req){
     </div>
   </div>`;
 }
-function optRowsHTML(p,label,unit,choices,selected,canAdd=true){
+function optRowsHTML(p,label,unit,choices,selected,canAdd=true,statusOf=null){
+  const status=statusOf?requestedStatus(statusOf):{};
   return`<div class="form-row">
     <label>${esc(label)}と数量を選択 <span class="req">*</span></label>
-    <div id="${p}-opt-rows" data-unit="${esc(unit)}">${choices.map(n=>optRowHTML(n,selected[n]||0,unit)).join('')}</div>
+    <div id="${p}-opt-rows" data-unit="${esc(unit)}">${choices.map(n=>optRowHTML(n,selected[n]||0,unit,0,status[n])).join('')}</div>
     ${canAdd?`<div class="opt-new">
       <input type="text" id="${p}-opt-new" placeholder="${esc(label)}を追加">
       <button type="button" onclick="optAddRow('${p}')">＋追加</button>
@@ -1221,7 +1264,7 @@ function toggleUsualAddForm(){
   if(!el)return;
   const showing=el.style.display==='block';
   el.style.display=showing?'none':'block';
-  if(!showing)setupImgArea('u-img-area','u-img','u-img-preview-box','u-img-preview');
+  if(!showing){setupImgArea('u-img-area','u-img','u-img-preview-box','u-img-preview');setupOptDrag('u');}
 }
 
 async function submitUsualItem(){
@@ -1257,21 +1300,22 @@ async function deleteUsualItem(id,name){
   if(idx<0)return;
   const item=usualItems[idx];
   usualItems.splice(idx,1);
-  renderStaffContent();
+  renderCurrentView();
   showToast('削除しました');
   try{await apiPost({action:'deleteUsualItem',id:String(id),garden:currentGarden});}
-  catch(e){usualItems.splice(idx,0,item);renderStaffContent();showErr('削除失敗: '+e.message);}
+  catch(e){usualItems.splice(idx,0,item);renderCurrentView();showErr('削除失敗: '+e.message);}
 }
 
 function openUsualEditModal(id){
-  const item=usualItems.find(i=>i.id===id);
+  // idが空なら新規登録（マスタタブから）
+  const item=id?usualItems.find(i=>i.id===id):{cat:'kyozai'};
   if(!item)return;
   const places=allPlaces();
   document.getElementById('modal-container').innerHTML=`
   <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
     <div class="modal">
       <button class="modal-close" onclick="closeModal()">✕</button>
-      <div class="modal-title">✏️ 定番アイテムを編集</div>
+      <div class="modal-title">${id?'✏️ 定番アイテムを編集':'⭐ 定番アイテムを登録'}</div>
       <div class="form-row">
         <label>品名 <span class="req">*</span></label>
         <input type="text" id="ue-name" value="${esc(item.name)}" placeholder="品名">
@@ -1293,6 +1337,13 @@ function openUsualEditModal(id){
         </select>
       </div>
       <div class="form-row">
+        <label>フォルダ <span class="opt">(任意)</span></label>
+        <select id="ue-folder">
+          <option value="">通常（フォルダなし）</option>
+          ${folders.map(f=>`<option value="${esc(f.id)}"${item.folder===f.id?' selected':''}>${esc(f.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row">
         <label>画像 <span class="opt">(任意)</span></label>
         <div class="img-area" id="ue-img-area">
           <div class="img-area-text">📷 タップして選択</div>
@@ -1311,7 +1362,9 @@ function openUsualEditModal(id){
     </div>
   </div>`;
   setupImgArea('ue-img-area','ue-img','ue-img-preview-box','ue-img-preview');
+  setupOptDrag('ue');
 }
+function renderCurrentView(){if(mode==='staff')renderStaffContent();else renderAdmin();}
 
 async function saveUsualEdit(id){
   const name=(document.getElementById('ue-name').value||'').trim();
@@ -1322,25 +1375,36 @@ async function saveUsualEdit(id){
   const memo=(document.getElementById('ue-memo').value||'').trim();
   const opt=readUsualOptFields('ue');
   if(!opt)return;
+  const folder=document.getElementById('ue-folder').value;
   const idx=usualItems.findIndex(i=>i.id===id);
-  if(idx<0){closeModal();return;}
+  if(id&&idx<0){closeModal();return;}
   let imgFields={};
   showLoading('保存中…');
   try{imgFields=await imgFieldsFromForm('ue-img-preview');}
   catch(e){hideLoading();showErr('画像の保存に失敗: '+e.message);return;}
   hideLoading();
+  if(!id){
+    const newItem={id:String(Date.now()),name,qty:opt.optionLabel?'':qty,cat,place,folder,memo,img:'',imgFull:'',garden:currentGarden,...opt,...imgFields};
+    usualItems.push(newItem);
+    closeModal();
+    renderCurrentView();
+    showToast('定番アイテムを登録しました ✓');
+    try{await apiPost({action:'addUsualItem',item:newItem});}
+    catch(e){usualItems=usualItems.filter(u=>u!==newItem);renderCurrentView();showErr('登録失敗: '+e.message);}
+    return;
+  }
   const oldItem={...usualItems[idx]};
-  const fields={name,qty:opt.optionLabel?'':qty,cat,place,memo,...opt,...imgFields};
+  const fields={name,qty:opt.optionLabel?'':qty,cat,place,folder,memo,...opt,...imgFields};
   usualItems[idx]={...usualItems[idx],...fields};
   if('img' in imgFields)delete usualItems[idx].imgBig;
   closeModal();
-  renderStaffContent();
+  renderCurrentView();
   showToast('更新しました ✓');
   try{
     await apiPost({action:'updateUsualItem',id:String(id),fields});
   }catch(e){
     usualItems[idx]=oldItem;
-    renderStaffContent();
+    renderCurrentView();
     showErr('更新失敗: '+e.message);
   }
 }
@@ -1353,6 +1417,7 @@ function openUsualSendModal(id){
     <div class="modal">
       <button class="modal-close" onclick="closeModal()">✕</button>
       <div class="modal-title">🛒 リクエストを送る</div>
+      ${dupBannerHTML(src.name)}
       <div style="background:#eef4fb;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:#5a8ab8">
         <strong style="color:#2a3f5f">${esc(src.name)}</strong>
       </div>
@@ -1366,7 +1431,7 @@ function openUsualSendModal(id){
         <input type="text" class="sub-input" id="us-requester-new" placeholder="名前を入力">
       </div>
       ${src.optionLabel
-        ?optRowsHTML('us',src.optionLabel,src.unit||'個',usualOptList(src),{})
+        ?optRowsHTML('us',src.optionLabel,src.unit||'個',usualOptList(src),{},true,src.name)
         :`<div class="form-row">
         <label>個数 <span class="req">*</span></label>
         <input type="text" id="us-qty" value="${esc(src.qty)}" placeholder="例: 2個">
@@ -1550,6 +1615,7 @@ function openRebuyModal(src){
     <div class="modal">
       <button class="modal-close" onclick="closeModal()">✕</button>
       <div class="modal-title">🔄 再購入リクエスト</div>
+      ${dupBannerHTML(src.name)}
       <div style="background:#eef4fb;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:#5a8ab8">
         <strong style="color:#2a3f5f">${esc(src.name)}</strong>
         ${src.place?`・📍${esc(src.place)}`:''}
@@ -1565,7 +1631,7 @@ function openRebuyModal(src){
         <input type="text" class="sub-input" id="rb-requester-new" placeholder="名前を入力">
       </div>
       ${srcOpt
-        ?optRowsHTML('rb',srcOpt.label,srcOpt.unit,optionChoices(srcOpt),Object.fromEntries(srcOpt.items.map(x=>[x.name,x.qty])))
+        ?optRowsHTML('rb',srcOpt.label,srcOpt.unit,optionChoices(srcOpt),Object.fromEntries(srcOpt.items.map(x=>[x.name,x.qty])),true,src.name)
         :`<div class="form-row">
         <label>個数 <span class="req">*</span></label>
         <input type="text" id="rb-qty" placeholder="例: 2個" value="${esc(src.qty)}">
@@ -1758,6 +1824,7 @@ function renderAdmin(){
       makeReorderable('requester-list','requester');
       makeReorderable('place-list','place');
       makeReorderable('folder-list','folder');
+      makeReorderable('usual-list','usual');
     },30);
   }
 }
@@ -2060,7 +2127,26 @@ function renderMasterTab(){
       </div>
       <button class="icon-btn" onclick="deleteFolderFromMaster('${f.id}','${esc(f.name)}')" title="削除">🗑</button>
     </div>`).join('');
+  const uRows=usualItems.map(u=>{
+    const list=usualOptList(u);
+    return`<div class="master-row" data-value="${esc(u.id)}">
+      <div class="master-row-left" style="min-width:0">
+        <span class="drag-handle">☰</span>
+        <span style="font-size:14px;color:#2a4a55;word-break:break-all">⭐ ${esc(u.name)}<br><span style="font-size:11px;color:#7a98a2">${u.optionLabel?`${esc(u.optionLabel)} ${list.length}件・${esc(u.unit||'個')}`:'選択肢なし'}</span></span>
+      </div>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        <button class="icon-btn" onclick="openUsualEditModal('${u.id}')" title="編集">✏️</button>
+        <button class="icon-btn" onclick="deleteUsualItem('${u.id}','${esc(u.name).replace(/'/g,"\\'")}')" title="削除">🗑</button>
+      </div>
+    </div>`;
+  }).join('');
   return`<div class="section">
+    <div class="form-card" style="margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:#5a8a9c;margin-bottom:4px">⭐ いつものマスタ</div>
+      <div style="font-size:11px;color:#a8c4cc;margin-bottom:8px">☰を押しながら並び替えると、「いつもの」の表示順に反映されます。色やサイズは✏️から編集できます</div>
+      <div id="usual-list">${usualItems.length===0?'<div style="font-size:13px;color:#8ab0cc;margin-bottom:8px">登録された定番アイテムはありません</div>':uRows}</div>
+      <button onclick="openUsualEditModal('')" style="width:100%;margin-top:10px;padding:8px;border:none;border-radius:10px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4);color:#fff;font-size:13px;font-weight:600;cursor:pointer">＋ 新しい定番アイテムを登録</button>
+    </div>
     <div class="form-card" style="margin-bottom:12px">
       <div style="font-size:13px;font-weight:700;color:#5a8a9c;margin-bottom:10px">👤 依頼者マスタ</div>
       <div id="requester-list">${masterRequesters.length===0?'<div style="font-size:13px;color:#8ab0cc;margin-bottom:8px">登録された依頼者はいません</div>':rRows}</div>
@@ -2211,11 +2297,17 @@ function makeReorderable(containerId, type){
     document.removeEventListener('pointermove',onMove);
     const newOrder=[...container.querySelectorAll('.master-row')].map(r=>r.dataset.value);
     dragEl=null;
-    saveMasterOrder(type,newOrder);
+    if(type)saveMasterOrder(type,newOrder);
   }
 }
 
 async function saveMasterOrder(type,newOrder){
+  if(type==='usual'){
+    usualItems=newOrder.map(id=>usualItems.find(u=>u.id===id)).filter(Boolean);
+    try{await apiPost({action:'reorderUsualItems',ids:newOrder});}
+    catch(e){showErr('並び順の保存に失敗: '+e.message);}
+    return;
+  }
   if(type==='folder'){
     await saveFolderOrder(newOrder);
     return;

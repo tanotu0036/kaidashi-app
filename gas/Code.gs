@@ -165,6 +165,9 @@ function doPost(e) {
     } else if (action === 'updateUsualItem') {
       updateItemWithImage('usualItems', data.id, data.fields);
 
+    } else if (action === 'reorderUsualItems') {
+      reorderUsualItems(data.ids || []);
+
     } else if (action === 'saveImage') {
       result = saveImage(data.id, data.data);
 
@@ -552,6 +555,19 @@ function getUsualItems(garden) {
   list.sort((a, b) => a._order - b._order);
   list.forEach(o => delete o._order);
   return list;
+}
+
+function reorderUsualItems(ids) {
+  const sh = getSheet('usualItems');
+  const headers = ensureHeaders(sh, ['order']);
+  const idCol = headers.indexOf('id'), orderCol = headers.indexOf('order');
+  const orderMap = {};
+  ids.forEach((id, idx) => { orderMap[id] = idx; });
+  const rows = sh.getDataRange().getValues();
+  for (let i = 1; i < rows.length; i++) {
+    const id = String(rows[i][idCol]);
+    if (id in orderMap) sh.getRange(i + 1, orderCol + 1).setValue(orderMap[id]);
+  }
 }
 
 function appendUsualItem(item) {
