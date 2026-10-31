@@ -219,7 +219,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-10-30-01'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-31-01'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -615,9 +615,31 @@ function loadImgFile(file,previewBoxId,previewImgId){
   reader.readAsDataURL(file);
 }
 
-// サムネイル：長辺360px以下・12,000文字以内
-const THUMB_MAX_CHARS=12000;
-const THUMB_STEPS=[[360,0.75],[360,0.65],[320,0.6],[280,0.55],[240,0.5],[200,0.45],[160,0.4],[120,0.35]];
+// サムネイル：長辺200px以下・6,000文字以内（カードの画像枠は64px角）
+const THUMB_MAX_CHARS=6000;
+const THUMB_STEPS=[[200,0.6],[180,0.55],[160,0.5],[140,0.45],[120,0.4],[100,0.35]];
+// 以前の大きなサムネイルを、起動のたびに少しずつ縮めて保存し直す（高画質版がある画像のみ）
+const THUMB_SHRINK_PER_LAUNCH=5;
+async function shrinkOldThumbs(){
+  const garden=currentGarden;
+  const targets=[];
+  Object.entries({pending,done,hold,usualItems}).forEach(([sheet,list])=>{
+    list.forEach(item=>{if(item.imgFull&&item.img&&item.img.length>THUMB_MAX_CHARS)targets.push({item,sheet});});
+  });
+  try{
+    for(const {item,sheet} of targets.slice(0,THUMB_SHRINK_PER_LAUNCH)){
+      if(garden!==currentGarden)return;
+      const thumb=await new Promise(res=>compressImage(item.img,THUMB_STEPS,THUMB_MAX_CHARS,res));
+      if(thumb.length>=item.img.length)continue;
+      const fields={img:thumb};
+      await apiPost(sheet==='usualItems'
+        ?{action:'updateUsualItem',id:String(item.id),fields}
+        :{action:'updateItem',id:String(item.id),fields,sheet});
+      item.img=thumb;
+      document.querySelectorAll(`[data-thumb="${item.id}"]`).forEach(el=>{el.innerHTML=`<img src="${thumb}" alt="">`;});
+    }
+  }catch(e){console.warn('サムネイルの縮小に失敗',e);}
+}
 // フル画像：長辺1600px・品質0.85を基本に、大きすぎる場合だけ段階的に落とす（GAS側で40,000文字ずつ分割保存）
 const FULL_MAX_CHARS=600000;
 const FULL_STEPS=[[1600,0.85],[1600,0.78],[1400,0.75],[1200,0.72],[1024,0.7]];
@@ -1889,7 +1911,13 @@ async function deleteMaster(type, value){
   if(!confirm(`「${value}」を削除しますか？`))return;
   showLoading('削除中…');
   try{
-    await apiPost({action:'deleteMaster',masterType:type,value:value});
+    // この園の行と、全園共通（園名なし）の行の両方を消す。片方でも残ると再読み込みで復活するため
+    for(const garden of [currentGarden,'']){
+      await apiPost({action:'deleteMaster',masterType:type,value,garden});
+    }
+    if(type==='place'&&masterNetPlaces.includes(value)){
+      await apiPost({action:'deleteMaster',masterType:'netPlace',value,garden:currentGarden});
+    }
     await loadAll();
     showToast(`「${value}」を削除しました`);
     renderAdmin();
@@ -2186,6 +2214,7 @@ async function deleteItem(id,list){
   updateGardenHeader();
   renderStaff();
   if(fromCache)loadAll(true).then(changed=>{if(changed)rerenderKeepingForm();});
+  setTimeout(shrinkOldThumbs,8000); // 起動時の読み込みが落ち着いてから
   startVersionWatcher();
   setupPullToRefresh();
 })();
