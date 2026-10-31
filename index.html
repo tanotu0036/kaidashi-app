@@ -368,7 +368,7 @@ body.theme-leather{background:#1a1816;background-image:radial-gradient(rgba(255,
 </div>
 
 <script>
-const APP_VERSION='2026-10-31-14'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-31-15'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -2326,11 +2326,10 @@ function renderMasterTab(){
       </div>
     </div>`).join('');
   const uRows=usualItems.map(u=>{
-    const list=usualOptList(u);
     return`<div class="master-row" data-value="${esc(u.id)}">
       <div class="master-row-left" style="min-width:0">
         <span class="drag-handle">☰</span>
-        <span style="font-size:14px;color:#2a4a55;word-break:break-all">⭐ ${esc(u.name)}<br><span style="font-size:11px;color:#7a98a2">${u.optionLabel?`${esc(u.optionLabel)} ${list.length}件・${esc(u.unit||'個')}`:'選択肢なし'}</span></span>
+        <span style="font-size:14px;color:#2a4a55;word-break:break-all">⭐ ${esc(u.name)}<br><span style="font-size:11px;color:#7a98a2">${esc(getCatLabel(u.cat||'zappi'))} ・ ${esc(u.place||'場所未定')}</span></span>
       </div>
       <div style="display:flex;gap:4px;flex-shrink:0">
         <button class="icon-btn" onclick="openUsualEditModal('${u.id}')" title="編集">✏️</button>
