@@ -196,6 +196,7 @@ input[type=file]{display:none}
 .opt-row label{flex-wrap:wrap}
 .opt-status{font-size:11px;font-weight:700;padding:2px 7px;border-radius:7px;background:#fbe9c8;color:#8a5a12;white-space:nowrap}
 .opt-status.ordered{background:#d3efe2;color:#22704f}
+.opt-status.recent{background:#dfe6f5;color:#34508a}
 .dup-banner{background:#fbe9c8;color:#7a4f10;font-size:13px;font-weight:600;border-radius:10px;padding:9px 12px;margin-bottom:12px;line-height:1.5}
 .opt-edit-row{gap:6px}
 .opt-edit-row input{min-width:0}
@@ -256,7 +257,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-10-31-08'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-31-09'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -1005,18 +1006,49 @@ function requestedStatus(itemName){
       st[x.name][i.orderedAt?'ord':'req']+=x.qty;
     });
   });
+  recentBought(itemName).forEach(({item,date})=>{
+    const o=parseOptions(item);
+    if(!o)return;
+    o.items.forEach(x=>{
+      st[x.name]=st[x.name]||{req:0,ord:0,unit:o.unit};
+      st[x.name].rec=(st[x.name].rec||0)+x.qty;
+      if(!st[x.name].recDate||date>st[x.name].recDate)st[x.name].recDate=date;
+    });
+  });
   return st;
 }
+// 直近に購入した同じ品物（届いた直後の2重発注を防ぐため）
+const RECENT_BOUGHT_DAYS=7;
+function parseDateLoose(s){
+  const m=String(s||'').match(/(\d{4})[年\/-](\d{1,2})[月\/-](\d{1,2})/);
+  const d=m?new Date(Number(m[1]),Number(m[2])-1,Number(m[3])):new Date(s);
+  return isNaN(d.getTime())?null:d;
+}
+function recentBought(itemName){
+  const limit=new Date();
+  limit.setHours(0,0,0,0);
+  limit.setDate(limit.getDate()-RECENT_BOUGHT_DAYS);
+  return done.filter(i=>i.name===itemName)
+    .map(item=>({item,date:parseDateLoose(item.boughtAt)}))
+    .filter(x=>x.date&&x.date>=limit);
+}
+function monthDay(d){return`${d.getMonth()+1}/${d.getDate()}`;}
 function optStatusHTML(s){
   if(!s)return'';
   return(s.req?`<span class="opt-status">依頼中 ${s.req}${esc(s.unit)}</span>`:'')
-    +(s.ord?`<span class="opt-status ordered">発注済み・到着待ち ${s.ord}${esc(s.unit)}</span>`:'');
+    +(s.ord?`<span class="opt-status ordered">発注済み・到着待ち ${s.ord}${esc(s.unit)}</span>`:'')
+    +(s.rec?`<span class="opt-status recent">最近購入 ${s.rec}${esc(s.unit)}（${monthDay(s.recDate)}）</span>`:'');
 }
 // 色などの選択肢が無い依頼の重複表示
 function dupBannerHTML(itemName){
   const dup=pending.filter(i=>i.name===itemName&&!parseOptions(i));
-  if(!dup.length)return'';
-  return`<div class="dup-banner">⚠ すでに依頼があります<br>${dup.map(i=>`${i.orderedAt?'発注済み・到着待ち':'依頼中'} ${esc(i.qty||'個数未記入')}${i.requester?`（${esc(i.requester)}）`:''}`).join('<br>')}</div>`;
+  const rec=recentBought(itemName).filter(x=>!parseOptions(x.item));
+  if(!dup.length&&!rec.length)return'';
+  const lines=[
+    ...dup.map(i=>`${i.orderedAt?'発注済み・到着待ち':'依頼中'} ${esc(i.qty||'個数未記入')}${i.requester?`（${esc(i.requester)}）`:''}`),
+    ...rec.map(x=>`最近購入 ${esc(x.item.qty||'個数未記入')}（${monthDay(x.date)}）`),
+  ];
+  return`<div class="dup-banner">⚠ 重複していないか確認してください<br>${lines.join('<br>')}</div>`;
 }
 function optRowHTML(name,qty,unit,req,status){
   const on=qty>0;
