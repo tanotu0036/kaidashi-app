@@ -31,15 +31,22 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Hiragino Kaku
 .tabs{display:flex;gap:6px;padding:12px 16px 0}
 .tab{flex:1;padding:9px 4px;font-size:13px;font-weight:600;border:none;border-radius:12px;background:#d4e6ee;color:#5a8a9c;cursor:pointer;text-align:center;white-space:nowrap}
 .tab.active{background:#8fb8c8;color:#fff;box-shadow:0 1px 6px rgba(143,184,200,.3)}
-.staff-tabs{padding:12px 10px 0;gap:4px}
+.staff-tabs{padding:12px 16px 0;gap:6px}
 .staff-tabs .tab{--c:#5a8a9c;background:#fff;color:var(--c);border:2px solid var(--c);font-size:12px;padding:9px 2px}
 .staff-tabs .tab.active{background:var(--c);color:#fff;box-shadow:none;font-weight:700}
 .staff-tabs .tab.t-request{--c:#d4607a}
-.staff-tabs .tab.t-usual{--c:#2d5a8e}
+
 .staff-tabs .tab.t-history{--c:#3f8a5a}
 .app{background:transparent}
 body[data-view=request]{background:#fbe0e7}
-body[data-view=usual]{background:#dce7f4}
+body[data-view=usual]{background:#fbe8d2}
+.staff-footer{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;display:flex;gap:6px;padding:8px 10px calc(8px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #c8dfe6;z-index:20}
+.footer-btn{--c:#d4607a;flex:1;min-width:0;display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 2px;border:2px solid transparent;border-radius:12px;background:#fff;color:var(--c);font-size:13px;font-weight:700;cursor:pointer}
+.footer-btn .ic{font-size:21px;line-height:1.2}
+.footer-btn.t-usual{--c:#d9832e}
+.footer-btn.active{background:var(--c);color:#fff}
+body[data-view] .app{padding-bottom:110px}
+body[data-view] .toast{bottom:92px}
 body[data-view=mylist]{background:#e3eff4}
 body[data-view=history]{background:#dff0e4}
 .section{padding:14px 16px}
@@ -264,12 +271,12 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-10-31-10'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-31-11'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
 let selectedItems=new Set(); // 選択中のアイテムID
-let currentFolder=''; // ''=通常（全フォルダ外）、'all'=全て表示、フォルダID=特定フォルダ
+let currentFolder='all'; // ''=通常（全フォルダ外）、'all'=全て表示、フォルダID=特定フォルダ
 const CATS=[
   {id:'kyozai',label:'保育教材費'},
   {id:'shoumou',label:'消耗品'},
@@ -873,12 +880,14 @@ function renderStaff(){
   document.getElementById('staff-view').innerHTML=`
   <div class="tabs staff-tabs">
     <button class="tab ${staffTab==='mylist'?'active':''}" onclick="setStaffTab('mylist')">依頼中 (${filterByFolder(pending).length})</button>
-    <button class="tab t-request ${staffTab==='request'?'active':''}" onclick="setStaffTab('request')">リクエスト</button>
-    <button class="tab t-usual ${staffTab==='usual'?'active':''}" onclick="setStaffTab('usual')">⭐ いつもの</button>
     <button class="tab t-history ${staffTab==='history'?'active':''}" onclick="setStaffTab('history')">購入履歴 (${filterByFolder(done).length})</button>
   </div>
-  ${staffTab!=='usual'?renderFolderBar(false):''}
-  <div id="staff-content"></div>`;
+  ${staffTab==='mylist'||staffTab==='history'?renderFolderBar(false):''}
+  <div id="staff-content"></div>
+  <div class="staff-footer">
+    <button class="footer-btn ${staffTab==='request'?'active':''}" onclick="setStaffTab('request')"><span class="ic">📝</span>購入依頼</button>
+    <button class="footer-btn t-usual ${staffTab==='usual'?'active':''}" onclick="setStaffTab('usual')"><span class="ic">⭐</span>定番から選ぶ</button>
+  </div>`;
   renderStaffContent();
 }
 function setStaffTab(t){
@@ -898,7 +907,7 @@ function renderStaffContent(){
 }
 
 /* ════ 色・サイズなどの選択肢 ════
-   いつもの：optionLabel（色など）/ optionList（選択肢のJSON配列）/ unit（袋など）
+   定番：optionLabel（色など）/ optionList（選択肢のJSON配列）/ unit（袋など）
    依頼：options（{label,unit,usualId,items:[{name,qty}]} のJSON）。qty には合計（8袋）を入れる */
 const OPT_KINDS=['色','サイズ'];
 const OPT_UNITS=['個','袋','枚','本','箱','セット'];
@@ -912,12 +921,12 @@ function usualOptList(u){
 function optTotal(items,unit){return items.reduce((s,x)=>s+x.qty,0)+unit;}
 function optionsJSON(o,items){return JSON.stringify({label:o.label,unit:o.unit,usualId:o.usualId||'',items});}
 function optionsText(o){return o.items.map(x=>`${x.name} ${x.qty}${o.unit}`).join(' / ');}
-// 選べる選択肢：いつものの一覧＋依頼に入っているもの
+// 選べる選択肢：定番の一覧＋依頼に入っているもの
 function optionChoices(o){
   const u=usualItems.find(x=>x.id===o.usualId);
   return[...new Set([...(u?usualOptList(u):[]),...o.items.map(x=>x.name)])];
 }
-// 依頼時に増やした選択肢を、いつものにも保存して次回から選べるようにする
+// 依頼時に増やした選択肢を、定番にも保存して次回から選べるようにする
 function saveNewOptionsToUsual(usualId,names){
   const u=usualItems.find(x=>x.id===usualId);
   if(!u)return;
@@ -928,7 +937,7 @@ function saveNewOptionsToUsual(usualId,names){
   apiPost({action:'updateUsualItem',id:String(usualId),fields:{optionList:u.optionList}}).catch(e=>showErr('選択肢の保存に失敗: '+e.message));
 }
 
-/* いつものの登録・編集フォームの選択肢欄 */
+/* 定番の登録・編集フォームの選択肢欄 */
 function usualOptFieldsHTML(p,u){
   const label=u?.optionLabel||'';
   const kind=!label?'none':OPT_KINDS.includes(label)?label:'custom';
@@ -1207,7 +1216,7 @@ async function confirmOptionBuy(id){
   }
 }
 
-/* ════ いつものリクエスト ════ */
+/* ════ 定番リクエスト ════ */
 function renderUsualTab(){
   const items=usualItems;
   const usualKeyFn=(key,i)=>key==='place'?(i.place||'場所未定'):key==='cat'?getCatLabel(i.cat||'zappi'):'';
@@ -2192,8 +2201,8 @@ function renderMasterTab(){
   }).join('');
   return`<div class="section">
     <div class="form-card" style="margin-bottom:12px">
-      <div style="font-size:13px;font-weight:700;color:#5a8a9c;margin-bottom:4px">⭐ いつものマスタ</div>
-      <div style="font-size:11px;color:#a8c4cc;margin-bottom:8px">☰を押しながら並び替えると、「いつもの」の表示順に反映されます。色やサイズは✏️から編集できます</div>
+      <div style="font-size:13px;font-weight:700;color:#5a8a9c;margin-bottom:4px">⭐ 定番マスタ</div>
+      <div style="font-size:11px;color:#a8c4cc;margin-bottom:8px">☰を押しながら並び替えると、「定番」の表示順に反映されます。色やサイズは✏️から編集できます</div>
       <div id="usual-list">${usualItems.length===0?'<div style="font-size:13px;color:#8ab0cc;margin-bottom:8px">登録された定番アイテムはありません</div>':uRows}</div>
       <button onclick="openUsualEditModal('')" style="width:100%;margin-top:10px;padding:8px;border:none;border-radius:10px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4);color:#fff;font-size:13px;font-weight:600;cursor:pointer">＋ 新しい定番アイテムを登録</button>
     </div>
@@ -2273,7 +2282,7 @@ function addToUsualFromCard(id){
   // pending/done/holdから検索
   const item = pending.find(i=>i.id===id) || done.find(i=>i.id===id) || hold.find(i=>i.id===id);
   if(!item)return;
-  if(isUsual(item.name)){showToast('すでに「いつもの」に登録済みです');return;}
+  if(isUsual(item.name)){showToast('すでに「定番」に登録済みです');return;}
   const newItem={
     id:String(Date.now()),
     name:item.name,
@@ -2296,7 +2305,7 @@ function addToUsualFromCard(id){
   usualItems.push(newItem);
   // 現在の画面を再描画（⭐反映）
   if(mode==='staff')renderStaff();else renderAdmin();
-  showToast(`「${item.name}」をいつもに追加しました ⭐`);
+  showToast(`「${item.name}」を定番に追加しました ⭐`);
   apiPost({action:'addUsualItem',item:newItem}).catch(e=>{
     usualItems.pop();
     if(mode==='staff')renderStaff();else renderAdmin();
@@ -2463,7 +2472,7 @@ function itemCardHTML(i,opts={}){
       ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
       <div style="font-size:11px;color:#7a98a2;margin-top:3px">${fmtDate(isDone?(i.boughtAt||i.created):i.created)}</div>
       ${ordered?`<div class="ordered-date">発注日：${esc(fmtDate(i.orderedAt))}</div>`:''}
-      ${usualBtn&&!isUsual(i.name)?`<button onclick="addToUsualFromCard('${i.id}')" style="margin-top:6px;font-size:11px;padding:3px 10px;border:1px dashed #8fb8c8;border-radius:20px;background:transparent;color:#5a8a9c;cursor:pointer">⭐ いつものに追加</button>`:''}
+      ${usualBtn&&!isUsual(i.name)?`<button onclick="addToUsualFromCard('${i.id}')" style="margin-top:6px;font-size:11px;padding:3px 10px;border:1px dashed #8fb8c8;border-radius:20px;background:transparent;color:#5a8a9c;cursor:pointer">⭐ 定番に追加</button>`:''}
     </div>
     <div class="actions-col" style="justify-content:space-between;height:100%;align-items:flex-end">
       <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
