@@ -179,6 +179,26 @@ input[type=file]{display:none}
 .net-toggle{font-size:11px;padding:3px 8px;border-radius:20px;border:1px solid #c8dfe6;background:#fff;color:#7a98a2;cursor:pointer;white-space:nowrap}
 .net-toggle.on{background:#e2f4ec;border-color:#3f9a78;color:#2f7f60;font-weight:700}
 .net-toggle:disabled{cursor:default}
+/* 色・サイズなどの選択肢 */
+.opt-pills{display:flex;flex-wrap:wrap;gap:4px;margin-top:4px}
+.opt-pill{font-size:12px;font-weight:600;padding:2px 8px;border-radius:7px;background:#d8e8ee;color:#2f6a80}
+.opt-add-chip{font-size:11px;margin-top:5px;padding:3px 10px;border:1px dashed #8fb8c8;border-radius:20px;background:transparent;color:#5a8a9c;cursor:pointer}
+.opt-kinds{display:flex;flex-wrap:wrap;gap:6px}
+.opt-kind{font-size:13px;padding:5px 12px;border:1px solid #c8dfe6;border-radius:20px;background:#fff;color:#5a8a9c;cursor:pointer}
+.opt-kind.active{background:#8fb8c8;border-color:#8fb8c8;color:#fff;font-weight:700}
+.opt-chips{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:6px}
+.opt-chip{font-size:13px;padding:3px 6px 3px 10px;border-radius:20px;background:#e3eef2;color:#2a4a55;display:inline-flex;align-items:center;gap:2px}
+.opt-chip button{border:none;background:none;color:#5a8a9c;font-size:13px;cursor:pointer;padding:0 4px}
+.opt-new{display:flex;gap:6px;margin-top:6px}
+.opt-new input{flex:1;min-width:0}
+.opt-new button{padding:7px 14px;border:none;border-radius:10px;background:#8fb8c8;color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap}
+.opt-row{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:6px 0;border-bottom:1px solid #e8f0f2}
+.opt-row label{display:flex;align-items:center;gap:8px;margin:0;font-size:14px;color:#2a4a55;flex:1;min-width:0;word-break:break-all;cursor:pointer}
+.opt-row .chk{margin:0}
+.opt-qty{display:flex;align-items:center;gap:4px;flex-shrink:0;font-size:13px;color:#5a8a9c}
+.opt-step{width:30px;height:30px;border:1px solid #c8dfe6;border-radius:8px;background:#fff;color:#5a8a9c;font-size:16px;cursor:pointer}
+.opt-qty input[type=number]{width:52px;padding:5px 2px;text-align:center}
+.opt-row.off .opt-qty{opacity:.4}
 .folder-count{display:inline-block;margin-left:5px;font-size:10px;font-weight:700;color:#5a8a9c;background:rgba(255,255,255,.7);border-radius:10px;padding:0 6px;line-height:16px;vertical-align:middle}
 .folder-chip.active .folder-count{color:#3a7a9c;background:rgba(255,255,255,.9)}
 </style>
@@ -219,7 +239,7 @@ input[type=file]{display:none}
 </div>
 
 <script>
-const APP_VERSION='2026-10-31-03'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-31-04'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -509,7 +529,7 @@ function exportCSV(){
   const NL=String.fromCharCode(10);
   const q=v=>'"'+String(v||'').replace(/"/g,'""')+'"';
   const headerRow=headers.map(q).join(',');
-  const dataRows=items.map(i=>[i.name,i.qty,getCatLabel(i.cat||'zappi'),i.place,i.requester,i.memo,i.url,fmtDate(i.created)].map(q).join(','));
+  const dataRows=items.map(i=>[i.name,parseOptions(i)?`${i.qty}（${optionsText(parseOptions(i))}）`:i.qty,getCatLabel(i.cat||'zappi'),i.place,i.requester,i.memo,i.url,fmtDate(i.created)].map(q).join(','));
   const csv='\uFEFF'+[headerRow,...dataRows].join(NL);
   const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
   const url=URL.createObjectURL(blob);
@@ -825,6 +845,240 @@ function renderStaffContent(){
   else el.innerHTML=renderStaffHistory();
 }
 
+/* ════ 色・サイズなどの選択肢 ════
+   いつもの：optionLabel（色など）/ optionList（選択肢のJSON配列）/ unit（袋など）
+   依頼：options（{label,unit,usualId,items:[{name,qty}]} のJSON）。qty には合計（8袋）を入れる */
+const OPT_KINDS=['色','サイズ'];
+const OPT_UNITS=['個','袋','枚','本','箱','セット'];
+function parseOptions(i){
+  if(!i||!i.options)return null;
+  try{const o=JSON.parse(i.options);return o&&Array.isArray(o.items)?o:null;}catch(e){return null;}
+}
+function usualOptList(u){
+  try{const l=JSON.parse(u.optionList||'[]');return Array.isArray(l)?l:[];}catch(e){return[];}
+}
+function optTotal(items,unit){return items.reduce((s,x)=>s+x.qty,0)+unit;}
+function optionsJSON(o,items){return JSON.stringify({label:o.label,unit:o.unit,usualId:o.usualId||'',items});}
+function optionsText(o){return o.items.map(x=>`${x.name} ${x.qty}${o.unit}`).join(' / ');}
+// 選べる選択肢：いつものの一覧＋依頼に入っているもの
+function optionChoices(o){
+  const u=usualItems.find(x=>x.id===o.usualId);
+  return[...new Set([...(u?usualOptList(u):[]),...o.items.map(x=>x.name)])];
+}
+// 依頼時に増やした選択肢を、いつものにも保存して次回から選べるようにする
+function saveNewOptionsToUsual(usualId,names){
+  const u=usualItems.find(x=>x.id===usualId);
+  if(!u)return;
+  const list=usualOptList(u);
+  const added=names.filter(n=>!list.includes(n));
+  if(!added.length)return;
+  u.optionList=JSON.stringify([...list,...added]);
+  apiPost({action:'updateUsualItem',id:String(usualId),fields:{optionList:u.optionList}}).catch(e=>showErr('選択肢の保存に失敗: '+e.message));
+}
+
+/* いつものの登録・編集フォームの選択肢欄 */
+function usualOptFieldsHTML(p,u){
+  const label=u?.optionLabel||'';
+  const kind=!label?'none':OPT_KINDS.includes(label)?label:'custom';
+  const unit=u?.unit||'個';
+  const unitKnown=OPT_UNITS.includes(unit);
+  const kindBtn=(k,text)=>`<button type="button" class="opt-kind${kind===k?' active':''}" data-kind="${k}" onclick="setOptKind('${p}','${k}')">${text}</button>`;
+  return`<div class="form-row">
+    <label>選ぶ内容 <span class="opt">(色やサイズを選んで依頼する品物)</span></label>
+    <div class="opt-kinds" id="${p}-opt-kinds">${kindBtn('none','なし')}${kindBtn('色','色')}${kindBtn('サイズ','サイズ')}${kindBtn('custom','自由に入力')}</div>
+    <input type="text" id="${p}-opt-label" placeholder="例: 柄" value="${kind==='custom'?esc(label):''}" style="margin-top:6px;display:${kind==='custom'?'block':'none'}">
+    <div id="${p}-opt-body" style="margin-top:10px;display:${kind==='none'?'none':'block'}">
+      <label>選択肢</label>
+      <div class="opt-chips" id="${p}-opt-chips">${(u?usualOptList(u):[]).map(optChipHTML).join('')}</div>
+      <div class="opt-new">
+        <input type="text" id="${p}-opt-new" placeholder="例: 赤">
+        <button type="button" onclick="addOptChip('${p}')">追加</button>
+      </div>
+      <label style="margin-top:10px">単位</label>
+      <select id="${p}-opt-unit" onchange="document.getElementById('${p}-opt-unit-new').style.display=this.value==='__new__'?'block':'none'">
+        ${OPT_UNITS.map(x=>`<option value="${x}"${x===unit?' selected':''}>${x}</option>`).join('')}
+        <option value="__new__"${unitKnown?'':' selected'}>＋ その他（直接入力）</option>
+      </select>
+      <input type="text" class="sub-input" id="${p}-opt-unit-new" placeholder="例: 巻" value="${unitKnown?'':esc(unit)}" style="display:${unitKnown?'none':'block'}">
+    </div>
+  </div>`;
+}
+function optChipHTML(name){
+  return`<span class="opt-chip" data-name="${esc(name)}">${esc(name)}<button type="button" onclick="this.parentElement.remove()">✕</button></span>`;
+}
+function setOptKind(p,kind){
+  document.querySelectorAll(`#${p}-opt-kinds .opt-kind`).forEach(b=>b.classList.toggle('active',b.dataset.kind===kind));
+  document.getElementById(p+'-opt-label').style.display=kind==='custom'?'block':'none';
+  document.getElementById(p+'-opt-body').style.display=kind==='none'?'none':'block';
+  const qtyRow=document.getElementById(p+'-qty-row');
+  if(qtyRow)qtyRow.style.display=kind==='none'?'block':'none';
+}
+function addOptChip(p){
+  const inp=document.getElementById(p+'-opt-new');
+  const name=(inp.value||'').trim();
+  if(!name)return;
+  const box=document.getElementById(p+'-opt-chips');
+  if(![...box.children].some(c=>c.dataset.name===name))box.insertAdjacentHTML('beforeend',optChipHTML(name));
+  inp.value='';inp.focus();
+}
+// 入力内容を読む。足りないときはトーストを出して null を返す
+function readUsualOptFields(p){
+  const kind=document.querySelector(`#${p}-opt-kinds .opt-kind.active`)?.dataset.kind||'none';
+  if(kind==='none')return{optionLabel:'',optionList:'',unit:''};
+  addOptChip(p); // 追加ボタンを押し忘れた入力も取り込む
+  const label=kind==='custom'?(document.getElementById(p+'-opt-label').value||'').trim():kind;
+  const list=[...document.getElementById(p+'-opt-chips').children].map(c=>c.dataset.name);
+  let unit=document.getElementById(p+'-opt-unit').value;
+  if(unit==='__new__')unit=(document.getElementById(p+'-opt-unit-new').value||'').trim();
+  if(!label){showToast('選ぶ内容の名前を入力してください');return null;}
+  if(!list.length){showToast('選択肢を1つ以上追加してください');return null;}
+  if(!unit){showToast('単位を入力してください');return null;}
+  return{optionLabel:label,optionList:JSON.stringify(list),unit};
+}
+
+/* チェックボックス＋数量の行 */
+function optRowHTML(name,qty,unit,req){
+  const on=qty>0;
+  return`<div class="opt-row${on?'':' off'}" data-name="${esc(name)}">
+    <label><input type="checkbox" class="chk" ${on?'checked':''} onchange="optCheck(this)">${esc(name)}</label>
+    <div class="opt-qty">
+      <button type="button" class="opt-step" onclick="optStep(this,-1)">−</button>
+      <input type="number" inputmode="numeric" min="0" value="${on?qty:''}" oninput="optTyped(this)">
+      <button type="button" class="opt-step" onclick="optStep(this,1)">＋</button>
+      <span>${esc(unit)}${req?` / ${req}${esc(unit)}`:''}</span>
+    </div>
+  </div>`;
+}
+function optRowsHTML(p,label,unit,choices,selected,canAdd=true){
+  return`<div class="form-row">
+    <label>${esc(label)}と数量を選択 <span class="req">*</span></label>
+    <div id="${p}-opt-rows" data-unit="${esc(unit)}">${choices.map(n=>optRowHTML(n,selected[n]||0,unit)).join('')}</div>
+    ${canAdd?`<div class="opt-new">
+      <input type="text" id="${p}-opt-new" placeholder="${esc(label)}を追加">
+      <button type="button" onclick="optAddRow('${p}')">＋追加</button>
+    </div>`:''}
+  </div>`;
+}
+function optSetRow(row,qty){
+  row.querySelector('input[type=number]').value=qty>0?qty:'';
+  row.querySelector('input[type=checkbox]').checked=qty>0;
+  row.classList.toggle('off',!(qty>0));
+}
+function optCheck(chk){
+  const row=chk.closest('.opt-row');
+  optSetRow(row,chk.checked?(parseInt(row.querySelector('input[type=number]').value)||1):0);
+}
+function optStep(btn,d){
+  const row=btn.closest('.opt-row');
+  optSetRow(row,Math.max(0,(parseInt(row.querySelector('input[type=number]').value)||0)+d));
+}
+function optTyped(inp){
+  const row=inp.closest('.opt-row');
+  const on=(parseInt(inp.value)||0)>0;
+  row.querySelector('input[type=checkbox]').checked=on;
+  row.classList.toggle('off',!on);
+}
+function optAddRow(p){
+  const inp=document.getElementById(p+'-opt-new');
+  const name=(inp.value||'').trim();
+  if(!name)return;
+  const box=document.getElementById(p+'-opt-rows');
+  const same=[...box.children].find(r=>r.dataset.name===name);
+  if(same)optSetRow(same,Math.max(1,parseInt(same.querySelector('input[type=number]').value)||0));
+  else box.insertAdjacentHTML('beforeend',optRowHTML(name,1,box.dataset.unit));
+  inp.value='';
+}
+function readOptRows(p){
+  const newInp=document.getElementById(p+'-opt-new');
+  if(newInp&&newInp.value.trim())optAddRow(p); // 追加ボタンを押し忘れた入力も取り込む
+  return[...document.getElementById(p+'-opt-rows').children].map(r=>({
+    name:r.dataset.name,
+    qty:r.querySelector('input[type=checkbox]').checked?(parseInt(r.querySelector('input[type=number]').value)||0):0
+  })).filter(x=>x.qty>0);
+}
+
+/* カードの「＋追加」：依頼中の選択肢と数量を変更 */
+function openOptionsModal(id){
+  const item=pending.find(i=>i.id===id);
+  const o=parseOptions(item);
+  if(!o)return;
+  const selected=Object.fromEntries(o.items.map(x=>[x.name,x.qty]));
+  document.getElementById('modal-container').innerHTML=`
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-title">${esc(item.name)}：${esc(o.label)}を変更</div>
+      ${optRowsHTML('om',o.label,o.unit,optionChoices(o),selected)}
+      <button class="submit-btn" onclick="saveOptionsModal('${id}')">💾 保存する</button>
+    </div>
+  </div>`;
+}
+async function saveOptionsModal(id){
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0){closeModal();return;}
+  const o=parseOptions(pending[idx]);
+  const items=readOptRows('om');
+  if(!items.length){showToast(o.label+'を1つ以上選んでください');return;}
+  const fields={qty:optTotal(items,o.unit),options:optionsJSON(o,items)};
+  const old=pending[idx];
+  pending[idx]={...old,...fields};
+  saveNewOptionsToUsual(o.usualId,items.map(x=>x.name));
+  closeModal();
+  if(mode==='staff')renderStaff();else renderAdmin();
+  showToast('変更しました ✓');
+  try{await apiPost({action:'updateItem',id:String(id),fields,sheet:'pending'});}
+  catch(e){pending[idx]=old;if(mode==='staff')renderStaff();else renderAdmin();showErr('更新失敗: '+e.message);}
+}
+
+/* 購入：選択肢ごとに買えた数を入力 */
+function openOptionBuyModal(id){
+  const item=pending.find(i=>i.id===id);
+  const o=parseOptions(item);
+  if(!o)return;
+  document.getElementById('modal-container').innerHTML=`
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-title">🛍 買えた${esc(o.label)}と数量</div>
+      <div style="background:#eef4fb;border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:#2a3f5f"><strong>${esc(item.name)}</strong>　依頼 ${esc(item.qty)}</div>
+      <div id="ob-opt-rows" data-unit="${esc(o.unit)}">${o.items.map(x=>optRowHTML(x.name,x.qty,o.unit,x.qty)).join('')}</div>
+      <div style="font-size:12px;color:#a3702a;margin:10px 0">足りない分は買い残しとして要購入に残ります</div>
+      <button class="submit-btn" onclick="confirmOptionBuy('${id}')">購入済みにする</button>
+    </div>
+  </div>`;
+}
+async function confirmOptionBuy(id){
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0){closeModal();return;}
+  const src=pending[idx];
+  const o=parseOptions(src);
+  const bought=readOptRows('ob');
+  if(!bought.length){showToast('買えた'+o.label+'を選んでください');return;}
+  const rest=o.items.map(x=>{
+    const b=bought.find(y=>y.name===x.name);
+    return{name:x.name,qty:x.qty-(b?b.qty:0)};
+  }).filter(x=>x.qty>0);
+  const boughtAt=new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+  const boughtQty=optTotal(bought,o.unit);
+  const boughtOptions=optionsJSON(o,bought);
+  const doneItem={...src,boughtAt,requestedQty:src.qty,boughtQty,qty:boughtQty,options:boughtOptions};
+  closeModal();
+  if(rest.length){
+    const remainingQty=optTotal(rest,o.unit),remainingOptions=optionsJSON(o,rest);
+    pending[idx]={...src,qty:remainingQty,options:remainingOptions,partial:'1'};
+    done.unshift(doneItem);
+    renderAdmin();showToast(`${boughtQty}購入済み・残り${remainingQty}を要購入に残しました`);
+    try{await apiPost({action:'partialBuy',id:String(id),boughtAt,boughtQty,requestedQty:src.qty,remainingQty,boughtOptions,remainingOptions});}
+    catch(e){pending[idx]=src;done.shift();renderAdmin();showErr('失敗: '+e.message);}
+  }else{
+    pending.splice(idx,1);
+    done.unshift(doneItem);
+    renderAdmin();showToast('全数購入済みにしました ✓');
+    try{await apiPost({action:'moveToDone',id:String(id),boughtAt,boughtQty,requestedQty:src.qty,options:boughtOptions});}
+    catch(e){pending.splice(idx,0,src);done.shift();renderAdmin();showErr('失敗: '+e.message);}
+  }
+}
+
 /* ════ いつものリクエスト ════ */
 function renderUsualTab(){
   const items=usualItems;
@@ -847,6 +1101,7 @@ function renderUsualTab(){
             <span class="cat-badge ${getCatClass(i.cat)}">${getCatLabel(i.cat||'zappi')}</span>
             ${i.place?`<span>📍${esc(i.place)}</span>`:''}
           </div>
+          ${i.optionLabel?`<div class="opt-pills">${usualOptList(i).map(n=>`<span class="opt-pill">${esc(n)}</span>`).join('')}</div>`:''}
           ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
         </div>
         <div class="actions-col" style="justify-content:center">
@@ -882,7 +1137,8 @@ function renderUsualTab(){
         <label>品名 <span class="req">*</span></label>
         <input type="text" id="u-name" placeholder="例: 絵の具セット">
       </div>
-      <div class="form-row">
+      ${usualOptFieldsHTML('u',null)}
+      <div class="form-row" id="u-qty-row">
         <label>個数 <span class="opt">(任意・毎回変えられます)</span></label>
         <input type="text" id="u-qty" placeholder="例: 2個">
       </div>
@@ -940,6 +1196,8 @@ async function submitUsualItem(){
   const place=document.getElementById('u-place').value;
   const folder=document.getElementById('u-folder').value;
   const memo=(document.getElementById('u-memo').value||'').trim();
+  const opt=readUsualOptFields('u');
+  if(!opt)return;
   const img=getImgData('u-img-preview');
   let imgFull='';
   if(img){
@@ -948,7 +1206,7 @@ async function submitUsualItem(){
     catch(e){hideLoading();showErr('画像の保存に失敗: '+e.message);return;}
     hideLoading();
   }
-  const newItem={id:String(Date.now()),name,qty,cat,place,folder,memo,img,imgFull,garden:currentGarden};
+  const newItem={id:String(Date.now()),name,qty:opt.optionLabel?'':qty,cat,place,folder,memo,img,imgFull,garden:currentGarden,...opt};
   usualItems.push(newItem);
   toggleUsualAddForm();
   renderStaffContent();
@@ -982,7 +1240,8 @@ function openUsualEditModal(id){
         <label>品名 <span class="req">*</span></label>
         <input type="text" id="ue-name" value="${esc(item.name)}" placeholder="品名">
       </div>
-      <div class="form-row">
+      ${usualOptFieldsHTML('ue',item)}
+      <div class="form-row" id="ue-qty-row" style="display:${item.optionLabel?'none':'block'}">
         <label>個数 <span class="opt">(任意)</span></label>
         <input type="text" id="ue-qty" value="${esc(item.qty)}" placeholder="例: 2個">
       </div>
@@ -1025,6 +1284,8 @@ async function saveUsualEdit(id){
   const cat=document.getElementById('ue-cat').value;
   const place=document.getElementById('ue-place').value;
   const memo=(document.getElementById('ue-memo').value||'').trim();
+  const opt=readUsualOptFields('ue');
+  if(!opt)return;
   const idx=usualItems.findIndex(i=>i.id===id);
   if(idx<0){closeModal();return;}
   let imgFields={};
@@ -1033,7 +1294,7 @@ async function saveUsualEdit(id){
   catch(e){hideLoading();showErr('画像の保存に失敗: '+e.message);return;}
   hideLoading();
   const oldItem={...usualItems[idx]};
-  const fields={name,qty,cat,place,memo,...imgFields};
+  const fields={name,qty:opt.optionLabel?'':qty,cat,place,memo,...opt,...imgFields};
   usualItems[idx]={...usualItems[idx],...fields};
   if('img' in imgFields)delete usualItems[idx].imgBig;
   closeModal();
@@ -1068,10 +1329,12 @@ function openUsualSendModal(id){
         </select>
         <input type="text" class="sub-input" id="us-requester-new" placeholder="名前を入力">
       </div>
-      <div class="form-row">
+      ${src.optionLabel
+        ?optRowsHTML('us',src.optionLabel,src.unit||'個',usualOptList(src),{})
+        :`<div class="form-row">
         <label>個数</label>
         <input type="text" id="us-qty" value="${esc(src.qty)}" placeholder="例: 2個">
-      </div>
+      </div>`}
       ${src.place?`<div style="font-size:12px;color:#5a8a9c;margin-bottom:12px">📍 ${esc(src.place)}</div>`:''}
       <button class="submit-btn" onclick="submitUsualSend('${id}')">📨 リクエストを送る</button>
     </div>
@@ -1086,12 +1349,22 @@ async function submitUsualSend(usualId){
   if(!src)return;
   let requester=document.getElementById('us-requester').value;
   if(requester==='__new__')requester=(document.getElementById('us-requester-new').value||'').trim();
-  const qty=(document.getElementById('us-qty').value||'').trim();
   if(!requester){showToast('依頼者は必須です');return;}
+  let qty,options='';
+  if(src.optionLabel){
+    const unit=src.unit||'個';
+    const items=readOptRows('us');
+    if(!items.length){showToast(src.optionLabel+'を1つ以上選んでください');return;}
+    qty=optTotal(items,unit);
+    options=optionsJSON({label:src.optionLabel,unit,usualId:src.id},items);
+    saveNewOptionsToUsual(src.id,items.map(x=>x.name));
+  }else{
+    qty=(document.getElementById('us-qty').value||'').trim();
+  }
   const place=src.place||'';
   const newItem={
     id:String(Date.now()),garden:currentGarden,requester,name:src.name,qty,
-    cat:src.cat||'kyozai',place,url:'',memo:src.memo||'',img:src.img||'',imgFull:src.imgFull||'',folder:src.folder||'',
+    cat:src.cat||'kyozai',place,url:'',memo:src.memo||'',img:src.img||'',imgFull:src.imgFull||'',folder:src.folder||'',options,
     created:new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'})
   };
   pending.unshift(newItem);
@@ -1234,6 +1507,7 @@ async function cancelItem(id){
 /* ── 訂正モーダル ─── */
 function openRebuyModal(src){
   const places=allPlaces();
+  const srcOpt=parseOptions(src);
   document.getElementById('modal-container').innerHTML=`
   <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
     <div class="modal">
@@ -1253,10 +1527,12 @@ function openRebuyModal(src){
         </select>
         <input type="text" class="sub-input" id="rb-requester-new" placeholder="名前を入力">
       </div>
-      <div class="form-row">
+      ${srcOpt
+        ?optRowsHTML('rb',srcOpt.label,srcOpt.unit,optionChoices(srcOpt),Object.fromEntries(srcOpt.items.map(x=>[x.name,x.qty])))
+        :`<div class="form-row">
         <label>個数 <span class="req">*</span></label>
         <input type="text" id="rb-qty" placeholder="例: 2個" value="${esc(src.qty)}">
-      </div>
+      </div>`}
       <div class="form-row">
         <label>購入場所</label>
         <select id="rb-place" onchange="onRebuyPlaceChange()">
@@ -1287,7 +1563,10 @@ function onRebuyPlaceChange(){
 async function submitRebuy(srcId){
   let requester=document.getElementById('rb-requester').value;
   if(requester==='__new__')requester=(document.getElementById('rb-requester-new').value||'').trim();
-  const qty=(document.getElementById('rb-qty').value||'').trim();
+  const srcOpt=parseOptions(done.find(i=>i.id===srcId));
+  const rbItems=srcOpt?readOptRows('rb'):null;
+  if(srcOpt&&!rbItems.length){showToast(srcOpt.label+'を1つ以上選んでください');return;}
+  const qty=srcOpt?optTotal(rbItems,srcOpt.unit):(document.getElementById('rb-qty').value||'').trim();
   if(!requester||!qty){showToast('依頼者と個数は必須です');return;}
   let place=document.getElementById('rb-place').value;
   if(place==='__new__')place=(document.getElementById('rb-place-new').value||'').trim();
@@ -1298,6 +1577,10 @@ async function submitRebuy(srcId){
   const newItem={...src,id:String(Date.now()),garden:currentGarden,requester,qty,place,memo,
                  created:new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'})};
   delete newItem.boughtAt;delete newItem.heldAt;delete newItem.imgBig;delete newItem.orderedAt;
+  if(srcOpt){
+    newItem.options=optionsJSON(srcOpt,rbItems);
+    saveNewOptionsToUsual(srcOpt.usualId,rbItems.map(x=>x.name));
+  }
 
   // mastersも即時更新
   if(requester&&!masterRequesters.includes(requester))masterRequesters.push(requester);
@@ -1321,6 +1604,7 @@ async function submitRebuy(srcId){
 function openEditModal(id){
   const item=pending.find(i=>i.id===id);if(!item)return;
   const places=allPlaces();
+  const itemOpt=parseOptions(item);
   document.getElementById('modal-container').innerHTML=`
   <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
     <div class="modal">
@@ -1330,10 +1614,12 @@ function openEditModal(id){
         <label>品名 <span class="req">*</span></label>
         <input type="text" id="e-name" value="${esc(item.name)}" placeholder="品名">
       </div>
-      <div class="form-row">
+      ${itemOpt
+        ?optRowsHTML('e',itemOpt.label,itemOpt.unit,optionChoices(itemOpt),Object.fromEntries(itemOpt.items.map(x=>[x.name,x.qty])))
+        :`<div class="form-row">
         <label>個数 <span class="req">*</span></label>
         <input type="text" id="e-qty" value="${esc(item.qty)}" placeholder="個数">
-      </div>
+      </div>`}
       <div class="form-row">
         <label>購入場所</label>
         <select id="e-place" onchange="onEditPlaceChange()">
@@ -1381,7 +1667,10 @@ function onEditPlaceChange(){
 function closeModal(){document.getElementById('modal-container').innerHTML='';}
 async function saveEdit(id){
   const name=(document.getElementById('e-name').value||'').trim();
-  const qty=(document.getElementById('e-qty').value||'').trim();
+  const itemOpt=parseOptions(pending.find(i=>i.id===id));
+  const optItems=itemOpt?readOptRows('e'):null;
+  if(itemOpt&&!optItems.length){showToast(itemOpt.label+'を1つ以上選んでください');return;}
+  const qty=itemOpt?optTotal(optItems,itemOpt.unit):(document.getElementById('e-qty').value||'').trim();
   if(!name||!qty){showToast('品名・個数は必須です');return;}
   let place=document.getElementById('e-place').value;
   if(place==='__new__')place=(document.getElementById('e-place-new').value||'').trim();
@@ -1397,6 +1686,10 @@ async function saveEdit(id){
   hideLoading();
   const oldItem={...pending[idx]};
   const fields={name,qty,place,url,memo,folder,...imgFields};
+  if(itemOpt){
+    fields.options=optionsJSON(itemOpt,optItems);
+    saveNewOptionsToUsual(itemOpt.usualId,optItems.map(x=>x.name));
+  }
   pending[idx]={...pending[idx],...fields};
   if('img' in imgFields)delete pending[idx].imgBig;
   if(place&&!masterPlaces.includes(place)&&!['ダイソー','セリア','ドラッグストア','ホームセンター','文房具店','Amazon'].includes(place))masterPlaces.push(place);
@@ -1816,6 +2109,13 @@ function addToUsualFromCard(id){
     garden:currentGarden,
     folder:item.folder||'',
   };
+  const itemOpt=parseOptions(item);
+  if(itemOpt){
+    newItem.qty='';
+    newItem.optionLabel=itemOpt.label;
+    newItem.optionList=JSON.stringify(itemOpt.items.map(x=>x.name));
+    newItem.unit=itemOpt.unit;
+  }
   usualItems.push(newItem);
   // 現在の画面を再描画（⭐反映）
   if(mode==='staff')renderStaff();else renderAdmin();
@@ -1944,6 +2244,7 @@ function itemCardHTML(i,opts={}){
   const sheet=isDone?'done':holdToPublicBtn?'hold':'pending';
   const imgSlot=imgSlotHTML(i,sheet);
   const ordered=!!i.orderedAt&&!isDone;
+  const opt=parseOptions(i);
   return`<div class="item-card${isDone?' done':''}${i.partial?' partial':''}${ordered?' ordered':''}">
     <div class="img-col">
       ${checkBox?`<input type="checkbox" class="chk" id="chk-${i.id}" ${selectedItems.has(i.id)?'checked':''} onchange="toggleSelect('${i.id}',this.checked)">`:''}
@@ -1954,9 +2255,12 @@ function itemCardHTML(i,opts={}){
       <div class="item-name${isDone?' done':''}">${isUsual(i.name)?'⭐ ':''}${esc(i.name)}</div>
       <div class="item-qty${isDone?' done':''}" style="margin-top:1px">${
   (isDone&&i.requestedQty&&i.boughtQty&&i.requestedQty!==i.boughtQty)
-    ? `依頼 ${esc(i.requestedQty)} → 購入 ${esc(i.boughtQty)}<span style="font-size:11px;color:#e05a7a;margin-left:4px">（残り${String(parseInt(i.requestedQty)||0)-String(parseInt(i.boughtQty)||0)}個）</span>`
+    ? `依頼 ${esc(i.requestedQty)} → 購入 ${esc(i.boughtQty)}<span style="font-size:11px;color:#e05a7a;margin-left:4px">（残り${(parseInt(i.requestedQty)||0)-(parseInt(i.boughtQty)||0)}${esc(String(i.requestedQty).replace(/\d+/,'').trim()||'個')}）</span>`
+    : opt?`合計 ${esc(i.qty)}`
     : i.qty?`× ${esc(i.qty)}`:'<span class="qty-alert">個数未記入</span>'
 }</div>
+      ${opt?`<div class="opt-pills">${opt.items.map(x=>`<span class="opt-pill">${esc(x.name)} ${x.qty}${esc(opt.unit)}</span>`).join('')}</div>`:''}
+      ${opt&&!isDone&&!ordered&&(holdBtn||editBtn)?`<button class="opt-add-chip" onclick="openOptionsModal('${i.id}')">＋ ${esc(opt.label)}を追加・変更</button>`:''}
       <div class="item-meta">
         ${catBadge}
         ${placeEditable?placeBadge:(i.place?`<span>📍${esc(i.place)}</span>`:'')}
@@ -2070,6 +2374,7 @@ async function checkItem(id,checked){
   const idx=pending.findIndex(i=>i.id===id);
   if(idx<0)return;
   const item=pending[idx];
+  if(parseOptions(item)){openOptionBuyModal(id);return;}
   const originalQty=item.qty||'';
 
   // 個数が数値かどうか確認

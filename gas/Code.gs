@@ -1,7 +1,8 @@
 const SS = SpreadsheetApp.getActiveSpreadsheet();
 
-const COLS = ['id','requester','name','qty','cat','place','url','memo','img','created','boughtAt','heldAt','requestedQty','boughtQty','garden','folder','partial','imgFull','orderedAt'];
-const USUAL_COLS = ['id','name','qty','cat','place','memo','img','garden','folder','order','imgFull'];
+const COLS = ['id','requester','name','qty','cat','place','url','memo','img','created','boughtAt','heldAt','requestedQty','boughtQty','garden','folder','partial','imgFull','orderedAt','options'];
+const USUAL_COLS = ['id','name','qty','cat','place','memo','img','garden','folder','order','imgFull','optionLabel','optionList','unit'];
+const EXTRA_FIELDS = ['imgFull','orderedAt','options','optionLabel','optionList','unit']; // 後から追加した列（無ければ自動で作る）
 
 function getSheet(name) {
   let sh = SS.getSheetByName(name);
@@ -71,6 +72,7 @@ function doPost(e) {
       const extra = { boughtAt: data.boughtAt };
       if (data.requestedQty) extra.requestedQty = data.requestedQty;
       if (data.boughtQty)    extra.boughtQty    = data.boughtQty;
+      if (data.options)      extra.options      = data.options;
       moveRow('pending', 'done', data.id, extra);
 
     } else if (action === 'partialBuy') {
@@ -80,8 +82,11 @@ function doPost(e) {
         src.requestedQty = data.requestedQty;
         src.boughtQty    = data.boughtQty;
         src.qty          = data.boughtQty;
+        if (data.boughtOptions) src.options = data.boughtOptions;
         appendItem('done', src);
-        updateItemFields('pending', data.id, { qty: data.remainingQty, partial: '1' });
+        const rest = { qty: data.remainingQty, partial: '1' };
+        if (data.remainingOptions) rest.options = data.remainingOptions;
+        updateItemFields('pending', data.id, rest);
       }
 
     } else if (action === 'moveToHold') {
@@ -294,8 +299,8 @@ function moveRow(fromSheet, toSheet, id, extra = {}) {
 
 function updateItemFields(sheetName, id, fields) {
   const sh = getSheet(sheetName);
-  if (fields && 'imgFull' in fields) ensureHeaders(sh, ['imgFull']);
-  if (fields && 'orderedAt' in fields) ensureHeaders(sh, ['orderedAt']);
+  const extra = EXTRA_FIELDS.filter(k => fields && k in fields);
+  if (extra.length) ensureHeaders(sh, extra);
   const rows = sh.getDataRange().getValues();
   const headers = rows[0];
   const idCol = headers.indexOf('id');
