@@ -150,6 +150,12 @@ function doPost(e) {
       resetFolderItems('hold', data.folderId);
       resetFolderItems('usualItems', data.folderId);
 
+    } else if (action === 'renameMaster') {
+      renameMaster(data.masterType, data.oldValue, data.newValue, data.garden||'');
+
+    } else if (action === 'renameFolder') {
+      renameFolder(data.folderId, data.name);
+
     } else if (action === 'reorderFolders') {
       reorderFolders(data.garden||'', data.folderIds);
 
@@ -492,6 +498,62 @@ function deleteFolder(folderId, garden) {
   for (let i = rows.length - 1; i >= 1; i--) {
     if (String(rows[i][idCol]) === String(folderId)) {
       sh.deleteRow(i + 1);
+      break;
+    }
+  }
+}
+
+// 依頼者・購入場所の名前を変更し、その園の依頼・履歴・定番も書き換える
+// 変更後の名前がすでにある場合は1つにまとめる
+function renameMaster(type, oldValue, newValue, garden) {
+  if (!garden || !oldValue || !newValue || oldValue === newValue) return;
+  renameMasterRow(type, oldValue, newValue, garden);
+  if (type === 'place') renameMasterRow('netPlace', oldValue, newValue, garden);
+  const sheets = type === 'place' ? ['pending', 'done', 'hold', 'usualItems'] : ['pending', 'done', 'hold'];
+  sheets.forEach(name => renameInColumn(name, type, oldValue, newValue, garden));
+}
+
+function renameMasterRow(type, oldValue, newValue, garden) {
+  const sh = getSheet('masters');
+  const rows = sh.getDataRange().getValues();
+  const gardenCol = rows[0].indexOf('garden');
+  const inGarden = r => String(r[gardenCol] ?? '') === garden;
+  const exists = rows.slice(1).some(r => r[0] === type && String(r[1]) === String(newValue) && inGarden(r));
+  for (let i = rows.length - 1; i >= 1; i--) {
+    if (rows[i][0] === type && String(rows[i][1]) === String(oldValue) && inGarden(rows[i])) {
+      if (exists) sh.deleteRow(i + 1);
+      else sh.getRange(i + 1, 2).setValue(newValue);
+    }
+  }
+}
+
+function renameInColumn(sheetName, colName, oldValue, newValue, garden) {
+  const sh = getSheet(sheetName);
+  if (sh.getLastRow() < 2) return;
+  const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0];
+  const col = headers.indexOf(colName), gardenCol = headers.indexOf('garden');
+  if (col < 0 || gardenCol < 0) return;
+  const n = sh.getLastRow() - 1;
+  const values = sh.getRange(2, col + 1, n, 1).getValues();
+  const gardens = sh.getRange(2, gardenCol + 1, n, 1).getValues();
+  let changed = false;
+  values.forEach((v, i) => {
+    if (String(v[0]) === String(oldValue) && String(gardens[i][0]) === garden) {
+      v[0] = newValue;
+      changed = true;
+    }
+  });
+  if (changed) sh.getRange(2, col + 1, n, 1).setValues(values);
+}
+
+function renameFolder(folderId, name) {
+  if (!folderId || !name) return;
+  const sh = getSheet('folders');
+  const rows = sh.getDataRange().getValues();
+  const idCol = rows[0].indexOf('id'), nameCol = rows[0].indexOf('name');
+  for (let i = 1; i < rows.length; i++) {
+    if (String(rows[i][idCol]) === String(folderId)) {
+      sh.getRange(i + 1, nameCol + 1).setValue(name);
       break;
     }
   }

@@ -368,7 +368,7 @@ body.theme-leather{background:#1a1816;background-image:radial-gradient(rgba(255,
 </div>
 
 <script>
-const APP_VERSION='2026-10-31-13'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-31-14'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -2297,7 +2297,10 @@ function renderMasterTab(){
         <span class="drag-handle">☰</span>
         <span style="font-size:14px;color:#2a4a55">👤 ${esc(r)}</span>
       </div>
-      <button class="icon-btn" data-type="requester" data-idx="${idx}" onclick="deleteMasterByIdx(this)" title="削除">🗑</button>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        <button class="icon-btn" onclick="openMasterEditModal('requester',${idx})" title="編集">✏️</button>
+        <button class="icon-btn" data-type="requester" data-idx="${idx}" onclick="deleteMasterByIdx(this)" title="削除">🗑</button>
+      </div>
     </div>`).join('');
   const pRows=masterPlaces.map((p,idx)=>
     `<div class="master-row" data-value="${esc(p)}">
@@ -2307,6 +2310,7 @@ function renderMasterTab(){
       </div>
       <div style="display:flex;align-items:center;gap:6px">
         <button class="net-toggle${isNetPlace(p)?' on':''}" data-idx="${idx}" ${DEFAULT_NET_PLACES.includes(p)?'disabled':'onclick="toggleNetPlace(this)"'}>ネット注文</button>
+        <button class="icon-btn" onclick="openMasterEditModal('place',${idx})" title="編集">✏️</button>
         <button class="icon-btn" data-type="place" data-idx="${idx}" onclick="deleteMasterByIdx(this)" title="削除">🗑</button>
       </div>
     </div>`).join('');
@@ -2316,7 +2320,10 @@ function renderMasterTab(){
         <span class="drag-handle">☰</span>
         <span style="font-size:14px;color:#2a4a55">📁 ${esc(f.name)}</span>
       </div>
-      <button class="icon-btn" onclick="deleteFolderFromMaster('${f.id}','${esc(f.name)}')" title="削除">🗑</button>
+      <div style="display:flex;gap:4px;flex-shrink:0">
+        <button class="icon-btn" onclick="openMasterEditModal('folder',${idx})" title="編集">✏️</button>
+        <button class="icon-btn" onclick="deleteFolderFromMaster('${f.id}','${esc(f.name)}')" title="削除">🗑</button>
+      </div>
     </div>`).join('');
   const uRows=usualItems.map(u=>{
     const list=usualOptList(u);
@@ -2529,6 +2536,64 @@ async function saveFolderOrder(newOrderIds){
     await apiPost({action:'reorderFolders',garden:currentGarden,folderIds:newOrderIds});
   }catch(e){
     showErr('フォルダ並び順の保存に失敗: '+e.message);
+  }
+}
+
+/* ── マスタの名前の修正 ─── */
+const MASTER_EDIT_LABELS={requester:'依頼者',place:'購入場所',folder:'フォルダ'};
+function masterEditCurrent(type,idx){
+  return type==='requester'?masterRequesters[idx]:type==='place'?masterPlaces[idx]:folders[idx]?.name;
+}
+function openMasterEditModal(type,idx){
+  const current=masterEditCurrent(type,idx);
+  if(!current)return;
+  const label=MASTER_EDIT_LABELS[type];
+  document.getElementById('modal-container').innerHTML=`
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-title">✏️ ${label}を修正</div>
+      <div class="form-row">
+        <label>${label}の名前 <span class="req">*</span></label>
+        <input type="text" id="me-name" value="${esc(current)}">
+      </div>
+      <div style="font-size:12px;color:#5a8a9c;margin-bottom:12px">${type==='folder'
+        ?'このフォルダに入っている品物はそのままです。'
+        :'この園の依頼中・保留・購入履歴'+(type==='place'?'・定番':'')+'の名前も一緒に変わります。すでにある名前にすると、1つにまとまります。'}</div>
+      <button class="submit-btn" onclick="saveMasterEdit('${type}',${idx})">💾 保存する</button>
+    </div>
+  </div>`;
+}
+async function saveMasterEdit(type,idx){
+  const oldValue=masterEditCurrent(type,idx);
+  const newValue=(document.getElementById('me-name').value||'').trim();
+  if(warnRequired([[!newValue,'me-name','名前']]))return;
+  if(newValue===oldValue){closeModal();return;}
+  if(type==='folder'){
+    const folder=folders[idx];
+    folder.name=newValue;
+    closeModal();renderAdmin();showToast('修正しました ✓');
+    try{
+      const res=await apiPost({action:'renameFolder',folderId:folder.id,name:newValue});
+      if(res&&res.error)throw new Error(res.error);
+    }catch(e){folder.name=oldValue;renderAdmin();showErr('修正失敗: '+e.message);}
+    return;
+  }
+  const list=type==='requester'?masterRequesters:masterPlaces;
+  if(list.includes(newValue)&&!confirm(`「${newValue}」はすでにあります。1つにまとめますか？`))return;
+  // 楽観的更新：マスタと、読み込み済みの依頼・履歴・定番の名前を書き換える
+  const rename=l=>l.includes(newValue)?l.filter(v=>v!==oldValue):l.map(v=>v===oldValue?newValue:v);
+  if(type==='requester')masterRequesters=rename(masterRequesters);
+  else{masterPlaces=rename(masterPlaces);masterNetPlaces=rename(masterNetPlaces);}
+  const lists=type==='place'?[pending,done,hold,usualItems]:[pending,done,hold];
+  lists.forEach(l=>l.forEach(i=>{if(i[type]===oldValue)i[type]=newValue;}));
+  closeModal();renderAdmin();showToast('修正しました ✓');
+  try{
+    const res=await apiPost({action:'renameMaster',masterType:type,oldValue,newValue,garden:currentGarden});
+    if(res&&res.error)throw new Error(res.error);
+  }catch(e){
+    showErr('修正失敗: '+e.message);
+    loadAll().then(()=>renderAdmin());
   }
 }
 
