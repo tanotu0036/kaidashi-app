@@ -246,7 +246,9 @@ body.theme-leather{background:#1a1816;background-image:radial-gradient(rgba(255,
 .theme-leather .header-side-btn,.theme-leather .mode-btn{border-color:#b08f55;color:#d9cdb2}
 .theme-leather .mode-btn.active{background:#b08f55;border-color:#b08f55;color:#1a1816}
 /* 液晶パネル */
-.lcd-panel{margin:12px 12px 0;padding:10px;background:#aeb79e;color:#1b1f18;border:1px solid #b08f55;border-radius:4px;box-shadow:inset 0 2px 7px rgba(0,0,0,.35);font-family:ui-monospace,Menlo,Consolas,'Hiragino Sans',monospace}
+.lcd-panel{transition:background-color 1s,box-shadow 1s;cursor:pointer;margin:12px 12px 0;padding:10px;background:#aeb79e;color:#1b1f18;border:1px solid #b08f55;border-radius:4px;box-shadow:inset 0 2px 7px rgba(0,0,0,.35);font-family:ui-monospace,Menlo,Consolas,'Hiragino Sans',monospace}
+.lcd-panel.lcd-on{background-color:#79dcf2;box-shadow:inset 0 0 18px rgba(255,255,255,.55),0 0 18px rgba(121,220,242,.65);transition:background-color .15s,box-shadow .15s}
+.lcd-panel.lcd-on .tab.active{color:#79dcf2}
 .lcd-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
 .lcd-garden{font-size:11px;line-height:1.4;min-width:0}
 .lcd-clock{position:relative;font-size:28px;font-weight:600;line-height:1;letter-spacing:.06em;flex-shrink:0}
@@ -368,7 +370,7 @@ body.theme-leather{background:#1a1816;background-image:radial-gradient(rgba(255,
 </div>
 
 <script>
-const APP_VERSION='2026-10-31-15'; // 更新時にこの値を変えると新バージョン検知に使えます
+const APP_VERSION='2026-10-31-16'; // 更新時にこの値を変えると新バージョン検知に使えます
 const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
 let currentGarden=localStorage.getItem('kaidashi_garden')||'';
 let folders=[];
@@ -1981,10 +1983,25 @@ function lcdTime(){
   return String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
 }
 setInterval(()=>{const el=document.getElementById('lcd-clock');if(el)el.textContent=lcdTime();},20000);
+// 水色のバックライト：液晶をタップしたとき、新しい依頼が届いたときに数秒点く
+const LCD_LIGHT_MS=6000;
+let lcdLitUntil=0,lcdLightTimer=null,lcdSeen={garden:'',count:null};
+function isLcdLit(){return Date.now()<lcdLitUntil;}
+function lcdLight(){
+  lcdLitUntil=Date.now()+LCD_LIGHT_MS;
+  document.getElementById('lcd-panel')?.classList.add('lcd-on');
+  clearTimeout(lcdLightTimer);
+  lcdLightTimer=setTimeout(()=>document.getElementById('lcd-panel')?.classList.remove('lcd-on'),LCD_LIGHT_MS);
+}
+function lcdCheckNewRequest(){
+  const count=pending.length;
+  if(lcdSeen.garden===currentGarden&&lcdSeen.count!==null&&count>lcdSeen.count)lcdLight();
+  lcdSeen={garden:currentGarden,count};
+}
 function lcdPanelHTML(tabsHTML){
   const two=n=>String(n).padStart(2,'0');
   const waiting=pending.filter(i=>i.orderedAt).length;
-  return`<div class="lcd-panel">
+  return`<div class="lcd-panel${isLcdLit()?' lcd-on':''}" id="lcd-panel" onclick="lcdLight()">
     <div class="lcd-top">
       <div class="lcd-garden">${esc(currentGarden)}</div>
       <div class="lcd-clock"><span class="lcd-ghost">88:88</span><span id="lcd-clock">${lcdTime()}</span></div>
@@ -2000,6 +2017,7 @@ function lcdPanelHTML(tabsHTML){
 function renderAdmin(){
   delete document.body.dataset.view;
   applyBodyTheme();
+  lcdCheckNewRequest();
   const tabsHTML=`<div class="tabs">
     <button class="tab ${adminTab==='pending'?'active':''}" onclick="setAdminTab('pending')">要購入 (${pending.length})</button>
     <button class="tab ${adminTab==='hold'?'active':''}" onclick="setAdminTab('hold')">保留 (${hold.length})</button>
@@ -2325,10 +2343,11 @@ function renderMasterTab(){
         <button class="icon-btn" onclick="deleteFolderFromMaster('${f.id}','${esc(f.name)}')" title="削除">🗑</button>
       </div>
     </div>`).join('');
-  const uRows=usualItems.map(u=>{
+  const manualUsual=usualMasterSort==='manual';
+  const uRows=sortedUsualForMaster().map(u=>{
     return`<div class="master-row" data-value="${esc(u.id)}">
       <div class="master-row-left" style="min-width:0">
-        <span class="drag-handle">☰</span>
+        ${manualUsual?'<span class="drag-handle">☰</span>':''}
         <span style="font-size:14px;color:#2a4a55;word-break:break-all">⭐ ${esc(u.name)}<br><span style="font-size:11px;color:#7a98a2">${esc(getCatLabel(u.cat||'zappi'))} ・ ${esc(u.place||'場所未定')}</span></span>
       </div>
       <div style="display:flex;gap:4px;flex-shrink:0">
@@ -2350,6 +2369,12 @@ function renderMasterTab(){
     <div class="form-card" style="margin-bottom:12px">
       <div style="font-size:13px;font-weight:700;color:#5a8a9c;margin-bottom:4px">⭐ 定番マスタ</div>
       <div style="font-size:11px;color:#a8c4cc;margin-bottom:8px">☰を押しながら並び替えると、「定番」の表示順に反映されます。色やサイズは✏️から編集できます</div>
+      <div style="margin-bottom:8px">
+        <div class="sort-label">並び順</div>
+        <select onchange="usualMasterSort=this.value;renderAdmin()" style="font-size:13px;padding:6px 10px">
+          ${[['manual','手動（☰で並び替え）'],['place','購入場所'],['cat','経費の種類'],['name','品名']].map(([v,l])=>`<option value="${v}"${usualMasterSort===v?' selected':''}>${l}</option>`).join('')}
+        </select>
+      </div>
       <div id="usual-list">${usualItems.length===0?'<div style="font-size:13px;color:#8ab0cc;margin-bottom:8px">登録された定番アイテムはありません</div>':uRows}</div>
       <button onclick="openUsualEditModal('')" style="width:100%;margin-top:10px;padding:8px;border:none;border-radius:10px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4);color:#fff;font-size:13px;font-weight:600;cursor:pointer">＋ 新しい定番アイテムを登録</button>
     </div>
@@ -2536,6 +2561,20 @@ async function saveFolderOrder(newOrderIds){
   }catch(e){
     showErr('フォルダ並び順の保存に失敗: '+e.message);
   }
+}
+
+/* ── 定番マスタの並び順（表示だけ変える。手動の順番は保存したまま） ─── */
+let usualMasterSort='manual';
+function sortedUsualForMaster(){
+  if(usualMasterSort==='manual')return usualItems;
+  const byName=(a,b)=>String(a.name).localeCompare(String(b.name),'ja');
+  const rank=(order,v)=>{const i=order.indexOf(v);return i<0?order.length:i;};
+  const places=allPlaces(),cats=CATS.map(c=>c.id);
+  return[...usualItems].sort((a,b)=>{
+    if(usualMasterSort==='place')return rank(places,a.place)-rank(places,b.place)||byName(a,b);
+    if(usualMasterSort==='cat')return rank(cats,a.cat)-rank(cats,b.cat)||byName(a,b);
+    return byName(a,b);
+  });
 }
 
 /* ── マスタの名前の修正 ─── */
