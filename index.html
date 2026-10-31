@@ -1,702 +1,2496 @@
-const SS = SpreadsheetApp.getActiveSpreadsheet();
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>買出しリクエスト画面</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Hiragino Sans','Hiragino Kaku Gothic ProN','Noto Sans JP',sans-serif;font-size:15px;color:#2a4a55;background:#e8f0f5;min-height:100vh}
+.app{max-width:480px;margin:0 auto;padding:0 0 80px;background:#e8f0f5;min-height:100vh}
+.header{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;padding:10px 12px;border-bottom:1px solid #b8d8e8;background:#8fb8c8;position:sticky;top:0;z-index:10;gap:6px}
+.header-garden{font-size:15px;font-weight:700;color:#fff;text-align:center;padding:4px 8px;cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.header-garden:hover{opacity:.8}
+.header-garden>div:first-child{overflow:hidden;text-overflow:ellipsis}
+.header-version{font-size:10px;font-weight:500;color:rgba(255,255,255,.8);line-height:1.2;margin-top:1px;display:inline-block;padding:1px 4px}
+.header-left{display:flex;justify-content:flex-start}
+.header-right{display:flex;justify-content:flex-end}
+.mode-btn{font-size:12px;padding:6px 12px;border:1px solid rgba(255,255,255,.5);border-radius:20px;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;white-space:nowrap;font-weight:500}
+.mode-btn:hover{background:rgba(255,255,255,.2)}
+.mode-btn.active{background:#fff;color:#5a8a9c;border-color:#fff;font-weight:700}
+.header-side-btn{font-size:12px;padding:6px 12px;border:1px solid rgba(255,255,255,.5);border-radius:20px;background:transparent;color:rgba(255,255,255,.75);cursor:pointer;white-space:nowrap;font-weight:500}
+.header-side-btn:hover{background:rgba(255,255,255,.2)}
+.header-side-btn.active{background:#fff;color:#5a8a9c;border-color:#fff;font-weight:700}
+.loading-overlay{position:fixed;inset:0;background:rgba(249,246,240,.9);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:100;gap:12px}
+.spinner{width:36px;height:36px;border:3px solid #e8f0f2;border-top-color:#8fb8c8;border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:13px;color:#5a8a9c}
+.tabs{display:flex;gap:6px;padding:12px 16px 0}
+.tab{flex:1;padding:9px 4px;font-size:13px;font-weight:600;border:none;border-radius:12px;background:#d4e6ee;color:#5a8a9c;cursor:pointer;text-align:center;white-space:nowrap}
+.tab.active{background:#8fb8c8;color:#fff;box-shadow:0 1px 6px rgba(143,184,200,.3)}
+.section{padding:14px 16px}
+.form-card{background:#fffdf8;border:1px solid #e8f0f2;border-radius:16px;padding:16px;box-shadow:0 2px 12px rgba(143,184,200,.1)}
+.form-row{margin-bottom:12px}
+.form-row:last-child{margin-bottom:0}
+label{display:block;font-size:12px;color:#5a8a9c;margin-bottom:4px}
+.req{color:#c0664a}
+.opt{font-size:11px;color:#a8c4cc}
+input[type=text],input[type=url],input[type=number],select,textarea{width:100%;border:1px solid #d4e6ec;border-radius:10px;padding:9px 11px;font-size:14px;background:#fbf9f2;color:#2a4a55;outline:none;-webkit-appearance:none;appearance:none}
+input[type=text]:focus,input[type=url]:focus,input[type=number]:focus,select:focus,textarea:focus{border-color:#8fb8c8;background:#fff}
+textarea{resize:vertical;min-height:60px}
+.sub-input{margin-top:6px;display:none}
+.submit-btn{width:100%;padding:12px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4);border:none;border-radius:12px;font-size:15px;font-weight:700;color:#fff;cursor:pointer;margin-top:4px}
+.submit-btn:hover{opacity:.9}
+.submit-btn:active{transform:scale(.99)}
+.submit-btn:disabled{opacity:.5;cursor:not-allowed}
+.img-area{border:2px dashed #c8dfe6;border-radius:12px;padding:12px;background:#fbf9f2;text-align:center;cursor:pointer;transition:border-color .2s}
+.img-area:hover,.img-area.drag-over{border-color:#8fb8c8;background:#eef6f8}
+.img-area-text{font-size:13px;color:#a8c4cc;pointer-events:none}
+.img-preview-box{position:relative;display:none;margin-top:8px}
+.img-preview-box img{width:100%;max-height:130px;object-fit:cover;border-radius:10px;display:block}
+.img-clear-btn{position:absolute;top:4px;right:4px;width:22px;height:22px;border-radius:50%;background:rgba(0,0,0,.45);color:#fff;border:none;cursor:pointer;font-size:13px;line-height:22px;text-align:center}
+input[type=file]{display:none}
+.sort-bar{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:10px 16px 0}
+.sort-label{font-size:11px;color:#5a8a9c;margin-bottom:3px}
+.sort-bar select{font-size:13px;padding:6px 10px}
+.group-block{margin-bottom:16px}
+.group-label{font-size:11px;font-weight:700;color:#5a8a9c;letter-spacing:.06em;margin-bottom:7px;display:flex;align-items:center;gap:5px}
+.item-card{background:#fffdf8;border:1.3px solid #c8dfe6;border-radius:12px;padding:11px 12px;display:flex;align-items:stretch;gap:10px;margin-bottom:8px;box-shadow:0 1px 6px rgba(143,184,200,.08)}
+.item-card.partial{background:#fff6ec;border-color:#f0d8b0}
+.item-card.done{}
+.chk{width:22px;height:22px;flex-shrink:0;cursor:pointer;margin-top:2px;accent-color:#8fb8c8;align-self:flex-start}
+.img-slot{width:64px;height:64px;flex-shrink:0;border-radius:10px;overflow:hidden;background:#e3eef2;border:1px solid #d4e6ec;display:flex;align-items:center;justify-content:center;align-self:flex-start}
+.img-slot img{width:100%;height:100%;object-fit:cover}
+.img-slot-empty{font-size:24px;opacity:.35;color:#5a8a9c}
+.item-info{flex:1;min-width:0}
+.item-name{font-size:14px;font-weight:700;color:#1e3a44;word-break:break-all}
+.item-name.done{}
+.item-qty{font-size:14px;font-weight:700;color:#1e3a44;margin-top:1px}
+.item-qty.done{}
+.item-meta{font-size:12px;color:#5a8a9c;margin-top:4px;display:flex;flex-wrap:wrap;gap:4px;align-items:center}
+.icon-btn{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border:1px solid #e8f0f2;border-radius:8px;background:transparent;cursor:pointer;color:#a8c4cc;font-size:16px;flex-shrink:0}
+.icon-btn:hover{background:#eef6f8;color:#5a8a9c}
+.actions-col{display:flex;flex-direction:column;align-items:center;flex-shrink:0;justify-content:space-between;gap:4px}
+.small-btn{font-size:11px;padding:4px 9px;border:none;border-radius:8px;background:#e3eef2;color:#5a8a9c;cursor:pointer;white-space:nowrap;font-weight:600}
+.small-btn:hover{background:#d4e6ec}
+.edit-btn{font-size:12px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4);color:#fff;cursor:pointer;white-space:nowrap;font-weight:700;min-width:48px;text-align:center;line-height:1.3}
+.edit-btn:hover{opacity:.85}
+.hold-btn{font-size:12px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4);color:#fff;cursor:pointer;white-space:nowrap;font-weight:700;min-width:48px;text-align:center;line-height:1.3}
+.hold-btn:hover{opacity:.85}
+.rebuy-btn{font-size:13px;padding:10px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#d4937a,#c47a5f);color:#fff;cursor:pointer;white-space:nowrap;font-weight:700;min-width:52px;text-align:center;line-height:1.3}
+.rebuy-btn:hover{opacity:.85}
+.revert-btn{font-size:11px;padding:4px 9px;border:none;border-radius:8px;background:#e3eef2;color:#5a8a9c;cursor:pointer;white-space:nowrap;font-weight:600}
+.revert-btn:hover{background:#d4e6ec}
+.cat-badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:600}
+.bc-kyozai{background:#d8e8ee;color:#3a7a92}
+.bc-shoumou{background:#d0e8d8;color:#1a6a40}
+.bc-kyushoku{background:#f0ddc8;color:#a3602a}
+.bc-cake{background:#f0ddd0;color:#a3603f}
+.bc-torig{background:#e6e2d4;color:#6a6858}
+.bc-diy{background:#c8e8dc;color:#0a6a50}
+.bc-zappi{background:#e2dce8;color:#5a4a70}
+.bc-fukuri{background:#fce8d8;color:#a35a20}
+.requester-tag{font-size:11px;padding:2px 8px;border-radius:20px;background:#f0e6d8;color:#9a7a55;font-weight:500}
+.qty-alert{font-size:12px;font-weight:700;color:#c0664a}
+.partial-badge{font-size:10px;padding:2px 8px;border-radius:20px;font-weight:700;background:#f0d8b0;color:#a3702a}
+.cat-select-inline{border:1px solid #c8dfe6;border-radius:8px;font-size:12px;padding:3px 6px;background:#fbf9f2;color:#2a4a55;width:auto}
+.empty{text-align:center;padding:36px 16px;color:#a8c4cc;font-size:13px}
+.empty-icon{font-size:36px;display:block;margin-bottom:8px}
+.url-link{font-size:11px;color:#6fa0b4;word-break:break-all;text-decoration:none}
+.url-link:hover{text-decoration:underline}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#8fb8c8;color:#fff;font-size:13px;padding:10px 22px;border-radius:20px;opacity:0;transition:opacity .3s;white-space:nowrap;pointer-events:none;z-index:200;box-shadow:0 4px 16px rgba(143,184,200,.35)}
+.toast.show{opacity:1}
+.err-banner{background:#fbe8e2;border:1px solid #e0b09c;border-radius:10px;padding:10px 14px;margin:10px 16px 0;font-size:13px;color:#a3502f;display:none}
+.modal-overlay{position:fixed;inset:0;background:rgba(42,74,85,.45);z-index:150;display:flex;align-items:flex-end;justify-content:center}
+.modal{background:#fffdf8;border-radius:20px 20px 0 0;padding:20px 16px 32px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto}
+.modal-title{font-size:15px;font-weight:700;color:#8fb8c8;margin-bottom:14px}
+.modal-close{float:right;background:none;border:none;font-size:20px;cursor:pointer;color:#a8c4cc;line-height:1}
+/* ドラムロールピッカー */
+.drum-wrap{display:flex;flex-direction:column;align-items:center;justify-content:center;margin:8px 0}
+.drum-unit-input{width:70px;border:1px solid #d4e6ec;border-radius:10px;padding:8px;font-size:15px;text-align:center;background:#fbf9f2;color:#2a4a55}
+.drum-picker{position:relative;width:240px;height:130px;overflow:hidden;border-radius:12px;border:1px solid #d4e6ec;background:#fbf9f2;cursor:grab;margin:0 auto}
+.drum-picker::before,.drum-picker::after{content:'';position:absolute;left:0;right:0;height:42px;z-index:2;pointer-events:none}
+.drum-picker::before{top:0;background:linear-gradient(to bottom,rgba(249,246,240,.95),rgba(249,246,240,0))}
+.drum-picker::after{bottom:0;background:linear-gradient(to top,rgba(249,246,240,.95),rgba(249,246,240,0))}
+.drum-highlight{position:absolute;top:50%;left:0;right:0;height:42px;transform:translateY(-50%);border-top:2px solid #8fb8c8;border-bottom:2px solid #8fb8c8;border-radius:4px;pointer-events:none;z-index:1}
+.drum-list{position:absolute;top:0;left:0;right:0;transition:transform .15s cubic-bezier(.25,.46,.45,.94)}
+.drum-item{height:42px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:700;color:#a8c4cc;user-select:none}
+.drum-item.selected{color:#8fb8c8;font-size:26px}
+.drum-label{font-size:12px;color:#5a8a9c;text-align:center;margin-top:2px}
+/* 画像拡大ライトボックス */
+.lightbox{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:300;display:flex;align-items:center;justify-content:center;cursor:pointer;animation:lb-in .2s ease}
+@keyframes lb-in{from{opacity:0}to{opacity:1}}
+.lightbox img{max-width:92vw;max-height:88vh;border-radius:12px;box-shadow:0 8px 40px rgba(0,0,0,.5);object-fit:contain;transition:transform .05s linear;will-change:transform}
+.lightbox-close{position:absolute;top:16px;right:16px;width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,.2);color:#fff;font-size:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;border:1px solid rgba(255,255,255,.3)}
 
-const COLS = ['id','requester','name','qty','cat','place','url','memo','img','created','boughtAt','heldAt','requestedQty','boughtQty','garden','folder','partial','imgFull','orderedAt'];
-const USUAL_COLS = ['id','name','qty','cat','place','memo','img','garden','folder','order','imgFull'];
+/* 園選択オーバーレイ */
+.garden-overlay{position:fixed;inset:0;background:#f9f6f0;z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:32px 24px}
+.garden-overlay h2{font-size:20px;font-weight:700;color:#2a4a55;margin-bottom:8px;text-align:center}
+.garden-overlay p{font-size:13px;color:#5a8a9c;margin-bottom:32px;text-align:center}
+.garden-btn{width:100%;max-width:340px;padding:16px;margin-bottom:12px;border:2px solid #d4e6ec;border-radius:16px;background:#fff;font-size:16px;font-weight:600;color:#2a4a55;cursor:pointer;text-align:left;display:flex;align-items:center;gap:12px;box-shadow:0 2px 8px rgba(143,184,200,.1);transition:all .15s}
+.garden-btn:hover{border-color:#8fb8c8;background:#eef6f8;transform:translateX(4px)}
+.garden-btn .g-icon{font-size:24px}
+.garden-badge{display:inline-block;font-size:11px;padding:2px 10px;border-radius:20px;background:#e3eef2;color:#5a8a9c;font-weight:600;margin-left:8px;vertical-align:middle}
 
-function getSheet(name) {
-  let sh = SS.getSheetByName(name);
-  if (!sh) {
-    sh = SS.insertSheet(name);
-    if (['pending','done','hold'].includes(name)) {
-      sh.appendRow(COLS);
-      sh.setFrozenRows(1);
-    }
-    if (name === 'masters') {
-      sh.appendRow(['type','value','garden','order']);
-      sh.setFrozenRows(1);
-    }
-    if (name === 'folders') {
-      sh.appendRow(['id','name','garden','created','order']);
-      sh.setFrozenRows(1);
-    }
-    if (name === 'usualItems') {
-      sh.appendRow(USUAL_COLS);
-      sh.setFrozenRows(1);
-    }
-    if (name === 'images') {
-      sh.appendRow(['imgId','seq','chunk']);
-      sh.setFrozenRows(1);
-    }
+/* フォルダタブ */
+.folder-bar{display:flex;gap:6px;padding:8px 16px 0;overflow-x:auto;scrollbar-width:none;align-items:center}
+.folder-bar::-webkit-scrollbar{display:none}
+.folder-chip{font-size:12px;padding:5px 14px;border-radius:20px;border:none;cursor:pointer;white-space:nowrap;flex-shrink:0;font-weight:500;background:#d4e6ee;color:#5a8a9c}
+.folder-chip.active{background:#8fb8c8;color:#fff;font-weight:700}
+.folder-chip.add-btn{background:#fff;border:1.5px dashed #8fb8c8;color:#5a8a9c}
+.folder-chip.add-btn:hover{background:#eef6f8}
+.folder-del{font-size:10px;margin-left:4px;opacity:.7;cursor:pointer}
+.folder-del:hover{opacity:1}
+
+.action-bar{display:flex;gap:6px;padding:8px 16px;align-items:center;background:#d4e6ee;border-bottom:1px solid #b8d4e4;flex-wrap:wrap}
+.action-bar-btn{font-size:12px;padding:5px 14px;border:none;border-radius:20px;cursor:pointer;font-weight:600;white-space:nowrap}
+.sel-count{font-size:12px;color:#2a4a55;font-weight:600;flex:1}
+.csv-btn{background:#e3eef2;color:#3a7a9c;border:1px solid #b8d4e4}
+.csv-btn:hover{background:#d4e6ee}
+.move-folder-btn{background:#e3eef2;color:#3a7a9c;border:1px solid #b8d4e4}
+.move-folder-btn:hover{background:#d4e6ee}
+.clear-sel-btn{background:#fff;color:#5a8a9c;border:1px solid #b8d4e4}
+.clear-sel-btn:hover{background:#eef6f8}
+.buy-btn{font-size:13px;padding:26px 10px;border:none;border-radius:10px;background:linear-gradient(135deg,#e88fa8,#d4607a);color:#fff;cursor:pointer;font-weight:700;text-align:center;line-height:1.4;width:48px;display:flex;align-items:center;justify-content:center}
+.buy-btn:hover{opacity:.85}
+
+.img-col{display:flex;flex-direction:column;align-items:center;gap:8px;flex-shrink:0}
+
+.master-row{display:flex;align-items:center;justify-content:space-between;padding:8px 4px;border-bottom:1px solid #e8f0f2;background:#fffdf8}
+.master-row.dragging{opacity:.6;background:#eef6f8;box-shadow:0 4px 12px rgba(143,184,200,.3);border-radius:8px;z-index:10;position:relative}
+.master-row-left{display:flex;align-items:center;gap:8px}
+.drag-handle{cursor:grab;color:#c8dfe6;font-size:16px;padding:4px;touch-action:none}
+.drag-handle:active{cursor:grabbing}
+
+.pull-refresh-indicator{position:fixed;top:0;left:50%;transform:translateX(-50%) translateY(-50px);
+  background:#fff;color:#5a8a9c;font-size:12px;font-weight:600;padding:8px 18px;border-radius:20px;
+  box-shadow:0 2px 10px rgba(143,184,200,.3);z-index:400;opacity:0;transition:none;display:flex;align-items:center;gap:6px;white-space:nowrap}
+.pull-refresh-indicator .spin{width:14px;height:14px;border:2px solid #d4e6ec;border-top-color:#8fb8c8;border-radius:50%;display:inline-block}
+.pull-refresh-indicator .spin.active{animation:spin .7s linear infinite}
+
+.item-card.ordered{background:#e2f4ec;border:2px solid #3f9a78}
+.ordered-badge{display:inline-block;font-size:13px;font-weight:700;color:#fff;background:#2f8f6c;border-radius:8px;padding:3px 10px;margin-bottom:4px}
+.ordered-date{font-size:11px;font-weight:700;color:#2f7f60;margin-top:3px}
+.buy-btn.order{background:linear-gradient(135deg,#f0b860,#d9963a)}
+.buy-btn.receive{background:linear-gradient(135deg,#5fb893,#3f9a78)}
+.net-toggle{font-size:11px;padding:3px 8px;border-radius:20px;border:1px solid #c8dfe6;background:#fff;color:#7a98a2;cursor:pointer;white-space:nowrap}
+.net-toggle.on{background:#e2f4ec;border-color:#3f9a78;color:#2f7f60;font-weight:700}
+.net-toggle:disabled{cursor:default}
+.folder-count{display:inline-block;margin-left:5px;font-size:10px;font-weight:700;color:#5a8a9c;background:rgba(255,255,255,.7);border-radius:10px;padding:0 6px;line-height:16px;vertical-align:middle}
+.folder-chip.active .folder-count{color:#3a7a9c;background:rgba(255,255,255,.9)}
+</style>
+</head>
+<body>
+<div id="garden-overlay" class="garden-overlay" style="display:none">
+  <div style="font-size:48px;margin-bottom:16px">🛒</div>
+  <h2>買出しリクエスト</h2>
+  <p>使用する園を選択してください</p>
+  <button class="garden-btn" onclick="selectGarden('西新こども保育園')"><span class="g-icon">🌸</span>西新こども保育園</button>
+  <button class="garden-btn" onclick="selectGarden('原こども保育園')"><span class="g-icon">🌿</span>原こども保育園</button>
+  <button class="garden-btn" onclick="selectGarden('たの津こども保育園')"><span class="g-icon">🌊</span>たの津こども保育園</button>
+  <button class="garden-btn" onclick="selectGarden('ちくし野こども保育園')"><span class="g-icon">🌾</span>ちくし野こども保育園</button>
+</div>
+<div class="pull-refresh-indicator" id="pull-refresh-indicator"><span class="spin" id="pull-refresh-spin"></span><span id="pull-refresh-text">引っ張って更新</span></div>
+<div class="app">
+  <div class="header">
+    <div class="header-left">
+      <button class="header-side-btn" id="staff-btn" onclick="goStaff()">リクエスト画面</button>
+    </div>
+    <div class="header-garden" onclick="changeGarden()">
+      <div id="header-garden">園を選択してください</div>
+      <div class="header-version" id="header-version" onclick="checkVersionNow(event)"></div>
+    </div>
+    <div class="header-right">
+      <button class="mode-btn" id="mode-toggle" onclick="goAdmin()">買出し画面</button>
+    </div>
+  </div>
+  <div id="err-banner" class="err-banner"></div>
+  <div id="staff-view"></div>
+  <div id="admin-view" style="display:none"></div>
+  <div id="modal-container"></div>
+  <div class="toast" id="toast"></div>
+  <div class="loading-overlay" id="loading" style="display:none">
+    <div class="spinner"></div>
+    <div class="loading-text" id="loading-text">読み込み中…</div>
+  </div>
+</div>
+
+<script>
+const APP_VERSION='2026-10-31-03'; // 更新時にこの値を変えると新バージョン検知に使えます
+const GAS_URL='https://script.google.com/macros/s/AKfycbygPEd4lQT2YPtNSolSbp7HhBD7ATbXzUrWU0HCBsSsY-jKUAP6w72K_kXU2yGeRkmkWQ/exec';
+let currentGarden=localStorage.getItem('kaidashi_garden')||'';
+let folders=[];
+let selectedItems=new Set(); // 選択中のアイテムID
+let currentFolder=''; // ''=通常（全フォルダ外）、'all'=全て表示、フォルダID=特定フォルダ
+const CATS=[
+  {id:'kyozai',label:'保育教材費'},
+  {id:'shoumou',label:'消耗品'},
+  {id:'kyushoku',label:'給食費'},
+  {id:'cake',label:'誕生日ケーキ'},
+  {id:'torig',label:'トリグ（お米）'},
+  {id:'diy',label:'DIY'},
+  {id:'fukuri',label:'福利厚生費'},
+  {id:'zappi',label:'雑費'},
+];
+const DEFAULT_PLACES=['ダイソー','セリア','ドラッグストア','ホームセンター','文房具店','Amazon','ネット注文'];
+const DEFAULT_NET_PLACES=['Amazon','ネット注文']; // 常にネット注文扱いの店
+
+let pending=[],done=[],masterRequesters=[],masterPlaces=[],masterNetPlaces=[];
+let mode='staff',staffTab='request',adminTab='pending';
+let sortKey1='place',sortKey2='cat';
+let hold=[];
+let holdSort1='date',holdSort2='none';
+let staffListSort1='date',staffListSort2='none';
+let usualItems=[];
+let usualSort1='place',usualSort2='none';
+let doneSort1='date',doneSort2='none';
+let filterCat='all',filterPlace='all';
+
+/* ── ローディング ─── */
+function showLoading(msg='処理中…'){document.getElementById('loading-text').textContent=msg;document.getElementById('loading').style.display='flex';}
+function hideLoading(){document.getElementById('loading').style.display='none';}
+function showErr(msg){const b=document.getElementById('err-banner');b.textContent='!! '+msg;b.style.display='block';setTimeout(()=>b.style.display='none',6000);}
+function showGardenOverlay(){
+  document.getElementById('garden-overlay').style.display='flex';
+}
+function hideGardenOverlay(){
+  document.getElementById('garden-overlay').style.display='none';
+}
+function selectGarden(name){
+  const prev=currentGarden;
+  currentGarden=name;
+  localStorage.setItem('kaidashi_garden',name);
+  hideGardenOverlay();
+  updateGardenHeader();
+  // 園が変わったらデータを再読み込み
+  if(prev!==name){
+    pending=[];done=[];hold=[];masterRequesters=[];masterPlaces=[];masterNetPlaces=[];
+    staffTab='request';adminTab='pending';
+    loadAllFast().then(fromCache=>{
+      rerenderKeepingForm();
+      if(fromCache)loadAll(true).then(changed=>{if(changed)rerenderKeepingForm();});
+    });
   }
-  return sh;
+}
+function updateGardenHeader(){
+  const el=document.getElementById('header-garden');
+  if(el) el.textContent=currentGarden||'園を選択してください';
+  const ver=document.getElementById('header-version');
+  if(ver) ver.textContent='ver '+APP_VERSION;
+  const staffBtn=document.getElementById('staff-btn');
+  const adminBtn=document.getElementById('mode-toggle');
+  if(staffBtn){
+    staffBtn.classList.toggle('active', mode==='staff');
+  }
+  if(adminBtn){
+    adminBtn.classList.toggle('active', mode==='admin');
+  }
+}
+function changeGarden(){
+  showGardenOverlay();
 }
 
-function doGet(e) {
-  const action = e.parameter.action;
-  const garden = e.parameter.garden || '';
-  let result;
-  if (action === 'getAll') {
-    result = {
-      pending: sheetToArray('pending', garden),
-      done:    sheetToArray('done',    garden),
-      hold:    sheetToArray('hold',    garden),
-      masters: getMasters(garden),
-      folders: getFolders(garden),
-      usualItems: getUsualItems(garden)
-    };
-  } else if (action === 'getImage') {
-    result = getImage(e.parameter.id);
-  } else if (action === 'getItemImg') {
-    result = getItemImg(e.parameter.sheet, e.parameter.id);
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2400);}
+
+/* ── API ─── */
+async function apiGet(){
+  const res=await fetch(GAS_URL+'?action=getAll&garden='+encodeURIComponent(currentGarden)+'&t='+Date.now(),{redirect:'follow'});
+  return JSON.parse(await res.text());
+}
+async function apiPost(payload){
+  const res=await fetch(GAS_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow'});
+  const text=await res.text();
+  try{return JSON.parse(text);}catch(e){console.error('Parse error:',text);throw new Error('レスポンスの解析に失敗');}
+}
+function applyData(d){
+  pending=d.pending||[];done=d.done||[];hold=d.hold||[];folders=d.folders||[];usualItems=d.usualItems||[];
+  masterRequesters=d.masters?.requesters||[];masterPlaces=d.masters?.places||[];masterNetPlaces=d.masters?.netPlaces||[];
+}
+// 前回取得したデータを園ごとに端末へ保存し、次回の起動時にすぐ表示する
+const DATA_CACHE_PREFIX='kaidashi_cache_v1:';
+function saveDataCache(garden,d){
+  try{localStorage.setItem(DATA_CACHE_PREFIX+garden,typeof d==='string'?d:JSON.stringify(d));}
+  catch(e){try{localStorage.removeItem(DATA_CACHE_PREFIX+garden);}catch(e2){}}
+}
+function loadDataCache(garden){
+  try{const s=localStorage.getItem(DATA_CACHE_PREFIX+garden);return s?JSON.parse(s):null;}
+  catch(e){return null;}
+}
+async function loadAll(silent=false){
+  if(!currentGarden)return; // 園が未選択のときは全園分を取りに行かない
+  const garden=currentGarden;
+  if(!silent)showLoading('データを読み込み中…');
+  try{
+    const d=await apiGet();
+    if(garden!==currentGarden)return false; // 読み込み中に園が切り替わった
+    const json=JSON.stringify(d);
+    let changed=true;
+    try{changed=localStorage.getItem(DATA_CACHE_PREFIX+garden)!==json;}catch(e){}
+    applyData(d);
+    if(changed)saveDataCache(garden,json);
+    return changed;
+  }catch(e){console.error(e);if(!silent)showErr('読み込み失敗: '+e.message);return false;}
+  finally{if(!silent)hideLoading();renderModeBtn();}
+}
+// 保存済みデータがあれば即表示して裏で最新化、無ければ通常どおり読み込み画面を出す
+async function loadAllFast(){
+  const cached=loadDataCache(currentGarden);
+  if(!cached){await loadAll();return false;}
+  applyData(cached);
+  renderModeBtn();
+  return true;
+}
+function rerenderKeepingForm(){
+  if(mode==='staff'){
+    const preserved=captureRequestFormState();
+    renderStaff();
+    restoreRequestFormState(preserved);
+  }else renderAdmin();
+}
+
+/* ── ユーティリティ ─── */
+function getCatLabel(id){const c=CATS.find(c=>c.id===id);return c?c.label:id}
+function getCatClass(id){return'bc-'+(id||'zappi')}
+function allPlaces(){return[...masterPlaces,...DEFAULT_PLACES.filter(p=>!masterPlaces.includes(p))]}
+function esc(s){if(!s)return'';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function fmtDate(s){
+  if(!s)return'';
+  const d=new Date(s);
+  if(isNaN(d.getTime())){
+    // "2026/5/22"や"2026年5月22日"形式をパース
+    const m=String(s).match(/(\d{4})[^\d](\d{1,2})[^\d](\d{1,2})/);
+    if(!m)return s;
+    const d2=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));
+    if(isNaN(d2.getTime()))return s;
+    return d2.toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+  }
+  return d.toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+}
+function shortUrl(u){try{const x=new URL(u);return x.hostname+(x.pathname.length>1?x.pathname.slice(0,20)+'…':'');}catch{return String(u).slice(0,28)+'…'}}
+
+/* ── モード切替 ─── */
+function renderModeBtn(){
+  const btn=document.getElementById('mode-toggle');
+  if(!btn)return;
+  if(mode==='staff'){
+    btn.innerHTML=`買出し画面${pending.length>0?` <span style="background:#e05a7a;color:#fff;border-radius:20px;font-size:11px;padding:1px 7px;font-weight:700;margin-left:2px">${pending.length}</span>`:''}`;
   } else {
-    result = { error: 'unknown action' };
+    btn.innerHTML='買出し画面';
   }
-  return ContentService
-    .createTextOutput(JSON.stringify(result))
-    .setMimeType(ContentService.MimeType.JSON);
+  updateGardenHeader();
+}
+function goStaff(){
+  if(mode==='staff')return;
+  mode='staff';
+  document.getElementById('staff-view').style.display='block';
+  document.getElementById('admin-view').style.display='none';
+  updateGardenHeader();
+  renderStaff();
+  loadAll(true).then(()=>{
+    const preserved=captureRequestFormState();
+    renderStaff();
+    restoreRequestFormState(preserved);
+  });
+}
+function goAdmin(){
+  if(mode==='admin')return;
+  mode='admin';
+  document.getElementById('staff-view').style.display='none';
+  document.getElementById('admin-view').style.display='block';
+  updateGardenHeader();
+  renderAdmin();
+  loadAll(true).then(()=>renderAdmin());
+}
+function toggleMode(){
+  if(mode==='staff') goAdmin(); else goStaff();
 }
 
-function doPost(e) {
-  try {
-    const data = JSON.parse(e.postData.contents);
-    const action = data.action;
-    let result = { ok: true };
+/* ── 再購入 ─── */
+function rebuyItem(id){
+  const src=done.find(i=>i.id===id);
+  if(!src)return;
+  openRebuyModal(src);
+}
 
-    if (action === 'addPending') {
-      appendItem('pending', data.item);
-      saveMaster('requester', data.item.requester, data.item.garden||'');
-      if (data.item.place) saveMaster('place', data.item.place, data.item.garden||'');
+/* ── 経費更新 ─── */
+async function updateCat(id,newCat){
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const oldCat=pending[idx].cat;
+  pending[idx]={...pending[idx],cat:newCat};
+  renderAdmin();
+  try{await apiPost({action:'updateCat',id:String(id),cat:newCat});}
+  catch(e){pending[idx]={...pending[idx],cat:oldCat};renderAdmin();showErr('更新失敗: '+e.message);}
+}
 
-    } else if (action === 'moveToDone') {
-      const extra = { boughtAt: data.boughtAt };
-      if (data.requestedQty) extra.requestedQty = data.requestedQty;
-      if (data.boughtQty)    extra.boughtQty    = data.boughtQty;
-      moveRow('pending', 'done', data.id, extra);
+function toggleSelect(id,checked){
+  if(checked) selectedItems.add(id);
+  else selectedItems.delete(id);
+  // アクションバーだけ再描画
+  const ab=document.querySelector('.action-bar');
+  const container=ab?ab.parentElement:null;
+  if(adminTab==='pending') renderAdmin();
+}
 
-    } else if (action === 'partialBuy') {
-      const src = findRow('pending', data.id);
-      if (src) {
-        src.boughtAt     = data.boughtAt;
-        src.requestedQty = data.requestedQty;
-        src.boughtQty    = data.boughtQty;
-        src.qty          = data.boughtQty;
-        appendItem('done', src);
-        updateItemFields('pending', data.id, { qty: data.remainingQty, partial: '1' });
-      }
+function clearSelection(){
+  selectedItems.clear();
+  renderAdmin();
+}
 
-    } else if (action === 'moveToHold') {
-      moveRow('pending', 'hold', data.id, { heldAt: data.heldAt });
+async function openMoveFolderDialog(){
+  if(selectedItems.size===0){showToast('アイテムを選択してください');return;}
+  if(folders.length===0){showToast('フォルダがありません。先にフォルダを作成してください');return;}
+  const overlay=document.createElement('div');
+  overlay.className='modal-overlay';
+  overlay.addEventListener('click',e=>{if(e.target===overlay)closeModal();});
+  const modal=document.createElement('div');
+  modal.className='modal';
+  const closeBtn=document.createElement('button');
+  closeBtn.className='modal-close';closeBtn.textContent='✕';
+  closeBtn.onclick=closeModal;
+  const title=document.createElement('div');
+  title.className='modal-title';title.textContent='📁 フォルダに移動';
+  const sub=document.createElement('div');
+  sub.style.cssText='font-size:13px;color:#5a8a9c;margin-bottom:14px';
+  sub.textContent=selectedItems.size+'件のアイテムを移動';
+  const list=document.createElement('div');
+  list.style.cssText='display:flex;flex-direction:column;gap:8px';
+  // 通常ボタン
+  const noneBtn=document.createElement('button');
+  noneBtn.style.cssText='padding:12px;border:1px solid #c8dfe6;border-radius:10px;background:#fff;font-size:14px;cursor:pointer;text-align:left';
+  noneBtn.textContent='📄 通常（フォルダなし）';
+  noneBtn.onclick=()=>moveToFolderExec('');
+  list.appendChild(noneBtn);
+  // フォルダボタン
+  folders.forEach(f=>{
+    const btn=document.createElement('button');
+    btn.style.cssText='padding:12px;border:1px solid #c8dfe6;border-radius:10px;background:#fff;font-size:14px;cursor:pointer;text-align:left';
+    btn.textContent='📁 '+f.name;
+    btn.onclick=()=>moveToFolderExec(f.id);
+    list.appendChild(btn);
+  });
+  modal.appendChild(closeBtn);modal.appendChild(title);modal.appendChild(sub);modal.appendChild(list);
+  overlay.appendChild(modal);
+  document.getElementById('modal-container').innerHTML='';
+  document.getElementById('modal-container').appendChild(overlay);
+}
 
-    } else if (action === 'holdToPublic') {
-      moveRow('hold', 'pending', data.id, {});
-
-    } else if (action === 'doneToPublic') {
-      moveRow('done', 'pending', data.id, {});
-
-    } else if (action === 'deletePending') {
-      deleteItemWithImage('pending', data.id);
-
-    } else if (action === 'deleteDone') {
-      deleteItemWithImage('done', data.id);
-
-    } else if (action === 'deleteHold') {
-      deleteItemWithImage('hold', data.id);
-
-    } else if (action === 'rebuy') {
-      const src = findRow('done', data.id);
-      if (src) {
-        src.id  = String(Date.now());
-        src.qty = '';
-        src.requestedQty = '';
-        src.boughtQty    = '';
-        src.created = new Date().toLocaleDateString('ja-JP');
-        delete src.boughtAt;
-        delete src.orderedAt;
-        appendItem('pending', src);
-      }
-
-    } else if (action === 'updateItem') {
-      const sheet = data.sheet || 'pending';
-      updateItemWithImage(sheet, data.id, data.fields);
-      if (data.fields && data.fields.place) {
-        const item = findRow(sheet, data.id);
-        saveMaster('place', data.fields.place, item?.garden||'');
-      }
-
-    } else if (action === 'updateCat') {
-      updateItemFields('pending', data.id, { cat: data.cat });
-
-    } else if (action === 'deleteMaster') {
-      deleteMasterRow(data.masterType, data.value, data.garden||'');
-
-    } else if (action === 'saveMasterDirect') {
-      saveMaster(data.masterType, data.value, data.garden||'');
-
-    } else if (action === 'reorderMaster') {
-      reorderMaster(data.masterType, data.garden||'', data.values);
-
-    } else if (action === 'addFolder') {
-      addFolder(data.name, data.garden||'');
-
-    } else if (action === 'deleteFolder') {
-      deleteFolder(data.folderId, data.garden||'');
-      resetFolderItems('pending', data.folderId);
-      resetFolderItems('done', data.folderId);
-      resetFolderItems('hold', data.folderId);
-      resetFolderItems('usualItems', data.folderId);
-
-    } else if (action === 'reorderFolders') {
-      reorderFolders(data.garden||'', data.folderIds);
-
-    } else if (action === 'moveToFolder') {
-      updateItemFields(data.sheet||'pending', data.id, { folder: data.folderId });
-
-    } else if (action === 'addUsualItem') {
-      appendUsualItem(data.item);
-
-    } else if (action === 'deleteUsualItem') {
-      deleteItemWithImage('usualItems', data.id);
-
-    } else if (action === 'updateUsualItem') {
-      updateItemWithImage('usualItems', data.id, data.fields);
-
-    } else if (action === 'saveImage') {
-      result = saveImage(data.id, data.data);
-
-    } else if (action === 'deleteImage') {
-      result = deleteImage(data.id);
-
-    } else {
-      result = { error: 'unknown action' };
+async function moveToFolderExec(folderId){
+  closeModal();
+  const ids=[...selectedItems];
+  // 楽観的更新
+  ids.forEach(id=>{
+    const item=pending.find(i=>i.id===id);
+    if(item)item.folder=folderId;
+  });
+  selectedItems.clear();
+  renderAdmin();
+  showToast(`${ids.length}件を移動しました`);
+  try{
+    for(const id of ids){
+      const res=await apiPost({action:'updateItem',id:String(id),fields:{folder:folderId},sheet:'pending'});
+      console.log('folder move result:',res);
     }
-
-    return ContentService
-      .createTextOutput(JSON.stringify(result))
-      .setMimeType(ContentService.MimeType.JSON);
-
-  } catch(err) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ ok: false, error: err.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+  }catch(e){
+    console.error('folder move error:',e);
+    showErr('移動失敗: '+e.message);
+    loadAll().then(()=>renderAdmin());
   }
 }
 
-function sheetToArray(sheetName, garden) {
-  const sh = getSheet(sheetName);
-  const rows = sh.getDataRange().getValues();
-  if (rows.length <= 1) return [];
-  const headers = rows[0];
-  const gardenCol = headers.indexOf('garden');
-  return rows.slice(1)
-    .filter(r => {
-      if (!garden) return true;
-      const g = gardenCol >= 0 ? String(r[gardenCol] ?? '') : '';
-      return g === garden ;
-    })
-    .map(r => {
-      const obj = {};
-      headers.forEach((h, i) => { obj[h] = String(r[i] ?? ''); });
-      return slimImg(obj);
-    });
+function exportCSV(){
+  const items=filterByFolder(pending);
+  if(!items.length){showToast('出力するアイテムがありません');return;}
+  const folderName=currentFolder==='all'?'すべて':currentFolder===''?'通常':getFolderName_safe();
+  const headers=['品名','個数','経費','購入場所','依頼者','メモ','URL','依頼日'];
+  const NL=String.fromCharCode(10);
+  const q=v=>'"'+String(v||'').replace(/"/g,'""')+'"';
+  const headerRow=headers.map(q).join(',');
+  const dataRows=items.map(i=>[i.name,i.qty,getCatLabel(i.cat||'zappi'),i.place,i.requester,i.memo,i.url,fmtDate(i.created)].map(q).join(','));
+  const csv='\uFEFF'+[headerRow,...dataRows].join(NL);
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url;
+  const d=new Date().toLocaleDateString('ja-JP');
+  a.download='買出しリスト_'+currentGarden+'_'+folderName+'_'+d+'.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+  showToast('CSVをダウンロードしました');
 }
-
-// 旧方式の大きな画像は一覧に含めない（起動を軽くするため）。拡大時に getItemImg で個別に取得する
-const THUMB_MAX = 12000;
-function slimImg(obj) {
-  if (obj.img && obj.img.length > THUMB_MAX) {
-    obj.img = '';
-    obj.imgBig = '1';
+function getFolderName_safe(){
+  if(!currentFolder)return '通常';
+  const f=folders.find(f=>f.id===currentFolder);
+  return f?f.name:'不明';
+}
+function onPlaceSelectChange(id){
+  const sel=document.getElementById('ps-'+id);
+  const inp=document.getElementById('pn-'+id);
+  if(!sel||!inp)return;
+  if(sel.value==='__new__'){
+    inp.style.display='block';
+    sel.style.display='none';
+    inp.focus();
+  } else {
+    updatePlace(id,sel.value);
   }
-  return obj;
 }
-
-function getItemImg(sheetName, id) {
-  if (!IMG_REF_SHEETS.includes(sheetName)) return { ok: false, error: 'bad sheet' };
-  const item = findRow(sheetName, id);
-  if (!item || !item.img) return { ok: false, error: 'not found' };
-  return { ok: true, data: item.img };
-}
-
-// 1行目の見出しに足りない列があれば右端に追加し、見出し配列を返す
-function ensureHeaders(sh, cols) {
-  const lastCol = sh.getLastColumn();
-  const headers = lastCol > 0 ? sh.getRange(1, 1, 1, lastCol).getValues()[0].map(String) : [];
-  const missing = cols.filter(c => !headers.includes(c));
-  if (missing.length) {
-    sh.getRange(1, headers.length + 1, 1, missing.length).setValues([missing]);
-    headers.push(...missing);
-  }
-  return headers;
-}
-
-// 見出し名に合わせて1行追加（列の並び順に依存しない）
-function appendByHeaders(sh, cols, item) {
-  const headers = ensureHeaders(sh, cols);
-  sh.appendRow(headers.map(h => item[h] ?? ''));
-}
-
-function appendItem(sheetName, item) {
-  const sh = getSheet(sheetName);
-  if (!item.id) item.id = String(Date.now());
-  appendByHeaders(sh, COLS, item);
-}
-
-function findRow(sheetName, id) {
-  const sh = getSheet(sheetName);
-  const rows = sh.getDataRange().getValues();
-  const headers = rows[0];
-  const idCol = headers.indexOf('id');
-  for (let i = 1; i < rows.length; i++) {
-    if (String(rows[i][idCol]) === String(id)) {
-      const obj = {};
-      headers.forEach((h, j) => { obj[h] = String(rows[i][j] ?? ''); });
-      return obj;
-    }
-  }
-  return null;
-}
-
-function deleteRow(sheetName, id) {
-  const sh = getSheet(sheetName);
-  const rows = sh.getDataRange().getValues();
-  const idCol = rows[0].indexOf('id');
-  for (let i = rows.length - 1; i >= 1; i--) {
-    if (String(rows[i][idCol]) === String(id)) {
-      sh.deleteRow(i + 1);
-      break;
-    }
+function onPlaceNewBlur(id){
+  const inp=document.getElementById('pn-'+id);
+  const sel=document.getElementById('ps-'+id);
+  if(!inp)return;
+  const val=inp.value.trim();
+  if(val){
+    updatePlace(id,val);
+  } else {
+    // キャンセル：元に戻す
+    if(sel)sel.style.display='block';
+    inp.style.display='none';
   }
 }
 
-// アイテムを削除し、どこからも使われなくなった画像チャンクも削除
-function deleteItemWithImage(sheetName, id) {
-  const item = findRow(sheetName, id);
-  deleteRow(sheetName, id);
-  if (item && item.imgFull) deleteImage(item.imgFull);
+async function updatePlace(id,newPlace){
+  // pending・done・holdのどれかを探す
+  let arr=pending, arrName='pending';
+  let idx=pending.findIndex(i=>i.id===id);
+  if(idx<0){idx=done.findIndex(i=>i.id===id);arr=done;arrName='done';}
+  if(idx<0){idx=hold.findIndex(i=>i.id===id);arr=hold;arrName='hold';}
+  if(idx<0)return;
+  const oldPlace=arr[idx].place;
+  arr[idx]={...arr[idx],place:newPlace};
+  if(newPlace&&!allPlaces().includes(newPlace))masterPlaces.push(newPlace);
+  renderAdmin();
+  const action=arrName==='pending'?'updateItem':arrName==='done'?'updateDoneItem':'updateHoldItem';
+  try{await apiPost({action:'updateItem',id:String(id),fields:{place:newPlace},sheet:arrName});}
+  catch(e){arr[idx]={...arr[idx],place:oldPlace};renderAdmin();showErr('更新失敗: '+e.message);}
 }
 
-// 更新で画像が差し替え・削除されたら、古い画像チャンクを削除
-function updateItemWithImage(sheetName, id, fields) {
-  const before = (fields && 'imgFull' in fields) ? findRow(sheetName, id) : null;
-  updateItemFields(sheetName, id, fields);
-  if (before && before.imgFull && before.imgFull !== String(fields.imgFull || '')) {
-    deleteImage(before.imgFull);
-  }
+// カードのプルダウンからフォルダを1件ずつ変更
+async function updateFolder(id,sheet,folderId){
+  const arr={pending,done,hold}[sheet];
+  const idx=arr?arr.findIndex(i=>i.id===id):-1;
+  if(idx<0)return;
+  const oldFolder=arr[idx].folder||'';
+  arr[idx]={...arr[idx],folder:folderId};
+  renderAdmin();
+  showToast(`「${folderId?getFolderName(folderId):'通常'}」に移動しました`);
+  try{await apiPost({action:'updateItem',id:String(id),fields:{folder:folderId},sheet});}
+  catch(e){arr[idx]={...arr[idx],folder:oldFolder};renderAdmin();showErr('移動失敗: '+e.message);}
 }
 
-function moveRow(fromSheet, toSheet, id, extra = {}) {
-  const item = findRow(fromSheet, id);
-  if (!item) return;
-  Object.assign(item, extra);
-  appendItem(toSheet, item);
-  deleteRow(fromSheet, id);
+/* ════ 画像ヘルパー ════ */
+function setupImgArea(areaId,inputId,previewBoxId,previewImgId){
+  const area=document.getElementById(areaId);
+  const input=document.getElementById(inputId);
+  if(!area||!input)return;
+  area.addEventListener('click',()=>input.click());
+  area.addEventListener('dragover',e=>{e.preventDefault();area.classList.add('drag-over');});
+  area.addEventListener('dragleave',()=>area.classList.remove('drag-over'));
+  area.addEventListener('drop',e=>{e.preventDefault();area.classList.remove('drag-over');const f=e.dataTransfer.files[0];if(f)loadImgFile(f,previewBoxId,previewImgId);});
+  // クリップボードペースト（ページ全体で受け取る）
+  document.addEventListener('paste',e=>{
+    if(!document.getElementById(areaId))return;
+    const items=e.clipboardData?.items;
+    if(!items)return;
+    for(const item of items){if(item.type.startsWith('image/')){loadImgFile(item.getAsFile(),previewBoxId,previewImgId);break;}}
+  });
+  input.addEventListener('change',()=>{if(input.files[0])loadImgFile(input.files[0],previewBoxId,previewImgId);});
 }
-
-function updateItemFields(sheetName, id, fields) {
-  const sh = getSheet(sheetName);
-  if (fields && 'imgFull' in fields) ensureHeaders(sh, ['imgFull']);
-  if (fields && 'orderedAt' in fields) ensureHeaders(sh, ['orderedAt']);
-  const rows = sh.getDataRange().getValues();
-  const headers = rows[0];
-  const idCol = headers.indexOf('id');
-  for (let i = 1; i < rows.length; i++) {
-    if (String(rows[i][idCol]) === String(id)) {
-      Object.entries(fields).forEach(([key, val]) => {
-        const col = headers.indexOf(key);
-        if (col >= 0) sh.getRange(i + 1, col + 1).setValue(val);
+function loadImgFile(file,previewBoxId,previewImgId){
+  const reader=new FileReader();
+  reader.onload=e=>{
+    const src=e.target.result;
+    // サムネイル（カード一覧用・セルに直接保存）とフル画像（imagesシートに分割保存）を両方作る
+    compressImage(src,THUMB_STEPS,THUMB_MAX_CHARS,thumb=>{
+      compressImage(src,FULL_STEPS,FULL_MAX_CHARS,full=>{
+        const box=document.getElementById(previewBoxId);
+        const img=document.getElementById(previewImgId);
+        if(box&&img){img.src=thumb;img.dataset.full=full;img.dataset.fullId='';img.dataset.changed='1';box.style.display='block';}
       });
-      break;
-    }
-  }
-}
-
-function getMasters(garden) {
-  const sh = getSheet('masters');
-  const rows = sh.getDataRange().getValues();
-  if (rows.length <= 1) return { requesters: [], places: [], netPlaces: [] };
-  const headers = rows[0];
-  const gardenCol = headers.indexOf('garden');
-  const orderCol = headers.indexOf('order');
-  const requesterEntries = [], placeEntries = [], netEntries = [];
-  rows.slice(1).forEach(r => {
-    const g = gardenCol >= 0 ? String(r[gardenCol] ?? '') : '';
-    if (garden && g !== garden) return;
-    const ord = orderCol >= 0 && r[orderCol] !== '' ? Number(r[orderCol]) : 999999;
-    if (r[0] === 'requester' && r[1]) requesterEntries.push({ value: String(r[1]), order: ord });
-    if (r[0] === 'place'     && r[1]) placeEntries.push({ value: String(r[1]), order: ord });
-    if (r[0] === 'netPlace'  && r[1]) netEntries.push({ value: String(r[1]), order: ord });
-  });
-  const dedupe = (entries) => {
-    const seen = new Map();
-    entries.forEach(e => {
-      if (!seen.has(e.value) || seen.get(e.value) > e.order) seen.set(e.value, e.order);
     });
-    return [...seen.entries()]
-      .sort((a, b) => a[1] - b[1])
-      .map(([value]) => value);
   };
-  return { requesters: dedupe(requesterEntries), places: dedupe(placeEntries), netPlaces: dedupe(netEntries) };
+  reader.readAsDataURL(file);
 }
 
-function saveMaster(type, value, garden) {
-  if (!value || !garden) return; // マスタは必ず園ごとに持つ
-  const sh = getSheet('masters');
-  const rows = sh.getDataRange().getValues();
-  const headers = rows[0];
-  const gardenCol = headers.indexOf('garden');
-  const orderCol = headers.indexOf('order');
-  let maxOrder = -1;
-  let exists = false;
-  rows.slice(1).forEach(r => {
-    const g = gardenCol >= 0 ? String(r[gardenCol] ?? '') : '';
-    if (g !== (garden||'')) return;
-    if (r[0] === type) {
-      const ord = orderCol >= 0 && r[orderCol] !== '' ? Number(r[orderCol]) : 0;
-      if (ord > maxOrder) maxOrder = ord;
-      if (String(r[1]) === String(value)) exists = true;
-    }
+// サムネイル：長辺200px以下・6,000文字以内（カードの画像枠は64px角）
+const THUMB_MAX_CHARS=6000;
+const THUMB_STEPS=[[200,0.6],[180,0.55],[160,0.5],[140,0.45],[120,0.4],[100,0.35]];
+// 以前の大きなサムネイルを、起動のたびに少しずつ縮めて保存し直す（高画質版がある画像のみ）
+const THUMB_SHRINK_PER_LAUNCH=5;
+async function shrinkOldThumbs(){
+  const garden=currentGarden;
+  const targets=[];
+  Object.entries({pending,done,hold,usualItems}).forEach(([sheet,list])=>{
+    list.forEach(item=>{if(item.imgFull&&item.img&&item.img.length>THUMB_MAX_CHARS)targets.push({item,sheet});});
   });
-  if (!exists) sh.appendRow([type, value, garden||'', maxOrder + 1]);
-}
-
-function deleteMasterRow(type, value, garden) {
-  const sh = getSheet('masters');
-  const rows = sh.getDataRange().getValues();
-  const headers = rows[0];
-  const gardenCol = headers.indexOf('garden');
-  for (let i = rows.length - 1; i >= 1; i--) {
-    const g = gardenCol >= 0 ? String(rows[i][gardenCol] ?? '') : '';
-    if (String(rows[i][0]) === String(type) && String(rows[i][1]) === String(value) && g === (garden||'')) {
-      sh.deleteRow(i + 1);
+  try{
+    for(const {item,sheet} of targets.slice(0,THUMB_SHRINK_PER_LAUNCH)){
+      if(garden!==currentGarden)return;
+      const thumb=await new Promise(res=>compressImage(item.img,THUMB_STEPS,THUMB_MAX_CHARS,res));
+      if(thumb.length>=item.img.length)continue;
+      const fields={img:thumb};
+      await apiPost(sheet==='usualItems'
+        ?{action:'updateUsualItem',id:String(item.id),fields}
+        :{action:'updateItem',id:String(item.id),fields,sheet});
+      item.img=thumb;
+      document.querySelectorAll(`[data-thumb="${item.id}"]`).forEach(el=>{el.innerHTML=`<img src="${thumb}" alt="">`;});
     }
-  }
+  }catch(e){console.warn('サムネイルの縮小に失敗',e);}
 }
-
-// 手動実行用（1回だけ）：全園共通（園名なし）のマスタをなくす
-// 実際に使っていた園の項目として残してから削除する。どの園でも使っていない項目はログに出して消える
-function removeSharedMasters() {
-  const sh = getSheet('masters');
-  const rows = sh.getDataRange().getValues();
-  const headers = rows[0];
-  const gardenCol = headers.indexOf('garden');
-  const orderCol = headers.indexOf('order');
-  const rowGarden = r => String(r[gardenCol] ?? '');
-  const hideTypes = { requester: 'hideRequester', place: 'hidePlace' };
-
-  const items = [];
-  ['pending', 'done', 'hold', 'usualItems'].forEach(name => items.push(...sheetToArray(name, '')));
-  const usedIn = (type, value) => [...new Set(items
-    .filter(it => String(it[type] ?? '') === String(value) && it.garden)
-    .map(it => it.garden))];
-  const hasRow = (type, value, garden) => rows.slice(1).some(r =>
-    String(r[0]) === type && String(r[1]) === String(value) && rowGarden(r) === garden);
-
-  const removed = [];
-  rows.slice(1).forEach(r => {
-    if (rowGarden(r) !== '' || !hideTypes[r[0]]) return;
-    const gardens = usedIn(r[0], r[1]);
-    gardens.forEach(garden => {
-      if (hasRow(r[0], r[1], garden) || hasRow(hideTypes[r[0]], r[1], garden)) return;
-      sh.appendRow([r[0], r[1], garden, orderCol >= 0 ? r[orderCol] : '']);
-    });
-    if (!gardens.length) removed.push(r[0] + '：' + r[1]);
-  });
-
-  // 園名なしの行と、一時的に使っていた非表示の行を削除（下から消すので行番号はずれない）
-  let count = 0;
-  for (let i = rows.length - 1; i >= 1; i--) {
-    if (rowGarden(rows[i]) === '' || Object.values(hideTypes).includes(rows[i][0])) {
-      sh.deleteRow(i + 1);
-      count++;
-    }
-  }
-  Logger.log(count + '行を削除しました');
-  Logger.log('どの園でも使われていなかった項目：' + (removed.join('、') || 'なし'));
-}
-
-function reorderMaster(type, garden, values) {
-  const sh = getSheet('masters');
-  const rows = sh.getDataRange().getValues();
-  const headers = rows[0];
-  const gardenCol = headers.indexOf('garden');
-  let orderCol = headers.indexOf('order');
-  if (orderCol < 0) {
-    sh.getRange(1, headers.length + 1).setValue('order');
-    orderCol = headers.length;
-  }
-  const orderMap = {};
-  values.forEach((v, idx) => { orderMap[v] = idx; });
-  for (let i = 1; i < rows.length; i++) {
-    const g = gardenCol >= 0 ? String(rows[i][gardenCol] ?? '') : '';
-    if (g !== (garden||'')) continue;
-    if (String(rows[i][0]) !== type) continue;
-    const val = String(rows[i][1]);
-    if (val in orderMap) {
-      sh.getRange(i + 1, orderCol + 1).setValue(orderMap[val]);
-    }
-  }
-}
-
-function getFolders(garden) {
-  const sh = getSheet('folders');
-  const rows = sh.getDataRange().getValues();
-  if (rows.length <= 1) return [];
-  const headers = rows[0];
-  const gardenCol = headers.indexOf('garden');
-  const orderCol = headers.indexOf('order');
-  const list = rows.slice(1)
-    .filter(r => {
-      const g = gardenCol >= 0 ? String(r[gardenCol] ?? '') : '';
-      return !garden || g === garden || g === '';
-    })
-    .map(r => {
-      const obj = {};
-      headers.forEach((h, i) => { obj[h] = String(r[i] ?? ''); });
-      obj._order = orderCol >= 0 && r[orderCol] !== '' ? Number(r[orderCol]) : 999999;
-      return obj;
-    });
-  list.sort((a, b) => a._order - b._order);
-  list.forEach(o => delete o._order);
-  return list;
-}
-
-function addFolder(name, garden) {
-  const sh = getSheet('folders');
-  const rows = sh.getDataRange().getValues();
-  const headers = rows[0];
-  const gardenCol = headers.indexOf('garden');
-  const orderCol = headers.indexOf('order');
-  let maxOrder = -1;
-  rows.slice(1).forEach(r => {
-    const g = gardenCol >= 0 ? String(r[gardenCol] ?? '') : '';
-    if (g !== (garden||'')) return;
-    const ord = orderCol >= 0 && r[orderCol] !== '' ? Number(r[orderCol]) : 0;
-    if (ord > maxOrder) maxOrder = ord;
-  });
-  const id = String(Date.now());
-  sh.appendRow([id, name, garden, new Date().toLocaleDateString('ja-JP'), maxOrder + 1]);
-}
-
-function deleteFolder(folderId, garden) {
-  const sh = getSheet('folders');
-  const rows = sh.getDataRange().getValues();
-  const idCol = rows[0].indexOf('id');
-  for (let i = rows.length - 1; i >= 1; i--) {
-    if (String(rows[i][idCol]) === String(folderId)) {
-      sh.deleteRow(i + 1);
-      break;
-    }
-  }
-}
-
-function reorderFolders(garden, folderIds) {
-  const sh = getSheet('folders');
-  const rows = sh.getDataRange().getValues();
-  const headers = rows[0];
-  const gardenCol = headers.indexOf('garden');
-  const idCol = headers.indexOf('id');
-  let orderCol = headers.indexOf('order');
-  if (orderCol < 0) {
-    sh.getRange(1, headers.length + 1).setValue('order');
-    orderCol = headers.length;
-  }
-  const orderMap = {};
-  folderIds.forEach((id, idx) => { orderMap[id] = idx; });
-  for (let i = 1; i < rows.length; i++) {
-    const g = gardenCol >= 0 ? String(rows[i][gardenCol] ?? '') : '';
-    if (g !== (garden||'')) continue;
-    const id = String(rows[i][idCol]);
-    if (id in orderMap) {
-      sh.getRange(i + 1, orderCol + 1).setValue(orderMap[id]);
-    }
-  }
-}
-
-function resetFolderItems(sheetName, folderId) {
-  const sh = getSheet(sheetName);
-  const rows = sh.getDataRange().getValues();
-  const headers = rows[0];
-  const folderCol = headers.indexOf('folder');
-  if (folderCol < 0) return;
-  for (let i = 1; i < rows.length; i++) {
-    if (String(rows[i][folderCol]) === String(folderId)) {
-      sh.getRange(i + 1, folderCol + 1).setValue('');
-    }
-  }
-}
-
-/* ── いつものリクエスト（定番アイテム） ── */
-function getUsualItems(garden) {
-  const sh = getSheet('usualItems');
-  const rows = sh.getDataRange().getValues();
-  if (rows.length <= 1) return [];
-  const headers = rows[0];
-  const gardenCol = headers.indexOf('garden');
-  const orderCol = headers.indexOf('order');
-  const list = rows.slice(1)
-    .filter(r => {
-      const g = gardenCol >= 0 ? String(r[gardenCol] ?? '') : '';
-      return !garden || g === garden || g === '';
-    })
-    .map(r => {
-      const obj = {};
-      headers.forEach((h, i) => { obj[h] = String(r[i] ?? ''); });
-      obj._order = orderCol >= 0 && r[orderCol] !== '' ? Number(r[orderCol]) : 999999;
-      return slimImg(obj);
-    });
-  list.sort((a, b) => a._order - b._order);
-  list.forEach(o => delete o._order);
-  return list;
-}
-
-function appendUsualItem(item) {
-  const sh = getSheet('usualItems');
-  if (!item.id) item.id = String(Date.now());
-  appendByHeaders(sh, USUAL_COLS, item);
-}
-
-/* ── 画像の分割保存（imagesシート：imgId | seq | chunk） ── */
-const IMG_CHUNK = 40000;
-const IMG_REF_SHEETS = ['pending', 'done', 'hold', 'usualItems'];
-
-function imgRows(sh, id) {
-  if (!id || sh.getLastRow() < 2) return [];
-  return sh.getRange(2, 1, sh.getLastRow() - 1, 1)
-    .createTextFinder(String(id)).matchEntireCell(true).findAll()
-    .map(r => r.getRow());
-}
-
-function getImage(id) {
-  const sh = getSheet('images');
-  const rows = imgRows(sh, id);
-  if (!rows.length) return { ok: false, error: 'not found' };
-  const parts = rows.map(r => sh.getRange(r, 2, 1, 2).getValues()[0])
-    .sort((a, b) => Number(a[0]) - Number(b[0]))
-    .map(v => String(v[1]).replace(/^c:/, '')); // 保護用プレフィックスを外す
-  return { ok: true, data: parts.join('') };
-}
-
-function saveImage(id, data) {
-  if (!id || !data) return { ok: false, error: 'id/data required' };
-  const lock = LockService.getScriptLock();
-  lock.waitLock(20000);
-  try {
-    const sh = getSheet('images');
-    deleteImageRows(sh, id); // 同じIDが残っていたら上書き
-    const rows = [];
-    for (let i = 0, seq = 0; i < data.length; i += IMG_CHUNK, seq++) {
-      // base64が「+」「=」で始まると数式扱いされるため「c:」を付けて保存
-      rows.push([String(id), seq, 'c:' + data.slice(i, i + IMG_CHUNK)]);
-    }
-    sh.getRange(sh.getLastRow() + 1, 1, rows.length, 3).setValues(rows);
-    return { ok: true, id: id, chunks: rows.length };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-// どのアイテムからも参照されていなければ画像チャンクを削除
-function deleteImage(id) {
-  if (!id) return { ok: false, error: 'id required' };
-  if (isImageReferenced(id)) return { ok: true, deleted: false, reason: 'still referenced' };
-  const lock = LockService.getScriptLock();
-  lock.waitLock(20000);
-  try {
-    const n = deleteImageRows(getSheet('images'), id);
-    return { ok: true, deleted: n > 0 };
-  } finally {
-    lock.releaseLock();
-  }
-}
-
-function deleteImageRows(sh, id) {
-  const rows = imgRows(sh, id).sort((a, b) => b - a);
-  let i = 0;
-  while (i < rows.length) { // 連続した行はまとめて削除
-    let start = rows[i], count = 1;
-    while (i + count < rows.length && rows[i + count] === start - 1) { start--; count++; }
-    sh.deleteRows(start, count);
-    i += count;
-  }
-  return rows.length;
-}
-
-function isImageReferenced(id) {
-  return IMG_REF_SHEETS.some(name => {
-    const sh = SS.getSheetByName(name);
-    if (!sh || sh.getLastRow() < 2) return false;
-    const col = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].indexOf('imgFull') + 1;
-    if (!col) return false;
-    return !!sh.getRange(2, col, sh.getLastRow() - 1, 1)
-      .createTextFinder(String(id)).matchEntireCell(true).findNext();
-  });
-}
-
-// 手動実行用（1回だけ）：旧方式の大きな img を images シートへ移し、セルを空にする
-// 移した画像は imgFull から拡大表示でき、サムネイルは初めて拡大したときにアプリ側で作り直される
-function migrateLegacyImages() {
-  const imgSh = getSheet('images');
-  const existing = new Set(imgSh.getLastRow() < 2 ? [] :
-    imgSh.getRange(2, 1, imgSh.getLastRow() - 1, 1).getValues().map(r => String(r[0])));
-  const chunks = [];
-  const plans = [];
-  IMG_REF_SHEETS.forEach(name => {
-    const sh = SS.getSheetByName(name);
-    if (!sh || sh.getLastRow() < 2) return;
-    const headers = ensureHeaders(sh, ['imgFull']);
-    const idCol = headers.indexOf('id'), imgCol = headers.indexOf('img'), fullCol = headers.indexOf('imgFull');
-    if (idCol < 0 || imgCol < 0) return;
-    const n = sh.getLastRow() - 1;
-    const ids = sh.getRange(2, idCol + 1, n, 1).getValues().map(r => String(r[0]));
-    const imgs = sh.getRange(2, imgCol + 1, n, 1).getValues();
-    const fulls = sh.getRange(2, fullCol + 1, n, 1).getValues();
-    let count = 0;
-    for (let i = 0; i < n; i++) {
-      const img = String(imgs[i][0] || '');
-      if (img.length <= THUMB_MAX) continue;
-      if (!String(fulls[i][0] || '')) {
-        // 同じ画像（再購入でコピーされた分など）は1つのIDにまとめる
-        const id = 'lg' + Utilities.base64EncodeWebSafe(
-          Utilities.computeDigest(Utilities.DigestAlgorithm.MD5, img)).replace(/=+$/, '');
-        if (!existing.has(id)) {
-          existing.add(id);
-          for (let p = 0, seq = 0; p < img.length; p += IMG_CHUNK, seq++) {
-            chunks.push([id, seq, 'c:' + img.slice(p, p + IMG_CHUNK)]);
-          }
-        }
-        fulls[i][0] = id;
+// フル画像：長辺1600px・品質0.85を基本に、大きすぎる場合だけ段階的に落とす（GAS側で40,000文字ずつ分割保存）
+const FULL_MAX_CHARS=600000;
+const FULL_STEPS=[[1600,0.85],[1600,0.78],[1400,0.75],[1200,0.72],[1024,0.7]];
+function compressImage(dataUrl, steps, maxChars, callback){
+  const img=new Image();
+  img.onload=()=>{
+    const render=(size,q)=>{
+      let w=img.width, h=img.height;
+      if(w>size||h>size){
+        if(w>h){h=Math.round(h*size/w);w=size;}
+        else{w=Math.round(w*size/h);h=size;}
       }
-      imgs[i][0] = '';
-      count++;
+      const canvas=document.createElement('canvas');
+      canvas.width=w;canvas.height=h;
+      const ctx=canvas.getContext('2d');
+      ctx.fillStyle='#fff';ctx.fillRect(0,0,w,h); // 透過PNGの背景が黒くならないように
+      ctx.drawImage(img,0,0,w,h);
+      return canvas.toDataURL('image/jpeg',q);
+    };
+    // 大きい・高画質から順に試し、上限に収まった時点で採用
+    let out='';
+    for(const [size,q] of steps){
+      out=render(size,q);
+      if(out.length<=maxChars)break;
     }
-    if (count) plans.push({ name, sh, ids, imgs, fulls, imgCol, fullCol, count });
-  });
-
-  // 先に画像チャンクを書き込んでから、元のセルを差し替える
-  for (let i = 0; i < chunks.length; i += 50) {
-    const part = chunks.slice(i, i + 50);
-    imgSh.getRange(imgSh.getLastRow() + 1, 1, part.length, 3).setValues(part);
+    callback(out);
+  };
+  img.src=dataUrl;
+}
+function clearImg(previewBoxId,previewImgId,inputId){
+  const box=document.getElementById(previewBoxId);const img=document.getElementById(previewImgId);const inp=document.getElementById(inputId);
+  if(box)box.style.display='none';if(img){img.src='';img.dataset.full='';img.dataset.fullId='';img.dataset.changed='1';}if(inp)inp.value='';
+}
+// 編集フォーム用：画像を触っていなければ {} を返して既存の画像（サムネイル無しの旧画像も含む）を保持
+async function imgFieldsFromForm(previewImgId){
+  const img=document.getElementById(previewImgId);
+  if(!img||img.dataset.changed!=='1')return{};
+  return{img:getImgData(previewImgId),imgFull:await resolveImgFull(previewImgId)};
+}
+// サムネイルは無いが画像はあるアイテムの、編集フォームでのプレビュー
+const IMG_PLACEHOLDER='data:image/svg+xml;charset=utf-8,'+encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="320" height="130"><rect width="100%" height="100%" fill="#e3eef2"/><text x="50%" y="55%" text-anchor="middle" font-size="15" fill="#5a8a9c">🖼 登録済みの画像</text></svg>');
+function hasAnyImg(i){return!!(i.img||i.imgFull||i.imgBig);}
+function editPreviewSrc(i){return i.img||(hasAnyImg(i)?IMG_PLACEHOLDER:'');}
+function getImgData(previewImgId){
+  const img=document.getElementById(previewImgId);
+  return(img&&img.src&&img.src.startsWith('data:'))?img.src:'';
+}
+// フォームのフル画像を確定させて imgFull（画像ID）を返す
+// 新しく選んだ画像があれば imagesシートへ保存。画像を外した場合は ''、変更なしなら既存IDをそのまま返す
+async function resolveImgFull(previewImgId){
+  const img=document.getElementById(previewImgId);
+  if(!img||!getImgData(previewImgId))return'';
+  if(img.dataset.full){
+    const id=newImgId();
+    const res=await apiPost({action:'saveImage',id,data:img.dataset.full,garden:currentGarden});
+    if(!res||res.ok===false)throw new Error((res&&res.error)||'画像の保存に失敗');
+    fullImgCache[id]=img.dataset.full;
+    img.dataset.full='';img.dataset.fullId=id; // 二重保存防止
+    return id;
   }
-  plans.forEach(p => {
-    const n = p.ids.length;
-    // 実行中に行の追加・削除があった場合はずれるので、その表は書き込まない
-    const idCol = ensureHeaders(p.sh, ['imgFull']).indexOf('id');
-    const nowIds = p.sh.getRange(2, idCol + 1, n, 1).getValues().map(r => String(r[0]));
-    if (nowIds.join('\n') !== p.ids.join('\n')) {
-      Logger.log(p.name + '：実行中に行が変わったためスキップしました。もう一度実行してください');
+  return img.dataset.fullId||'';
+}
+// ※アイテム削除・画像差し替え時の古い画像チャンクはGAS側で自動削除
+const fullImgCache={};
+async function fetchFullImage(id){
+  if(fullImgCache[id])return fullImgCache[id];
+  const res=await fetch(GAS_URL+'?action=getImage&id='+encodeURIComponent(id)+'&t='+Date.now(),{redirect:'follow'});
+  const d=JSON.parse(await res.text());
+  if(!d||!d.data)throw new Error('画像がありません');
+  fullImgCache[id]=d.data;
+  return d.data;
+}
+function newImgId(){return'img'+Date.now()+Math.random().toString(36).slice(2,7);}
+// 旧方式の大きな画像（起動時の一覧からは外してある）をセルから直接取得
+async function fetchLegacyImage(sheet,id){
+  const key='legacy:'+sheet+':'+id;
+  if(fullImgCache[key])return fullImgCache[key];
+  const res=await fetch(GAS_URL+'?action=getItemImg&sheet='+encodeURIComponent(sheet)+'&id='+encodeURIComponent(id)+'&t='+Date.now(),{redirect:'follow'});
+  const d=JSON.parse(await res.text());
+  if(!d||!d.data)throw new Error('画像がありません');
+  fullImgCache[key]=d.data;
+  return d.data;
+}
+
+/* ── カードの画像枠と拡大表示 ── */
+function imgSlotHTML(i,sheet){
+  const inner=i.img?`<img src="${esc(i.img)}" alt="">`
+    :hasAnyImg(i)?`<span class="img-slot-empty" style="opacity:.7">🖼</span>`
+    :`<span class="img-slot-empty">📷</span>`;
+  return`<div class="img-slot" data-thumb="${esc(i.id)}"${hasAnyImg(i)?` onclick="openItemImage('${i.id}','${sheet}')" style="cursor:zoom-in"`:''}>${inner}</div>`;
+}
+function openItemImage(id,sheet){
+  const list={pending,done,hold,usualItems}[sheet]||[];
+  const item=list.find(i=>i.id===id);
+  if(!item)return;
+  const load=item.imgFull?()=>fetchFullImage(item.imgFull)
+    :item.imgBig?()=>fetchLegacyImage(sheet,id)
+    :null;
+  openLightbox(item.img,load&&(()=>load().then(data=>{healThumb(item,sheet,data);return data;})));
+}
+// サムネイルが無いアイテムは、拡大時に取得した画像からサムネイルを作って保存し直す
+// 旧方式（imgFull無し）の場合は、元画像もフル画像として images シートへ移す
+const healingIds=new Set();
+function healThumb(item,sheet,full){
+  if(item.img||healingIds.has(item.id))return;
+  healingIds.add(item.id);
+  compressImage(full,THUMB_STEPS,THUMB_MAX_CHARS,async thumb=>{
+    try{
+      const fields={img:thumb};
+      if(!item.imgFull){
+        const imgId=newImgId();
+        const res=await apiPost({action:'saveImage',id:imgId,data:full,garden:currentGarden});
+        if(!res||res.ok===false)throw new Error((res&&res.error)||'画像の保存に失敗');
+        fullImgCache[imgId]=full;
+        fields.imgFull=imgId;
+      }
+      await apiPost(sheet==='usualItems'
+        ?{action:'updateUsualItem',id:String(item.id),fields}
+        :{action:'updateItem',id:String(item.id),fields,sheet});
+      Object.assign(item,fields);delete item.imgBig;
+      document.querySelectorAll(`[data-thumb="${item.id}"]`).forEach(el=>{el.innerHTML=`<img src="${thumb}" alt="">`;});
+    }catch(e){console.warn('サムネイルの再作成に失敗',e);}
+    finally{healingIds.delete(item.id);}
+  });
+}
+
+/* ════ 職員ビュー ════ */
+function captureRequestFormState(){
+  if(!(mode==='staff'&&staffTab==='request'))return null;
+  const ids=['f-requester','f-requester-new','f-name','f-qty','f-place','f-place-new','f-url','f-memo','f-folder'];
+  const state={};
+  let hasValue=false;
+  ids.forEach(id=>{
+    const el=document.getElementById(id);
+    if(el){state[id]=el.value;if(el.value)hasValue=true;}
+  });
+  const imgPreview=document.getElementById('f-img-preview');
+  if(imgPreview&&imgPreview.src&&imgPreview.src.startsWith('data:')){state.__img=imgPreview.src;state.__imgFull=imgPreview.dataset.full||'';hasValue=true;}
+  return hasValue?state:null;
+}
+function restoreRequestFormState(state){
+  if(!state)return;
+  Object.entries(state).forEach(([id,val])=>{
+    if(id==='__img'){
+      const box=document.getElementById('img-preview-box');
+      const img=document.getElementById('f-img-preview');
+      if(img){img.src=val;img.dataset.full=state.__imgFull||'';if(box)box.style.display='block';}
       return;
     }
-    p.sh.getRange(2, p.fullCol + 1, n, 1).setValues(p.fulls);
-    p.sh.getRange(2, p.imgCol + 1, n, 1).setValues(p.imgs);
-    Logger.log(p.name + '：' + p.count + '件の画像を移しました');
+    if(id==='__imgFull')return;
+    const el=document.getElementById(id);
+    if(el)el.value=val;
   });
-  Logger.log('画像チャンク ' + chunks.length + '行を追加しました');
+  if(typeof onRequesterChange==='function')onRequesterChange();
+  if(typeof onPlaceChange==='function')onPlaceChange();
 }
 
-// 手動実行用：どこからも参照されていない画像チャンクを一括削除
-function cleanupOrphanImages() {
-  const sh = getSheet('images');
-  if (sh.getLastRow() < 2) return;
-  const ids = [...new Set(sh.getRange(2, 1, sh.getLastRow() - 1, 1).getValues().map(r => String(r[0])))];
-  ids.filter(id => id && !isImageReferenced(id)).forEach(id => deleteImageRows(sh, id));
+function renderStaff(){
+  document.getElementById('staff-view').innerHTML=`
+  <div class="tabs">
+    <button class="tab ${staffTab==='request'?'active':''}" onclick="setStaffTab('request')">リクエスト</button>
+    <button class="tab ${staffTab==='usual'?'active':''}" onclick="setStaffTab('usual')">⭐ いつもの</button>
+    <button class="tab ${staffTab==='mylist'?'active':''}" onclick="setStaffTab('mylist')">依頼中 (${filterByFolder(pending).length})</button>
+    <button class="tab ${staffTab==='history'?'active':''}" onclick="setStaffTab('history')">購入履歴 (${filterByFolder(done).length})</button>
+  </div>
+  ${staffTab!=='usual'?renderFolderBar(false):''}
+  <div id="staff-content"></div>`;
+  renderStaffContent();
 }
+function setStaffTab(t){
+  staffTab=t;renderStaff();
+  loadAll(true).then(()=>{
+    const preserved=captureRequestFormState();
+    renderStaff();
+    restoreRequestFormState(preserved);
+  });
+}
+function renderStaffContent(){
+  const el=document.getElementById('staff-content');if(!el)return;
+  if(staffTab==='request'){el.innerHTML=renderRequestForm();setupImgArea('img-area','f-img','img-preview-box','f-img-preview');}
+  else if(staffTab==='usual'){el.innerHTML=renderUsualTab();setupImgArea('u-img-area','u-img','u-img-preview-box','u-img-preview');}
+  else if(staffTab==='mylist')el.innerHTML=renderMyList();
+  else el.innerHTML=renderStaffHistory();
+}
+
+/* ════ いつものリクエスト ════ */
+function renderUsualTab(){
+  const items=usualItems;
+  const usualKeyFn=(key,i)=>key==='place'?(i.place||'場所未定'):key==='cat'?getCatLabel(i.cat||'zappi'):'';
+  function usualGrouped(items,s1,s2){
+    if(!items.length)return'<div class="empty"><span class="empty-icon">📦</span>登録された定番アイテムはありません</div>';
+    const card=i=>`
+      <div class="item-card">
+        <div class="img-col">
+          ${imgSlotHTML(i,'usualItems')}
+          <div style="display:flex;gap:4px">
+            <button class="icon-btn" onclick="openUsualEditModal('${i.id}')" title="編集">✏️</button>
+            <button class="icon-btn" onclick="deleteUsualItem('${i.id}','${esc(i.name)}')">🗑</button>
+          </div>
+        </div>
+        <div class="item-info">
+          <div class="item-name">⭐ ${esc(i.name)}</div>
+          <div class="item-qty" style="margin-top:1px">${i.qty?`× ${esc(i.qty)}`:''}</div>
+          <div class="item-meta">
+            <span class="cat-badge ${getCatClass(i.cat)}">${getCatLabel(i.cat||'zappi')}</span>
+            ${i.place?`<span>📍${esc(i.place)}</span>`:''}
+          </div>
+          ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
+        </div>
+        <div class="actions-col" style="justify-content:center">
+          <button class="buy-btn" style="background:linear-gradient(135deg,#8fb8c8,#6fa0b4)" onclick="openUsualSendModal('${i.id}')">送る</button>
+        </div>
+      </div>`;
+    if(s1==='none'){return items.map(card).join('');}
+    const g1={};
+    items.forEach(i=>{const k=usualKeyFn(s1,i);if(!g1[k])g1[k]=[];g1[k].push(i);});
+    const g1Keys=sortGroupKeysGeneric(Object.keys(g1),s1);
+    return g1Keys.map(k1=>{
+      const its1=g1[k1];
+      let inner='';
+      if(s2==='none'||s2===s1){inner=its1.map(card).join('');}
+      else{
+        const g2={};
+        its1.forEach(i=>{const k=usualKeyFn(s2,i);if(!g2[k])g2[k]=[];g2[k].push(i);});
+        const g2Keys=sortGroupKeysGeneric(Object.keys(g2),s2);
+        inner=g2Keys.map(k2=>`<div style="margin-left:8px;margin-bottom:10px">
+          <div class="group-label" style="font-size:10px;opacity:.75">📍 ${esc(k2)}<span style="margin-left:4px;font-size:10px;color:#8ab0cc;font-weight:400">${g2[k2].length}件</span></div>
+          ${g2[k2].map(card).join('')}</div>`).join('');
+      }
+      return`<div class="group-block"><div class="group-label">${s1==='place'?'📍':s1==='cat'?'💰':''} ${esc(k1)}<span style="font-size:11px;color:#8ab0cc;font-weight:400;margin-left:4px">${its1.length}件</span></div>${inner}</div>`;
+    }).join('');
+  }
+
+  return`${sortBar2('usualSort1','usualSort2')}
+  <div class="section" style="padding-top:8px">
+    ${usualGrouped(items,usualSort1,usualSort2)}
+    <button class="submit-btn" style="margin-top:12px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4)" onclick="toggleUsualAddForm()">＋ 新しい定番アイテムを登録</button>
+    <div id="usual-add-form" style="display:none;margin-top:12px" class="form-card">
+      <div class="form-row">
+        <label>品名 <span class="req">*</span></label>
+        <input type="text" id="u-name" placeholder="例: 絵の具セット">
+      </div>
+      <div class="form-row">
+        <label>個数 <span class="opt">(任意・毎回変えられます)</span></label>
+        <input type="text" id="u-qty" placeholder="例: 2個">
+      </div>
+      <div class="form-row">
+        <label>経費の種類</label>
+        <select id="u-cat">${CATS.map(c=>`<option value="${c.id}">${c.label}</option>`).join('')}</select>
+      </div>
+      <div class="form-row">
+        <label>購入場所 <span class="opt">(任意)</span></label>
+        <select id="u-place">
+          <option value="">未定</option>
+          ${allPlaces().map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row">
+        <label>フォルダ <span class="opt">(任意)</span></label>
+        <select id="u-folder">
+          <option value="">通常（フォルダなし）</option>
+          ${folders.map(f=>`<option value="${esc(f.id)}">${esc(f.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row">
+        <label>画像 <span class="opt">(任意)</span></label>
+        <div class="img-area" id="u-img-area">
+          <div class="img-area-text">📷 タップして選択</div>
+        </div>
+        <input type="file" id="u-img" accept="image/*">
+        <div class="img-preview-box" id="u-img-preview-box">
+          <img id="u-img-preview" alt="">
+          <button class="img-clear-btn" onclick="clearImg('u-img-preview-box','u-img-preview','u-img')">✕</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>メモ <span class="opt">(任意)</span></label>
+        <textarea id="u-memo" placeholder="サイズ、色、銘柄など"></textarea>
+      </div>
+      <button class="submit-btn" onclick="submitUsualItem()">💾 登録する</button>
+    </div>
+  </div>`;
+}
+
+function toggleUsualAddForm(){
+  const el=document.getElementById('usual-add-form');
+  if(!el)return;
+  const showing=el.style.display==='block';
+  el.style.display=showing?'none':'block';
+  if(!showing)setupImgArea('u-img-area','u-img','u-img-preview-box','u-img-preview');
+}
+
+async function submitUsualItem(){
+  const name=(document.getElementById('u-name').value||'').trim();
+  if(!name){showToast('品名は必須です');return;}
+  const qty=(document.getElementById('u-qty').value||'').trim();
+  const cat=document.getElementById('u-cat').value;
+  const place=document.getElementById('u-place').value;
+  const folder=document.getElementById('u-folder').value;
+  const memo=(document.getElementById('u-memo').value||'').trim();
+  const img=getImgData('u-img-preview');
+  let imgFull='';
+  if(img){
+    showLoading('画像を保存中…');
+    try{imgFull=await resolveImgFull('u-img-preview');}
+    catch(e){hideLoading();showErr('画像の保存に失敗: '+e.message);return;}
+    hideLoading();
+  }
+  const newItem={id:String(Date.now()),name,qty,cat,place,folder,memo,img,imgFull,garden:currentGarden};
+  usualItems.push(newItem);
+  toggleUsualAddForm();
+  renderStaffContent();
+  showToast('定番アイテムを登録しました ✓');
+  try{await apiPost({action:'addUsualItem',item:newItem});}
+  catch(e){usualItems.pop();renderStaffContent();showErr('登録失敗: '+e.message);}
+}
+
+async function deleteUsualItem(id,name){
+  if(!confirm(`「${name}」を削除しますか？`))return;
+  const idx=usualItems.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const item=usualItems[idx];
+  usualItems.splice(idx,1);
+  renderStaffContent();
+  showToast('削除しました');
+  try{await apiPost({action:'deleteUsualItem',id:String(id),garden:currentGarden});}
+  catch(e){usualItems.splice(idx,0,item);renderStaffContent();showErr('削除失敗: '+e.message);}
+}
+
+function openUsualEditModal(id){
+  const item=usualItems.find(i=>i.id===id);
+  if(!item)return;
+  const places=allPlaces();
+  document.getElementById('modal-container').innerHTML=`
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-title">✏️ 定番アイテムを編集</div>
+      <div class="form-row">
+        <label>品名 <span class="req">*</span></label>
+        <input type="text" id="ue-name" value="${esc(item.name)}" placeholder="品名">
+      </div>
+      <div class="form-row">
+        <label>個数 <span class="opt">(任意)</span></label>
+        <input type="text" id="ue-qty" value="${esc(item.qty)}" placeholder="例: 2個">
+      </div>
+      <div class="form-row">
+        <label>経費の種類</label>
+        <select id="ue-cat">${CATS.map(c=>`<option value="${c.id}"${c.id===item.cat?' selected':''}>${c.label}</option>`).join('')}</select>
+      </div>
+      <div class="form-row">
+        <label>購入場所 <span class="opt">(任意)</span></label>
+        <select id="ue-place">
+          <option value="">未定</option>
+          ${places.map(p=>`<option value="${esc(p)}"${item.place===p?' selected':''}>${esc(p)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row">
+        <label>画像 <span class="opt">(任意)</span></label>
+        <div class="img-area" id="ue-img-area">
+          <div class="img-area-text">📷 タップして選択</div>
+        </div>
+        <input type="file" id="ue-img" accept="image/*">
+        <div class="img-preview-box" id="ue-img-preview-box" ${hasAnyImg(item)?'style="display:block"':''}>
+          <img id="ue-img-preview" src="${esc(editPreviewSrc(item))}" data-full-id="${esc(item.imgFull||'')}" alt="">
+          <button class="img-clear-btn" onclick="clearImg('ue-img-preview-box','ue-img-preview','ue-img')">✕</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>メモ <span class="opt">(任意)</span></label>
+        <textarea id="ue-memo" placeholder="メモ">${esc(item.memo)}</textarea>
+      </div>
+      <button class="submit-btn" onclick="saveUsualEdit('${id}')">💾 保存する</button>
+    </div>
+  </div>`;
+  setupImgArea('ue-img-area','ue-img','ue-img-preview-box','ue-img-preview');
+}
+
+async function saveUsualEdit(id){
+  const name=(document.getElementById('ue-name').value||'').trim();
+  if(!name){showToast('品名は必須です');return;}
+  const qty=(document.getElementById('ue-qty').value||'').trim();
+  const cat=document.getElementById('ue-cat').value;
+  const place=document.getElementById('ue-place').value;
+  const memo=(document.getElementById('ue-memo').value||'').trim();
+  const idx=usualItems.findIndex(i=>i.id===id);
+  if(idx<0){closeModal();return;}
+  let imgFields={};
+  showLoading('保存中…');
+  try{imgFields=await imgFieldsFromForm('ue-img-preview');}
+  catch(e){hideLoading();showErr('画像の保存に失敗: '+e.message);return;}
+  hideLoading();
+  const oldItem={...usualItems[idx]};
+  const fields={name,qty,cat,place,memo,...imgFields};
+  usualItems[idx]={...usualItems[idx],...fields};
+  if('img' in imgFields)delete usualItems[idx].imgBig;
+  closeModal();
+  renderStaffContent();
+  showToast('更新しました ✓');
+  try{
+    await apiPost({action:'updateUsualItem',id:String(id),fields});
+  }catch(e){
+    usualItems[idx]=oldItem;
+    renderStaffContent();
+    showErr('更新失敗: '+e.message);
+  }
+}
+
+function openUsualSendModal(id){
+  const src=usualItems.find(i=>i.id===id);
+  if(!src)return;
+  document.getElementById('modal-container').innerHTML=`
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-title">🛒 リクエストを送る</div>
+      <div style="background:#eef4fb;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:#5a8ab8">
+        <strong style="color:#2a3f5f">${esc(src.name)}</strong>
+      </div>
+      <div class="form-row">
+        <label>依頼者 <span class="req">*</span></label>
+        <select id="us-requester" onchange="onUsRequesterChange()">
+          <option value="">選択または入力</option>
+          ${masterRequesters.map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join('')}
+          <option value="__new__">＋ 新しい名前を入力</option>
+        </select>
+        <input type="text" class="sub-input" id="us-requester-new" placeholder="名前を入力">
+      </div>
+      <div class="form-row">
+        <label>個数</label>
+        <input type="text" id="us-qty" value="${esc(src.qty)}" placeholder="例: 2個">
+      </div>
+      ${src.place?`<div style="font-size:12px;color:#5a8a9c;margin-bottom:12px">📍 ${esc(src.place)}</div>`:''}
+      <button class="submit-btn" onclick="submitUsualSend('${id}')">📨 リクエストを送る</button>
+    </div>
+  </div>`;
+}
+function onUsRequesterChange(){
+  const s=document.getElementById('us-requester'),n=document.getElementById('us-requester-new');
+  if(!n)return;n.style.display=s.value==='__new__'?'block':'none';if(s.value==='__new__')n.focus();
+}
+async function submitUsualSend(usualId){
+  const src=usualItems.find(i=>i.id===usualId);
+  if(!src)return;
+  let requester=document.getElementById('us-requester').value;
+  if(requester==='__new__')requester=(document.getElementById('us-requester-new').value||'').trim();
+  const qty=(document.getElementById('us-qty').value||'').trim();
+  if(!requester){showToast('依頼者は必須です');return;}
+  const place=src.place||'';
+  const newItem={
+    id:String(Date.now()),garden:currentGarden,requester,name:src.name,qty,
+    cat:src.cat||'kyozai',place,url:'',memo:src.memo||'',img:src.img||'',imgFull:src.imgFull||'',folder:src.folder||'',
+    created:new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'})
+  };
+  pending.unshift(newItem);
+  if(requester&&!masterRequesters.includes(requester))masterRequesters.push(requester);
+  if(place&&!masterPlaces.includes(place))masterPlaces.push(place);
+  closeModal();
+  showToast('リクエストを送りました ✓');
+  renderStaffContent();
+  try{
+    await apiPost({action:'addPending',item:newItem});
+  }catch(e){
+    pending.shift();
+    renderStaffContent();
+    showErr('送信失敗: '+e.message);
+  }
+}
+
+function renderRequestForm(){
+  const places=allPlaces();
+  return`<div class="section"><div class="form-card">
+    <div class="form-row">
+      <label>依頼者 <span class="req">*</span></label>
+      <select id="f-requester" onchange="onRequesterChange()">
+        <option value="">選択または入力</option>
+        ${masterRequesters.map(r=>`<option value="${esc(r)}">${esc(r)}</option>`).join('')}
+        <option value="__new__">＋ 新しい名前を入力</option>
+      </select>
+      <input type="text" class="sub-input" id="f-requester-new" placeholder="名前を入力">
+    </div>
+    <div class="form-row">
+      <label>品名 <span class="req">*</span></label>
+      <input type="text" id="f-name" placeholder="例: 絵の具セット">
+    </div>
+    <div class="form-row">
+      <label>個数 <span class="req">*</span></label>
+      <input type="text" id="f-qty" placeholder="例: 2個・3袋・1本">
+    </div>
+    <div class="form-row">
+      <label>購入場所 <span class="opt">(任意)</span></label>
+      <select id="f-place" onchange="onPlaceChange()">
+        <option value="">未定</option>
+        ${places.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('')}
+        <option value="__new__">＋ その他（直接入力）</option>
+      </select>
+      <input type="text" class="sub-input" id="f-place-new" placeholder="購入場所を入力">
+    </div>
+    <div class="form-row">
+      <label>フォルダ <span class="opt">(任意)</span></label>
+      <select id="f-folder">
+        <option value="">通常（フォルダなし）</option>
+        ${folders.map(f=>'<option value="'+esc(f.id)+'">'+esc(f.name)+'</option>').join('')}
+      </select>
+    </div>
+    <div class="form-row">
+      <label>参考URL <span class="opt">(任意)</span></label>
+      <input type="url" id="f-url" placeholder="https://...">
+    </div>
+    <div class="form-row">
+      <label>画像 <span class="opt">(任意・クリップボードからペースト可)</span></label>
+      <div class="img-area" id="img-area">
+        <div class="img-area-text">📷 タップして選択 / ドラッグ＆ドロップ / Ctrl+V でペースト</div>
+      </div>
+      <input type="file" id="f-img" accept="image/*">
+      <div class="img-preview-box" id="img-preview-box">
+        <img id="f-img-preview" alt="">
+        <button class="img-clear-btn" onclick="clearImg('img-preview-box','f-img-preview','f-img')">✕</button>
+      </div>
+    </div>
+    <div class="form-row">
+      <label>メモ <span class="opt">(任意)</span></label>
+      <textarea id="f-memo" placeholder="サイズ、色、銘柄など"></textarea>
+    </div>
+    <button class="submit-btn" id="submit-btn" onclick="submitItem()">📨 リクエストを送る</button>
+  </div></div>`;
+}
+
+function renderMyList(){
+  const pendingF=filterByFolder(pending);
+  if(!pendingF.length)return'<div class="empty"><span class="empty-icon">📭</span>依頼中のアイテムはありません</div>';
+  return`<div class="section">${sortBar2('staffListSort1','staffListSort2')}${groupedCards(pendingF,staffListSort1,staffListSort2,{cancelBtn:true,editBtn:true,usualBtn:true})}</div>`;
+}
+function renderStaffHistory(){
+  const doneF=filterByFolder(done);
+  if(!doneF.length)return'<div class="empty"><span class="empty-icon">🕐</span>購入履歴はありません</div>';
+  return`<div class="section">${sortBar2('doneSort1','doneSort2')}${groupedCards(doneF,doneSort1,doneSort2,{rebuyBtn:true,isDone:true,usualBtn:true})}</div>`;
+}
+
+function onRequesterChange(){
+  const s=document.getElementById('f-requester'),n=document.getElementById('f-requester-new');
+  if(!n)return;n.style.display=s.value==='__new__'?'block':'none';if(s.value==='__new__')n.focus();
+}
+function onPlaceChange(){
+  const s=document.getElementById('f-place'),n=document.getElementById('f-place-new');
+  if(!n)return;n.style.display=s.value==='__new__'?'block':'none';if(s.value==='__new__')n.focus();
+}
+
+async function submitItem(){
+  let requester=document.getElementById('f-requester').value;
+  if(requester==='__new__')requester=(document.getElementById('f-requester-new').value||'').trim();
+  const name=(document.getElementById('f-name').value||'').trim();
+  const qty=(document.getElementById('f-qty').value||'').trim();
+  if(!requester||!name||!qty){showToast('依頼者・品名・個数は必須です');return;}
+  let place=document.getElementById('f-place').value;
+  if(place==='__new__')place=(document.getElementById('f-place-new').value||'').trim();
+  const url=(document.getElementById('f-url').value||'').trim();
+  const memo=(document.getElementById('f-memo').value||'').trim();
+  const img=getImgData('f-img-preview');
+  const btn=document.getElementById('submit-btn');if(btn)btn.disabled=true;
+  try{
+    let imgFull='';
+    if(img){
+      showLoading('画像を保存中…');
+      try{imgFull=await resolveImgFull('f-img-preview');}
+      catch(e){showErr('画像の保存に失敗: '+e.message);return;}
+      finally{hideLoading();}
+    }
+    const folder=document.getElementById('f-folder')?.value||'';
+    const newItem={id:String(Date.now()),garden:currentGarden,requester,name,qty,cat:'kyozai',place,url,memo,img,imgFull,created:new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'}),folder};
+    pending.unshift(newItem);
+    // mastersも即時更新
+    if(requester&&!masterRequesters.includes(requester))masterRequesters.push(requester);
+    if(place&&!masterPlaces.includes(place)&&!['ダイソー','セリア','ドラッグストア','ホームセンター','文房具店','Amazon'].includes(place))masterPlaces.push(place);
+    showToast('リクエストを送りました ✓');staffTab='mylist';renderStaff();
+    apiPost({action:'addPending',item:newItem}).catch(e=>showErr('送信失敗: '+e.message));
+  }catch(e){showErr('送信失敗: '+e.message);}
+  finally{if(btn)btn.disabled=false;}
+}
+
+async function cancelItem(id){
+  if(!confirm('このリクエストを取り消しますか？'))return;
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const item=pending[idx];
+  pending.splice(idx,1);
+  renderStaff();showToast('取り消しました');
+  try{await apiPost({action:'deletePending',id:String(id)});}
+  catch(e){pending.splice(idx,0,item);renderStaff();showErr('失敗: '+e.message);}
+}
+
+/* ── 訂正モーダル ─── */
+function openRebuyModal(src){
+  const places=allPlaces();
+  document.getElementById('modal-container').innerHTML=`
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-title">🔄 再購入リクエスト</div>
+      <div style="background:#eef4fb;border-radius:10px;padding:10px 12px;margin-bottom:14px;font-size:13px;color:#5a8ab8">
+        <strong style="color:#2a3f5f">${esc(src.name)}</strong>
+        ${src.place?`・📍${esc(src.place)}`:''}
+        ${src.cat?`・<span class="cat-badge ${getCatClass(src.cat)}">${getCatLabel(src.cat)}</span>`:''}
+      </div>
+      <div class="form-row">
+        <label>依頼者 <span class="req">*</span></label>
+        <select id="rb-requester" onchange="onRebuyRequesterChange()">
+          <option value="">選択または入力</option>
+          ${masterRequesters.map(r=>`<option value="${esc(r)}"${src.requester===r?' selected':''}>${esc(r)}</option>`).join('')}
+          <option value="__new__">＋ 新しい名前を入力</option>
+        </select>
+        <input type="text" class="sub-input" id="rb-requester-new" placeholder="名前を入力">
+      </div>
+      <div class="form-row">
+        <label>個数 <span class="req">*</span></label>
+        <input type="text" id="rb-qty" placeholder="例: 2個" value="${esc(src.qty)}">
+      </div>
+      <div class="form-row">
+        <label>購入場所</label>
+        <select id="rb-place" onchange="onRebuyPlaceChange()">
+          <option value="">未定</option>
+          ${places.map(p=>`<option value="${esc(p)}"${src.place===p?' selected':''}>${esc(p)}</option>`).join('')}
+          <option value="__new__">＋ その他（直接入力）</option>
+        </select>
+        <input type="text" class="sub-input" id="rb-place-new" placeholder="購入場所を入力">
+      </div>
+      <div class="form-row">
+        <label>メモ</label>
+        <textarea id="rb-memo" placeholder="メモ">${esc(src.memo)}</textarea>
+      </div>
+      <button class="submit-btn" onclick="submitRebuy('${src.id}')">📨 再購入リクエストを送る</button>
+    </div>
+  </div>`;
+}
+
+function onRebuyRequesterChange(){
+  const s=document.getElementById('rb-requester'),n=document.getElementById('rb-requester-new');
+  if(!n)return;n.style.display=s.value==='__new__'?'block':'none';if(s.value==='__new__')n.focus();
+}
+function onRebuyPlaceChange(){
+  const s=document.getElementById('rb-place'),n=document.getElementById('rb-place-new');
+  if(!n)return;n.style.display=s.value==='__new__'?'block':'none';if(s.value==='__new__')n.focus();
+}
+
+async function submitRebuy(srcId){
+  let requester=document.getElementById('rb-requester').value;
+  if(requester==='__new__')requester=(document.getElementById('rb-requester-new').value||'').trim();
+  const qty=(document.getElementById('rb-qty').value||'').trim();
+  if(!requester||!qty){showToast('依頼者と個数は必須です');return;}
+  let place=document.getElementById('rb-place').value;
+  if(place==='__new__')place=(document.getElementById('rb-place-new').value||'').trim();
+  const memo=(document.getElementById('rb-memo').value||'').trim();
+
+  const src=done.find(i=>i.id===srcId);
+  if(!src)return;
+  const newItem={...src,id:String(Date.now()),garden:currentGarden,requester,qty,place,memo,
+                 created:new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'})};
+  delete newItem.boughtAt;delete newItem.heldAt;delete newItem.imgBig;delete newItem.orderedAt;
+
+  // mastersも即時更新
+  if(requester&&!masterRequesters.includes(requester))masterRequesters.push(requester);
+  if(place&&!masterPlaces.includes(place)&&!['ダイソー','セリア','ドラッグストア','ホームセンター','文房具店','Amazon'].includes(place))masterPlaces.push(place);
+
+  pending.unshift(newItem);
+  closeModal();
+  showToast('再購入リクエストを送りました ✓');
+  if(mode==='staff'){staffTab='mylist';renderStaff();}else renderAdmin();
+
+  try{
+    await apiPost({action:'addPending',item:newItem});
+    if(requester)await apiPost({action:'saveMasterDirect',masterType:'requester',value:requester,garden:currentGarden}).catch(()=>{});
+  }catch(e){
+    pending.shift();
+    if(mode==='staff')renderStaff();else renderAdmin();
+    showErr('送信失敗: '+e.message);
+  }
+}
+
+function openEditModal(id){
+  const item=pending.find(i=>i.id===id);if(!item)return;
+  const places=allPlaces();
+  document.getElementById('modal-container').innerHTML=`
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-title">✏️ 依頼内容を訂正</div>
+      <div class="form-row">
+        <label>品名 <span class="req">*</span></label>
+        <input type="text" id="e-name" value="${esc(item.name)}" placeholder="品名">
+      </div>
+      <div class="form-row">
+        <label>個数 <span class="req">*</span></label>
+        <input type="text" id="e-qty" value="${esc(item.qty)}" placeholder="個数">
+      </div>
+      <div class="form-row">
+        <label>購入場所</label>
+        <select id="e-place" onchange="onEditPlaceChange()">
+          <option value="">未定</option>
+          ${places.map(p=>`<option value="${esc(p)}"${item.place===p?' selected':''}>${esc(p)}</option>`).join('')}
+          <option value="__new__">＋ その他（直接入力）</option>
+        </select>
+        <input type="text" class="sub-input" id="e-place-new" placeholder="購入場所を入力">
+      </div>
+      <div class="form-row">
+        <label>フォルダ</label>
+        <select id="e-folder">
+          <option value="">通常（フォルダなし）</option>
+          ${folders.map(f=>`<option value="${esc(f.id)}"${item.folder===f.id?' selected':''}>${esc(f.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-row">
+        <label>参考URL</label>
+        <input type="url" id="e-url" value="${esc(item.url)}" placeholder="https://...">
+      </div>
+      <div class="form-row">
+        <label>画像</label>
+        <div class="img-area" id="e-img-area">
+          <div class="img-area-text">📷 タップして選択 / Ctrl+V でペースト</div>
+        </div>
+        <input type="file" id="e-img" accept="image/*">
+        <div class="img-preview-box" id="e-img-preview-box" ${hasAnyImg(item)?'style="display:block"':''}>
+          <img id="e-img-preview" src="${esc(editPreviewSrc(item))}" data-full-id="${esc(item.imgFull||'')}" alt="">
+          <button class="img-clear-btn" onclick="clearImg('e-img-preview-box','e-img-preview','e-img')">✕</button>
+        </div>
+      </div>
+      <div class="form-row">
+        <label>メモ</label>
+        <textarea id="e-memo" placeholder="メモ">${esc(item.memo)}</textarea>
+      </div>
+      <button class="submit-btn" onclick="saveEdit('${id}')">💾 保存する</button>
+    </div>
+  </div>`;
+  setupImgArea('e-img-area','e-img','e-img-preview-box','e-img-preview');
+}
+function onEditPlaceChange(){
+  const s=document.getElementById('e-place'),n=document.getElementById('e-place-new');
+  if(!n)return;n.style.display=s.value==='__new__'?'block':'none';if(s.value==='__new__')n.focus();
+}
+function closeModal(){document.getElementById('modal-container').innerHTML='';}
+async function saveEdit(id){
+  const name=(document.getElementById('e-name').value||'').trim();
+  const qty=(document.getElementById('e-qty').value||'').trim();
+  if(!name||!qty){showToast('品名・個数は必須です');return;}
+  let place=document.getElementById('e-place').value;
+  if(place==='__new__')place=(document.getElementById('e-place-new').value||'').trim();
+  const url=(document.getElementById('e-url').value||'').trim();
+  const memo=(document.getElementById('e-memo').value||'').trim();
+  const folder=document.getElementById('e-folder')?.value||'';
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0){closeModal();return;}
+  let imgFields={};
+  showLoading('保存中…');
+  try{imgFields=await imgFieldsFromForm('e-img-preview');}
+  catch(e){hideLoading();showErr('画像の保存に失敗: '+e.message);return;}
+  hideLoading();
+  const oldItem={...pending[idx]};
+  const fields={name,qty,place,url,memo,folder,...imgFields};
+  pending[idx]={...pending[idx],...fields};
+  if('img' in imgFields)delete pending[idx].imgBig;
+  if(place&&!masterPlaces.includes(place)&&!['ダイソー','セリア','ドラッグストア','ホームセンター','文房具店','Amazon'].includes(place))masterPlaces.push(place);
+  closeModal();
+  showToast('訂正しました ✓');
+  staffTab='mylist';renderStaff();
+  try{
+    await apiPost({action:'updateItem',id:String(id),fields});
+  }catch(e){pending[idx]=oldItem;renderStaff();showErr('更新失敗: '+e.message);}
+}
+
+/* ════ 管理者ビュー ════ */
+function renderAdmin(){
+  document.getElementById('admin-view').innerHTML=`
+  <div class="tabs">
+    <button class="tab ${adminTab==='pending'?'active':''}" onclick="setAdminTab('pending')">要購入 (${pending.length})</button>
+    <button class="tab ${adminTab==='hold'?'active':''}" onclick="setAdminTab('hold')">保留 (${hold.length})</button>
+    <button class="tab ${adminTab==='done'?'active':''}" onclick="setAdminTab('done')">購入済 (${done.length})</button>
+    <button class="tab ${adminTab==='master'?'active':''}" onclick="setAdminTab('master')">マスタ</button>
+  </div>
+  ${adminTab!=='master'?renderFolderBar(true):''}  ${adminTab==='pending'?renderActionBar():''}
+  ${adminTab==='pending'?renderPendingList():adminTab==='hold'?renderHoldList():adminTab==='done'?renderDoneList():renderMasterTab()}`;
+  if(adminTab==='master'){
+    setTimeout(()=>{
+      makeReorderable('requester-list','requester');
+      makeReorderable('place-list','place');
+      makeReorderable('folder-list','folder');
+    },30);
+  }
+}
+function setAdminTab(t){
+  adminTab=t;filterCat='all';filterPlace='all';renderAdmin();
+  loadAll(true).then(()=>renderAdmin());
+}
+
+function renderActionBar(){
+  if(selectedItems.size===0) return '';
+  return`<div class="action-bar">
+    <span class="sel-count">${selectedItems.size}件選択中</span>
+    <button class="action-bar-btn clear-sel-btn" onclick="clearSelection()">選択解除</button>
+    <button class="action-bar-btn move-folder-btn" onclick="openMoveFolderDialog()">フォルダ移動</button>
+    <button class="action-bar-btn csv-btn" onclick="exportCSV()">CSV出力</button>
+  </div>`;
+}
+
+function renderPendingList(){
+  if(!pending.length)return'<div class="empty"><span class="empty-icon">✅</span>リクエストはありません</div>';
+  const sortBar=`<div class="sort-bar">
+    <div>
+      <div class="sort-label">第1グループ</div>
+      <select onchange="sortKey1=this.value;renderAdmin()">
+        <option value="place"     ${sortKey1==='place'    ?'selected':''}>購入場所</option>
+        <option value="cat"       ${sortKey1==='cat'      ?'selected':''}>経費の種類</option>
+        <option value="requester" ${sortKey1==='requester'?'selected':''}>依頼者</option>
+        <option value="date"      ${sortKey1==='date'     ?'selected':''}>日付順</option>
+      </select>
+    </div>
+    <div>
+      <div class="sort-label">第2グループ</div>
+      <select onchange="sortKey2=this.value;renderAdmin()">
+        <option value="cat"       ${sortKey2==='cat'      ?'selected':''}>経費の種類</option>
+        <option value="place"     ${sortKey2==='place'    ?'selected':''}>購入場所</option>
+        <option value="requester" ${sortKey2==='requester'?'selected':''}>依頼者</option>
+        <option value="none"      ${sortKey2==='none'     ?'selected':''}>なし</option>
+      </select>
+    </div>
+  </div>`;
+  const cats=[...new Set(pending.map(i=>i.cat))];
+  const places=[...new Set(pending.map(i=>i.place||'場所未定'))];
+  const catChips='';
+  const placeChips='';
+
+  let items=filterByFolder(pending).filter(i=>(filterCat==='all'||i.cat===filterCat)&&(filterPlace==='all'||(i.place||'場所未定')===filterPlace));
+
+  // 2段階グルーピング
+  const keyFn=(key,i)=>key==='place'?(i.place||'場所未定'):key==='cat'?getCatLabel(i.cat):key==='requester'?(i.requester||'不明'):'';
+  const sortGroupKeys=(keys,sortKey)=>{
+    if(sortKey!=='place')return keys.sort();
+    const order=allPlaces(); // マスタ登録順（実店舗→Amazon等）
+    return keys.sort((a,b)=>{
+      const ia=order.indexOf(a), ib=order.indexOf(b);
+      if(a==='場所未定')return 1;
+      if(b==='場所未定')return -1;
+      if(ia<0&&ib<0)return a.localeCompare(b,'ja');
+      if(ia<0)return 1;
+      if(ib<0)return -1;
+      return ia-ib;
+    });
+  };
+  
+  let html='';
+  if(sortKey1==='date'){
+    items=[...items].sort((a,b)=>Number(b.id)-Number(a.id));
+    html=items.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true,placeEditable:true,folderEditable:true,usualBtn:true})).join('');
+    html=`<div class="group-block"><div class="group-label">📅 すべて（新しい順）<span style="font-size:11px;color:#8ab0cc;font-weight:400;margin-left:4px">${items.length}件</span></div>${html}</div>`;
+  } else {
+    const g1={};
+    items.forEach(i=>{const k=keyFn(sortKey1,i);if(!g1[k])g1[k]=[];g1[k].push(i);});
+    const g1Keys=sortGroupKeys(Object.keys(g1),sortKey1);
+    g1Keys.forEach(k1=>{
+      const its1=g1[k1];
+      let inner='';
+      if(sortKey2==='none'||sortKey2===sortKey1){
+        inner=its1.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true,placeEditable:true,folderEditable:true,usualBtn:true})).join('');
+      } else {
+        const g2={};
+        its1.forEach(i=>{const k=keyFn(sortKey2,i);if(!g2[k])g2[k]=[];g2[k].push(i);});
+        const g2Keys=sortGroupKeys(Object.keys(g2),sortKey2);
+        inner=g2Keys.map(k2=>{
+          const its2=g2[k2];
+          return `
+          <div style="margin-left:8px;margin-bottom:10px">
+            <div class="group-label" style="font-size:10px;opacity:.75">${grpIcon(sortKey2)} ${esc(k2)}<span style="font-size:10px;color:#8ab0cc;font-weight:400;margin-left:4px">${its2.length}件</span></div>
+            ${its2.map(i=>itemCardHTML(i,{checkBox:true,holdBtn:true,deleteBtn:true,catEditable:true,placeEditable:true,folderEditable:true,usualBtn:true})).join('')}
+          </div>`;
+        }).join('');
+      }
+      html+=`<div class="group-block"><div class="group-label">${grpIcon(sortKey1)} ${esc(k1)}<span style="font-size:11px;color:#8ab0cc;font-weight:400;margin-left:4px">${its1.length}件</span></div>${inner}</div>`;
+    });
+  }
+  return`${sortBar}
+
+  <div class="section" style="padding-top:8px">${items.length?html:'<div class="empty">該当なし</div>'}</div>`;
+}
+
+function grpIcon(k){return k==='place'?'📍':k==='cat'?'🏷':k==='requester'?'👤':'📅';}
+function currentFolderBarList(){
+  if(mode==='admin'){
+    if(adminTab==='hold')return hold;
+    if(adminTab==='done')return done;
+    return pending;
+  }
+  if(staffTab==='history')return done;
+  return pending;
+}
+function folderCount(id){
+  const list=currentFolderBarList();
+  if(id==='all')return list.length;
+  if(id==='')return list.filter(i=>!i.folder||i.folder==='').length;
+  return list.filter(i=>i.folder===id).length;
+}
+function renderFolderBar(isAdmin){
+  const cnt=n=>`<span class="folder-count">${n}</span>`;
+  const chips=folders.map(f=>{
+    const active=currentFolder===f.id?'active':'';
+    return '<button class="folder-chip '+active+'" onclick="setFolder(\''+f.id+'\')">📁 '+esc(f.name)+cnt(folderCount(f.id))+'</button>';
+  }).join('');
+  const allChip=`<button class="folder-chip ${currentFolder==='all'?'active':''}" onclick="setFolder('all')">📋 すべて${cnt(folderCount('all'))}</button>`;
+  const noneChip=`<button class="folder-chip ${currentFolder===''?'active':''}" onclick="setFolder('')">📄 通常${cnt(folderCount(''))}</button>`;
+  const addBtn='';
+  return`<div class="folder-bar">${allChip}${noneChip}${chips}${addBtn}</div>`;
+}
+
+function setFolder(id){
+  currentFolder=id;
+  if(mode==='staff')renderStaff();else renderAdmin();
+}
+
+function getFolderName(id){
+  if(!id)return'';
+  const f=folders.find(f=>f.id===id);
+  return f?f.name:'';
+}
+
+async function addFolderDialog(){
+  const name=prompt('新しいフォルダ名を入力してください：');
+  if(!name||!name.trim())return;
+  const newFolder={id:String(Date.now()),name:name.trim(),garden:currentGarden};
+  folders.push(newFolder);
+  renderAdmin();
+  try{await apiPost({action:'addFolder',name:name.trim(),garden:currentGarden});}
+  catch(e){folders.pop();renderAdmin();showErr('フォルダ作成失敗: '+e.message);}
+}
+
+async function deleteFolder(e,folderId,folderName){
+  e.stopPropagation();
+  if(!confirm(`「${folderName}」を削除しますか？
+フォルダ内のアイテムは「通常」に戻ります。`))return;
+  const idx=folders.findIndex(f=>f.id===folderId);
+  if(idx<0)return;
+  folders.splice(idx,1);
+  // フォルダ内アイテムのfolderをリセット
+  pending.forEach(i=>{if(i.folder===folderId)i.folder='';});
+  done.forEach(i=>{if(i.folder===folderId)i.folder='';});
+  hold.forEach(i=>{if(i.folder===folderId)i.folder='';});
+  if(currentFolder===folderId)currentFolder='';
+  renderAdmin();
+  try{await apiPost({action:'deleteFolder',folderId,garden:currentGarden});}
+  catch(e){showErr('フォルダ削除失敗: '+e.message);loadAll().then(()=>renderAdmin());}
+}
+
+function setAdminFilter(type,val){if(type==='cat')filterCat=val;else filterPlace=val;renderAdmin();}
+
+function sortBar2(v1,v2){
+  const opts=[
+    {value:'date',label:'日付順'},
+    {value:'place',label:'購入場所'},
+    {value:'cat',label:'経費の種類'},
+    {value:'requester',label:'依頼者'},
+    {value:'none',label:'なし（第2のみ）'},
+  ];
+  const opts2=[{value:'none',label:'なし'},...opts.filter(o=>o.value!=='none')];
+  const cur1=v1==='staffListSort1'?staffListSort1:v1==='doneSort1'?doneSort1:v1==='holdSort1'?holdSort1:v1==='usualSort1'?usualSort1:sortKey1;
+  const cur2=v2==='staffListSort2'?staffListSort2:v2==='doneSort2'?doneSort2:v2==='holdSort2'?holdSort2:v2==='usualSort2'?usualSort2:sortKey2;
+  return`<div class="sort-bar">
+    <div><div class="sort-label">第1グループ</div>
+      <select onchange="setSortVar('${v1}',this.value)">
+        ${opts.map(o=>`<option value="${o.value}"${cur1===o.value?' selected':''}>${o.label}</option>`).join('')}
+      </select>
+    </div>
+    <div><div class="sort-label">第2グループ</div>
+      <select onchange="setSortVar('${v2}',this.value)">
+        ${opts2.map(o=>`<option value="${o.value}"${cur2===o.value?' selected':''}>${o.label}</option>`).join('')}
+      </select>
+    </div>
+  </div>`;
+}
+
+function setSortVar(varName,val){
+  if(varName==='sortKey1')sortKey1=val;
+  else if(varName==='sortKey2')sortKey2=val;
+  else if(varName==='staffListSort1')staffListSort1=val;
+  else if(varName==='staffListSort2')staffListSort2=val;
+  else if(varName==='doneSort1')doneSort1=val;
+  else if(varName==='doneSort2')doneSort2=val;
+  else if(varName==='holdSort1')holdSort1=val;
+  else if(varName==='holdSort2')holdSort2=val;
+  else if(varName==='usualSort1')usualSort1=val;
+  else if(varName==='usualSort2')usualSort2=val;
+  if(mode==='admin')renderAdmin();else renderStaff();
+}
+
+function filterByFolder(items){
+  if(currentFolder==='all') return items;
+  if(currentFolder==='') return items.filter(i=>!i.folder||i.folder==='');
+  return items.filter(i=>i.folder===currentFolder);
+}
+
+function sortGroupKeysGeneric(keys,sortKey){
+  if(sortKey!=='place')return keys.sort();
+  const order=allPlaces();
+  return keys.sort((a,b)=>{
+    const ia=order.indexOf(a), ib=order.indexOf(b);
+    if(a==='場所未定')return 1;
+    if(b==='場所未定')return -1;
+    if(ia<0&&ib<0)return a.localeCompare(b,'ja');
+    if(ia<0)return 1;
+    if(ib<0)return -1;
+    return ia-ib;
+  });
+}
+
+function groupedCards(items,s1,s2,cardOpts){
+  if(!items.length)return'';
+  const keyFn=(key,i)=>key==='place'?(i.place||'場所未定'):key==='cat'?getCatLabel(i.cat||'zappi'):key==='requester'?(i.requester||'不明'):'';
+  const card=i=>itemCardHTML(i,cardOpts);
+  if(s1==='date'||s1==='none'){
+    return[...items].sort((a,b)=>Number(b.id)-Number(a.id)).map(card).join('');
+  }
+  let html='';
+  const g1={};
+  items.forEach(i=>{const k=keyFn(s1,i);if(!g1[k])g1[k]=[];g1[k].push(i);});
+  const g1Keys=sortGroupKeysGeneric(Object.keys(g1),s1);
+  g1Keys.forEach(k1=>{
+    const its1=g1[k1];
+    let inner='';
+    if(s2==='none'||s2===s1){
+      inner=its1.map(card).join('');
+    } else if(s2==='date'){
+      inner=[...its1].sort((a,b)=>Number(b.id)-Number(a.id)).map(card).join('');
+    } else {
+      const g2={};
+      its1.forEach(i=>{const k=keyFn(s2,i);if(!g2[k])g2[k]=[];g2[k].push(i);});
+      const g2Keys=sortGroupKeysGeneric(Object.keys(g2),s2);
+      inner=g2Keys.map(k2=>{
+        const its2=g2[k2];
+        return `
+        <div style="margin-left:8px;margin-bottom:10px">
+          <div class="group-label" style="font-size:10px;opacity:.8">${grpIcon(s2)} ${esc(k2)}<span style="font-size:10px;color:#8ab0cc;font-weight:400;margin-left:4px">${its2.length}件</span></div>
+          ${its2.map(card).join('')}
+        </div>`;
+      }).join('');
+    }
+    html+=`<div class="group-block"><div class="group-label">${grpIcon(s1)} ${esc(k1)}<span style="font-size:11px;color:#8ab0cc;font-weight:400;margin-left:4px">${its1.length}件</span></div>${inner}</div>`;
+  });
+  return html;
+}
+
+function renderHoldList(){
+  if(!hold.length)return'<div class="empty"><span class="empty-icon">⏸</span>保留中のアイテムはありません</div>';
+  const holdFiltered=filterByFolder(hold);
+  return`<div class="section" style="padding-top:10px">${sortBar2('holdSort1','holdSort2')}${groupedCards(holdFiltered,holdSort1,holdSort2,{holdToPublicBtn:true,deleteBtn:true,isDone:false,placeEditable:true,folderEditable:true,usualBtn:true})}</div>`;
+}
+
+function renderDoneList(){
+  if(!done.length)return'<div class="empty"><span class="empty-icon">🛍</span>購入済アイテムはありません</div>';
+  const doneFiltered=filterByFolder(done);
+  return`<div class="section" style="padding-top:10px">${sortBar2('doneSort1','doneSort2')}${groupedCards(doneFiltered,doneSort1,doneSort2,{doneToPublicBtn:true,rebuyBtn:true,deleteBtn:true,isDone:true,placeEditable:true,folderEditable:true,usualBtn:true})}</div>`;
+}
+
+/* ── マスタ管理タブ ─── */
+function renderMasterTab(){
+  const rRows=masterRequesters.map((r,idx)=>
+    `<div class="master-row" data-value="${esc(r)}">
+      <div class="master-row-left">
+        <span class="drag-handle">☰</span>
+        <span style="font-size:14px;color:#2a4a55">👤 ${esc(r)}</span>
+      </div>
+      <button class="icon-btn" data-type="requester" data-idx="${idx}" onclick="deleteMasterByIdx(this)" title="削除">🗑</button>
+    </div>`).join('');
+  const pRows=masterPlaces.map((p,idx)=>
+    `<div class="master-row" data-value="${esc(p)}">
+      <div class="master-row-left">
+        <span class="drag-handle">☰</span>
+        <span style="font-size:14px;color:#2a4a55">📍 ${esc(p)}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:6px">
+        <button class="net-toggle${isNetPlace(p)?' on':''}" data-idx="${idx}" ${DEFAULT_NET_PLACES.includes(p)?'disabled':'onclick="toggleNetPlace(this)"'}>ネット注文</button>
+        <button class="icon-btn" data-type="place" data-idx="${idx}" onclick="deleteMasterByIdx(this)" title="削除">🗑</button>
+      </div>
+    </div>`).join('');
+  const fRows=folders.map((f,idx)=>
+    `<div class="master-row" data-value="${esc(f.id)}">
+      <div class="master-row-left">
+        <span class="drag-handle">☰</span>
+        <span style="font-size:14px;color:#2a4a55">📁 ${esc(f.name)}</span>
+      </div>
+      <button class="icon-btn" onclick="deleteFolderFromMaster('${f.id}','${esc(f.name)}')" title="削除">🗑</button>
+    </div>`).join('');
+  return`<div class="section">
+    <div class="form-card" style="margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:#5a8a9c;margin-bottom:10px">👤 依頼者マスタ</div>
+      <div id="requester-list">${masterRequesters.length===0?'<div style="font-size:13px;color:#8ab0cc;margin-bottom:8px">登録された依頼者はいません</div>':rRows}</div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <input type="text" id="new-requester" placeholder="新しい依頼者名" style="flex:1;font-size:13px;padding:7px 10px">
+        <button onclick="addMasterItem('requester')" style="padding:7px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4);color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">追加</button>
+      </div>
+    </div>
+    <div class="form-card" style="margin-bottom:12px">
+      <div style="font-size:13px;font-weight:700;color:#5a8a9c;margin-bottom:4px">📍 購入場所マスタ</div><div style="font-size:11px;color:#a8c4cc;margin-bottom:8px">☰を押しながら並び替えると、要購入画面のグループ順に反映されます。「ネット注文」をオンにした店の品物は、購入ではなく発注ボタンになります（Amazonと「ネット注文」は常にオン）</div>
+      <div id="place-list">${masterPlaces.length===0?'<div style="font-size:13px;color:#8ab0cc;margin-bottom:8px">登録された場所はありません</div>':pRows}</div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <input type="text" id="new-place" placeholder="新しい購入場所" style="flex:1;font-size:13px;padding:7px 10px">
+        <button onclick="addMasterItem('place')" style="padding:7px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4);color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">追加</button>
+      </div>
+    </div>
+    <div class="form-card">
+      <div style="font-size:13px;font-weight:700;color:#5a8a9c;margin-bottom:4px">📁 フォルダ管理</div>
+      <div style="font-size:11px;color:#a8c4cc;margin-bottom:8px">☰を押しながら並び替えると、フォルダバーの表示順に反映されます</div>
+      <div id="folder-list">${folders.length===0?'<div style="font-size:13px;color:#8ab0cc;margin-bottom:8px">フォルダはありません</div>':fRows}</div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <input type="text" id="new-folder" placeholder="新しいフォルダ名" style="flex:1;font-size:13px;padding:7px 10px">
+        <button onclick="addFolderFromMaster()" style="padding:7px 14px;border:none;border-radius:10px;background:linear-gradient(135deg,#8fb8c8,#6fa0b4);color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">追加</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+async function addMasterItem(type){
+  const inputId=type==='requester'?'new-requester':'new-place';
+  const val=(document.getElementById(inputId)?.value||'').trim();
+  if(!val){showToast('名前を入力してください');return;}
+  if(type==='requester'&&masterRequesters.includes(val)){showToast('すでに登録されています');return;}
+  if(type==='place'&&masterPlaces.includes(val)){showToast('すでに登録されています');return;}
+  if(type==='requester') masterRequesters.push(val);
+  else masterPlaces.push(val);
+  renderAdmin();
+  showToast('追加しました');
+  try{await apiPost({action:'saveMasterDirect',masterType:type,value:val,garden:currentGarden});}
+  catch(e){showErr('追加失敗: '+e.message);}
+}
+
+async function addFolderFromMaster(){
+  const val=(document.getElementById('new-folder')?.value||'').trim();
+  if(!val){showToast('フォルダ名を入力してください');return;}
+  const newFolder={id:String(Date.now()),name:val,garden:currentGarden};
+  folders.push(newFolder);
+  renderAdmin();
+  showToast('フォルダを追加しました');
+  try{await apiPost({action:'addFolder',name:val,garden:currentGarden});}
+  catch(e){folders.pop();renderAdmin();showErr('フォルダ作成失敗: '+e.message);}
+}
+
+async function deleteFolderFromMaster(folderId,folderName){
+  if(!confirm('「'+folderName+'」を削除しますか？\nフォルダ内のアイテムは「通常」に戻ります。'))return;
+  const idx=folders.findIndex(f=>f.id===folderId);
+  if(idx<0)return;
+  folders.splice(idx,1);
+  pending.forEach(i=>{if(i.folder===folderId)i.folder='';});
+  done.forEach(i=>{if(i.folder===folderId)i.folder='';});
+  hold.forEach(i=>{if(i.folder===folderId)i.folder='';});
+  if(currentFolder===folderId)currentFolder='';
+  renderAdmin();
+  showToast('フォルダを削除しました');
+  try{await apiPost({action:'deleteFolder',folderId,garden:currentGarden});}
+  catch(e){showErr('削除失敗: '+e.message);loadAll().then(()=>renderAdmin());}
+}
+
+function isUsual(name){
+  return usualItems.some(u=>u.name===name);
+}
+
+function addToUsualFromCard(id){
+  // pending/done/holdから検索
+  const item = pending.find(i=>i.id===id) || done.find(i=>i.id===id) || hold.find(i=>i.id===id);
+  if(!item)return;
+  if(isUsual(item.name)){showToast('すでに「いつもの」に登録済みです');return;}
+  const newItem={
+    id:String(Date.now()),
+    name:item.name,
+    qty:item.qty||'',
+    cat:item.cat||'kyozai',
+    place:item.place||'',
+    memo:item.memo||'',
+    img:item.img||'',
+    imgFull:item.imgFull||'',
+    garden:currentGarden,
+    folder:item.folder||'',
+  };
+  usualItems.push(newItem);
+  // 現在の画面を再描画（⭐反映）
+  if(mode==='staff')renderStaff();else renderAdmin();
+  showToast(`「${item.name}」をいつもに追加しました ⭐`);
+  apiPost({action:'addUsualItem',item:newItem}).catch(e=>{
+    usualItems.pop();
+    if(mode==='staff')renderStaff();else renderAdmin();
+    showErr('登録失敗: '+e.message);
+  });
+}
+
+function makeReorderable(containerId, type){
+  const container=document.getElementById(containerId);
+  if(!container)return;
+  let dragEl=null;
+
+  container.querySelectorAll('.master-row').forEach(row=>{
+    const handle=row.querySelector('.drag-handle');
+    if(!handle)return;
+    handle.onpointerdown=(e)=>{
+      e.preventDefault();
+      dragEl=row;
+      row.classList.add('dragging');
+      try{handle.setPointerCapture(e.pointerId);}catch(err){}
+      document.addEventListener('pointermove',onMove);
+      document.addEventListener('pointerup',onUp,{once:true});
+    };
+  });
+
+  function onMove(e){
+    if(!dragEl)return;
+    const rows=[...container.querySelectorAll('.master-row')];
+    const y=e.clientY;
+    for(const row of rows){
+      if(row===dragEl)continue;
+      const rect=row.getBoundingClientRect();
+      if(y>rect.top&&y<rect.bottom){
+        const mid=rect.top+rect.height/2;
+        if(y<mid){
+          if(row.previousElementSibling!==dragEl)container.insertBefore(dragEl,row);
+        }else{
+          if(row.nextElementSibling!==dragEl)container.insertBefore(dragEl,row.nextElementSibling);
+        }
+        break;
+      }
+    }
+  }
+
+  function onUp(){
+    if(!dragEl)return;
+    dragEl.classList.remove('dragging');
+    document.removeEventListener('pointermove',onMove);
+    const newOrder=[...container.querySelectorAll('.master-row')].map(r=>r.dataset.value);
+    dragEl=null;
+    saveMasterOrder(type,newOrder);
+  }
+}
+
+async function saveMasterOrder(type,newOrder){
+  if(type==='folder'){
+    await saveFolderOrder(newOrder);
+    return;
+  }
+  if(type==='requester')masterRequesters=newOrder;
+  else masterPlaces=newOrder;
+  try{
+    await apiPost({action:'reorderMaster',masterType:type,garden:currentGarden,values:newOrder});
+  }catch(e){
+    showErr('並び順の保存に失敗: '+e.message);
+  }
+}
+
+async function saveFolderOrder(newOrderIds){
+  // newOrderIdsはフォルダIDの新しい順番
+  const reordered=newOrderIds.map(id=>folders.find(f=>f.id===id)).filter(Boolean);
+  folders=reordered;
+  try{
+    await apiPost({action:'reorderFolders',garden:currentGarden,folderIds:newOrderIds});
+  }catch(e){
+    showErr('フォルダ並び順の保存に失敗: '+e.message);
+  }
+}
+
+function deleteMasterByIdx(btn){
+  const type=btn.dataset.type;
+  const idx=parseInt(btn.dataset.idx);
+  const value=type==='requester'?masterRequesters[idx]:masterPlaces[idx];
+  if(!value)return;
+  deleteMaster(type,value);
+}
+
+async function deleteMaster(type, value){
+  if(!confirm(`「${value}」を削除しますか？`))return;
+  showLoading('削除中…');
+  try{
+    await apiPost({action:'deleteMaster',masterType:type,value,garden:currentGarden});
+    if(type==='place'&&masterNetPlaces.includes(value)){
+      await apiPost({action:'deleteMaster',masterType:'netPlace',value,garden:currentGarden});
+    }
+    await loadAll();
+    showToast(`「${value}」を削除しました`);
+    renderAdmin();
+  }catch(e){showErr('削除失敗: '+e.message);}
+  finally{hideLoading();}
+}
+
+/* ── 共通カードHTML ─── */
+function itemCardHTML(i,opts={}){
+  const {checkBox,cancelBtn,editBtn,rebuyBtn,holdBtn,holdToPublicBtn,doneToPublicBtn,deleteBtn,isDone,catEditable,placeEditable,folderEditable,usualBtn}=opts;
+  const catBadge=catEditable
+    ?`<select class="cat-select-inline" onchange="updateCat('${i.id}',this.value)">${CATS.map(c=>`<option value="${c.id}"${c.id===(i.cat||'zappi')?' selected':''}>${c.label}</option>`).join('')}</select>`
+    :`<span class="cat-badge ${getCatClass(i.cat)}">${getCatLabel(i.cat||'zappi')}</span>`;
+  const placeBadge=placeEditable
+    ?`<div style="display:flex;flex-direction:column;gap:3px">
+        <select class="cat-select-inline" id="ps-${i.id}" onchange="onPlaceSelectChange('${i.id}')" style="max-width:130px">
+          <option value="">📍 場所未定</option>
+          ${allPlaces().map(p=>`<option value="${esc(p)}"${i.place===p?' selected':''}>${esc(p)}</option>`).join('')}
+          ${i.place&&!allPlaces().includes(i.place)?`<option value="${esc(i.place)}" selected>${esc(i.place)}</option>`:''}
+          <option value="__new__">＋ その他（直接入力）</option>
+        </select>
+        <input type="text" id="pn-${i.id}" placeholder="購入場所を入力"
+          style="display:none;font-size:12px;padding:4px 8px;border:1px solid #c8dfe6;border-radius:8px;background:#fbf9f2;color:#2a4a55;width:130px"
+          onblur="onPlaceNewBlur('${i.id}')">
+      </div>`
+    :(i.place?`<span>📍${esc(i.place)}</span>`:'');
+  const sheet=isDone?'done':holdToPublicBtn?'hold':'pending';
+  const imgSlot=imgSlotHTML(i,sheet);
+  const ordered=!!i.orderedAt&&!isDone;
+  return`<div class="item-card${isDone?' done':''}${i.partial?' partial':''}${ordered?' ordered':''}">
+    <div class="img-col">
+      ${checkBox?`<input type="checkbox" class="chk" id="chk-${i.id}" ${selectedItems.has(i.id)?'checked':''} onchange="toggleSelect('${i.id}',this.checked)">`:''}
+      ${imgSlot}
+    </div>
+    <div class="item-info">
+      ${ordered?'<div class="ordered-badge">📦 発注済み</div>':''}
+      <div class="item-name${isDone?' done':''}">${isUsual(i.name)?'⭐ ':''}${esc(i.name)}</div>
+      <div class="item-qty${isDone?' done':''}" style="margin-top:1px">${
+  (isDone&&i.requestedQty&&i.boughtQty&&i.requestedQty!==i.boughtQty)
+    ? `依頼 ${esc(i.requestedQty)} → 購入 ${esc(i.boughtQty)}<span style="font-size:11px;color:#e05a7a;margin-left:4px">（残り${String(parseInt(i.requestedQty)||0)-String(parseInt(i.boughtQty)||0)}個）</span>`
+    : i.qty?`× ${esc(i.qty)}`:'<span class="qty-alert">個数未記入</span>'
+}</div>
+      <div class="item-meta">
+        ${catBadge}
+        ${placeEditable?placeBadge:(i.place?`<span>📍${esc(i.place)}</span>`:'')}
+        ${i.partial?'<span class="partial-badge">🔸買い残し</span>':''}
+      </div>
+      ${folderEditable&&folders.length?`<div class="item-meta" style="margin-top:3px">
+        <select class="cat-select-inline" onchange="updateFolder('${i.id}','${sheet}',this.value)" style="max-width:130px">
+          <option value="">📁 通常</option>
+          ${folders.map(f=>`<option value="${esc(f.id)}"${i.folder===f.id?' selected':''}>📁 ${esc(f.name)}</option>`).join('')}
+        </select>
+      </div>`:''}
+      <div class="item-meta" style="margin-top:3px">
+        ${i.requester?`<span class="requester-tag">👤 ${esc(i.requester)}</span>`:''}
+        ${i.garden?`<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:#e3eef2;color:#5a8a9c;font-weight:600">🏫 ${esc(i.garden)}</span>`:''}
+      </div>
+      ${i.url?`<a class="url-link" href="${esc(i.url)}" target="_blank">🔗 ${shortUrl(i.url)}</a>`:''}
+      ${i.memo?`<div style="font-size:12px;color:#5a8ab8;margin-top:2px">${esc(i.memo)}</div>`:''}
+      <div style="font-size:11px;color:#7a98a2;margin-top:3px">${fmtDate(isDone?(i.boughtAt||i.created):i.created)}</div>
+      ${ordered?`<div class="ordered-date">発注日：${esc(fmtDate(i.orderedAt))}</div>`:''}
+      ${usualBtn&&!isUsual(i.name)?`<button onclick="addToUsualFromCard('${i.id}')" style="margin-top:6px;font-size:11px;padding:3px 10px;border:1px dashed #8fb8c8;border-radius:20px;background:transparent;color:#5a8a9c;cursor:pointer">⭐ いつものに追加</button>`:''}
+    </div>
+    <div class="actions-col" style="justify-content:space-between;height:100%;align-items:flex-end">
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+        <div style="display:flex;gap:4px;align-items:center">
+          ${cancelBtn&&!ordered?`<button class="small-btn" onclick="cancelItem('${i.id}')">取消</button>`:''}
+          ${editBtn&&!ordered?`<button class="edit-btn" onclick="openEditModal('${i.id}')">訂正</button>`:''}
+        </div>
+        <div style="display:flex;gap:4px;align-items:center">
+          ${deleteBtn&&!ordered?`<button class="icon-btn" onclick="deleteItem('${i.id}','${sheet}')">🗑</button>`:''}
+          ${holdBtn&&!ordered?`<button class="hold-btn" onclick="holdItem('${i.id}')">保留</button>`:''}
+          ${holdBtn&&ordered?`<button class="small-btn" onclick="cancelOrder('${i.id}')">発注取消</button>`:''}
+        </div>
+        ${holdToPublicBtn?`<button class="edit-btn" onclick="holdToPublic('${i.id}')">要購入へ</button>`:''}
+        ${doneToPublicBtn?`<button class="revert-btn" onclick="doneToPublic('${i.id}')">要購入へ</button>`:''}
+        ${rebuyBtn?`<button class="rebuy-btn" onclick="rebuyItem('${i.id}')">🔄 再購入</button>`:''}
+      </div>
+      ${holdBtn?(ordered?`<button class="buy-btn receive" onclick="moveToDoneFull('${i.id}')">受取り</button>`
+        :isNetPlace(i.place)?`<button class="buy-btn order" onclick="orderItem('${i.id}')">発注</button>`
+        :`<button class="buy-btn" onclick="checkItem('${i.id}',true)">購入</button>`):''}
+    </div>
+  </div>`;
+}
+
+/* ── ネット注文（発注→受取り） ─── */
+function isNetPlace(p){return DEFAULT_NET_PLACES.includes(p)||masterNetPlaces.includes(p);}
+async function setOrderedAt(id,orderedAt,msg){
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const old=pending[idx].orderedAt||'';
+  pending[idx]={...pending[idx],orderedAt};
+  renderAdmin();showToast(msg);
+  try{await apiPost({action:'updateItem',id:String(id),fields:{orderedAt},sheet:'pending'});}
+  catch(e){pending[idx]={...pending[idx],orderedAt:old};renderAdmin();showErr('失敗: '+e.message);}
+}
+function orderItem(id){
+  const orderedAt=new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+  setOrderedAt(id,orderedAt,'発注済みにしました');
+}
+function cancelOrder(id){
+  if(!confirm('発注済みを取り消しますか？'))return;
+  setOrderedAt(id,'','発注を取り消しました');
+}
+async function toggleNetPlace(btn){
+  const value=masterPlaces[parseInt(btn.dataset.idx)];
+  if(!value)return;
+  const on=masterNetPlaces.includes(value);
+  masterNetPlaces=on?masterNetPlaces.filter(p=>p!==value):[...masterNetPlaces,value];
+  renderAdmin();
+  try{await apiPost({action:on?'deleteMaster':'saveMasterDirect',masterType:'netPlace',value,garden:currentGarden});}
+  catch(e){
+    masterNetPlaces=on?[...masterNetPlaces,value]:masterNetPlaces.filter(p=>p!==value);
+    renderAdmin();showErr('更新失敗: '+e.message);
+  }
+}
+
+async function holdItem(id){
+  if(!confirm('この商品を保留にしますか？'))return;
+  const heldAt=new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const item={...pending[idx],heldAt};
+  pending.splice(idx,1);hold.unshift(item);
+  renderAdmin();showToast('保留にしました');
+  try{await apiPost({action:'moveToHold',id:String(id),heldAt});}
+  catch(e){pending.splice(idx,0,item);hold.shift();renderAdmin();showErr('失敗: '+e.message);}
+}
+
+async function holdToPublic(id){
+  const idx=hold.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const item={...hold[idx]};
+  hold.splice(idx,1);pending.unshift(item);
+  renderAdmin();showToast('要購入に戻しました');
+  try{await apiPost({action:'holdToPublic',id:String(id)});}
+  catch(e){hold.splice(idx,0,item);pending.shift();renderAdmin();showErr('失敗: '+e.message);}
+}
+
+async function doneToPublic(id){
+  if(!confirm('購入済みから要購入に戻しますか？'))return;
+  const idx=done.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const item={...done[idx]};
+  done.splice(idx,1);pending.unshift(item);
+  renderAdmin();showToast('要購入に戻しました');
+  try{await apiPost({action:'doneToPublic',id:String(id)});}
+  catch(e){done.splice(idx,0,item);pending.shift();renderAdmin();showErr('失敗: '+e.message);}
+}
+
+async function checkItem(id,checked){
+  if(!checked)return;
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const item=pending[idx];
+  const originalQty=item.qty||'';
+
+  // 個数が数値かどうか確認
+  const numMatch=String(originalQty).match(/(\d+)/);
+  const originalNum=numMatch?parseInt(numMatch[1]):null;
+
+  if(originalNum&&originalNum>1){
+    // 一部購入ダイアログ表示
+    openPartialBuyModal(id, originalNum, originalQty);
+    // チェックボックスを戻す
+    const chk=document.querySelector(`input[onchange*="'${id}'"]`);
+    if(chk)setTimeout(()=>chk.checked=false,10);
+  } else {
+    // 1個 or 数値不明 → 通常通り全部購入済みへ
+    await moveToDoneFull(id);
+  }
+}
+
+async function moveToDoneFull(id){
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const boughtAt=new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+  const item={...pending[idx],boughtAt,boughtQty:pending[idx].qty,requestedQty:pending[idx].qty};
+  pending.splice(idx,1);done.unshift(item);
+  renderAdmin();showToast('購入済にしました ✓');
+  try{await apiPost({action:'moveToDone',id:String(id),boughtAt,boughtQty:item.qty,requestedQty:item.qty});}
+  catch(e){pending.splice(idx,0,item);done.shift();renderAdmin();showErr('失敗: '+e.message);}
+}
+
+function openPartialBuyModal(id, originalNum, originalQty){
+  const unit=String(originalQty).replace(/\d+/,'').trim()||'個';
+  document.getElementById('modal-container').innerHTML=`
+  <div class="modal-overlay" onclick="if(event.target===this)closeModal()">
+    <div class="modal">
+      <button class="modal-close" onclick="closeModal()">✕</button>
+      <div class="modal-title">🛍 購入数を入力</div>
+      <div style="background:#eef4fb;border-radius:10px;padding:10px 12px;margin-bottom:16px;font-size:13px;color:#2a3f5f">
+        依頼数：<strong>${originalQty}</strong>
+      </div>
+      <button class="submit-btn" onclick="buyAllFull('${id}',${originalNum},'${originalQty}')" style="background:linear-gradient(135deg,#6ab87a,#4a9a5a);margin-bottom:14px">✓ 全部購入（${originalQty}）</button>
+      <div style="display:flex;align-items:center;gap:10px;margin:12px 0;color:#a8c4cc;font-size:12px">
+        <div style="flex:1;height:1px;background:#e8f0f2"></div>
+        一部だけ購入した場合
+        <div style="flex:1;height:1px;background:#e8f0f2"></div>
+      </div>
+      <div class="form-row">
+        <label style="text-align:center;display:block;margin-bottom:8px">購入できた数</label>
+        <div class="drum-wrap">
+          <div class="drum-picker" id="drum-picker">
+            <div class="drum-highlight"></div>
+            <div class="drum-list" id="drum-list"></div>
+          </div>
+          <div class="drum-label">数量（${unit}）</div>
+        </div>
+      </div>
+      <div style="font-size:13px;color:#4a8ad0;margin:4px 0 16px;text-align:center;font-weight:500" id="remaining-label">
+        残り：待機中
+      </div>
+      <button class="small-btn" onclick="confirmPartialBuy('${id}',${originalNum},'${originalQty}')" style="width:100%;padding:10px;text-align:center;font-size:13px">この数量を購入済みにする</button>
+    </div>
+  </div>`;
+  // ドラムロール初期化（テンプレートリテラルの外で実行）
+  setTimeout(()=>initDrum('drum-picker','drum-list', originalNum, 1, originalNum-1, unit), 50);
+}
+
+async function buyAllFull(id, originalNum, originalQty){
+  window._drumValue = originalNum;
+  await confirmPartialBuy(id, originalNum, originalQty);
+}
+
+async function confirmPartialBuy(id, originalNum, originalQty){
+  const boughtNum=window._drumValue||originalNum;
+  if(boughtNum<=0){showToast('1以上の数を入力してください');return;}
+  const remaining=originalNum-boughtNum;
+  const boughtAt=new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric',weekday:'short'});
+  const idx=pending.findIndex(i=>i.id===id);
+  if(idx<0){closeModal();return;}
+  const srcItem=pending[idx];
+  const unit=String(originalQty).replace(/\d+/,'').trim()||'個';
+
+  // 購入済みアイテム（依頼数・購入数を両方保持）
+  const doneItem={
+    ...srcItem,
+    boughtAt,
+    requestedQty:originalQty,
+    boughtQty:`${boughtNum}${unit}`,
+    qty:`${boughtNum}${unit}`
+  };
+
+  if(remaining>0){
+    // 残りを要購入に残す（個数更新・買い残しフラグを付与）
+    pending[idx]={...srcItem,qty:`${remaining}${unit}`,partial:'1'};
+    done.unshift(doneItem);
+    closeModal();
+    renderAdmin();
+    showToast(`${boughtNum}${unit}購入済み・残り${remaining}${unit}を要購入に残しました`);
+    try{
+      await apiPost({action:'partialBuy',id:String(id),boughtAt,
+        boughtQty:`${boughtNum}${unit}`,requestedQty:originalQty,
+        remainingQty:`${remaining}${unit}`});
+    }catch(e){
+      // ロールバック
+      pending[idx]=srcItem;done.shift();
+      renderAdmin();showErr('失敗: '+e.message);
+    }
+  } else {
+    // 全数購入
+    pending.splice(idx,1);
+    done.unshift(doneItem);
+    closeModal();
+    renderAdmin();
+    showToast('全数購入済みにしました ✓');
+    try{
+      await apiPost({action:'moveToDone',id:String(id),boughtAt,
+        boughtQty:`${boughtNum}${unit}`,requestedQty:originalQty});
+    }catch(e){
+      pending.splice(idx,0,srcItem);done.shift();
+      renderAdmin();showErr('失敗: '+e.message);
+    }
+  }
+}
+async function deleteItem(id,list){
+  if(!confirm('削除しますか？'))return;
+  const arr=list==='pending'?pending:list==='hold'?hold:done;
+  const idx=arr.findIndex(i=>i.id===id);
+  if(idx<0)return;
+  const item=arr[idx];
+  arr.splice(idx,1);
+  renderAdmin();showToast('削除しました');
+  try{await apiPost({action:list==='pending'?'deletePending':list==='hold'?'deleteHold':'deleteDone',id:String(id)});}
+  catch(e){arr.splice(idx,0,item);renderAdmin();showErr('失敗: '+e.message);}
+}
+
+(async()=>{
+  if(!currentGarden){
+    showGardenOverlay();
+  }
+  const fromCache=currentGarden?await loadAllFast():false;
+  updateGardenHeader();
+  renderStaff();
+  if(fromCache)loadAll(true).then(changed=>{if(changed)rerenderKeepingForm();});
+  setTimeout(shrinkOldThumbs,8000); // 起動時の読み込みが落ち着いてから
+  startVersionWatcher();
+  setupPullToRefresh();
+})();
+
+async function fetchLatestVersion(){
+  const res=await fetch(window.location.href.split('?')[0]+'?_v='+Date.now(),{cache:'no-store'});
+  const match=(await res.text()).match(/APP_VERSION='([^']+)'/);
+  return match?match[1]:'';
+}
+// キャッシュを避けて最新版を開き直す
+function reloadToLatest(ver){location.replace(window.location.href.split('?')[0]+'?v='+encodeURIComponent(ver||Date.now()));}
+function startVersionWatcher(){
+  setInterval(async()=>{
+    try{
+      const latest=await fetchLatestVersion();
+      if(latest&&latest!==APP_VERSION){
+        console.log('新しいバージョンを検出:',latest,'→ リロードします');
+        reloadToLatest(latest);
+      }
+    }catch(e){/* オフライン時などは無視 */}
+  }, 5*60*1000); // 5分ごと
+}
+// ヘッダーのバージョン表記をタップ：最新版があれば更新、無ければその旨を表示
+async function checkVersionNow(e){
+  e.stopPropagation();
+  showToast('最新版を確認中…');
+  try{
+    const latest=await fetchLatestVersion();
+    if(latest&&latest!==APP_VERSION){showToast('新しいバージョン '+latest+' に更新します');setTimeout(()=>reloadToLatest(latest),600);}
+    else showToast('最新版です（'+APP_VERSION+'）');
+  }catch(err){showToast('確認できませんでした');}
+}
+
+/* ── 下スワイプでリロード（Pull to Refresh） ── */
+function setupPullToRefresh(){
+  const indicator=document.getElementById('pull-refresh-indicator');
+  const spin=document.getElementById('pull-refresh-spin');
+  const text=document.getElementById('pull-refresh-text');
+  const THRESHOLD=70;
+  let startY=0,startX=0,pulling=false,refreshing=false,lastPull=0;
+
+  document.addEventListener('touchstart',e=>{
+    if(refreshing)return;
+    if(window.scrollY>0||document.documentElement.scrollTop>0)return;
+    startY=e.touches[0].clientY;
+    startX=e.touches[0].clientX;
+    pulling=true;
+    lastPull=0;
+  },{passive:true});
+
+  document.addEventListener('touchmove',e=>{
+    if(!pulling||refreshing)return;
+    const dy=e.touches[0].clientY-startY;
+    const dx=e.touches[0].clientX-startX;
+    if(Math.abs(dx)>Math.abs(dy)){pulling=false;return;} // 横スワイプは無視（フォルダバー等）
+    if(dy>0&&(window.scrollY||0)===0){
+      const pull=Math.min(dy,110);
+      lastPull=pull;
+      indicator.style.transform=`translateX(-50%) translateY(${pull-50}px)`;
+      indicator.style.opacity=Math.min(pull/THRESHOLD,1);
+      text.textContent=pull>=THRESHOLD?'離すと更新':'引っ張って更新';
+    }
+  },{passive:true});
+
+  document.addEventListener('touchend',async()=>{
+    if(!pulling)return;
+    pulling=false;
+    if(lastPull>=THRESHOLD){
+      refreshing=true;
+      text.textContent='更新中…';
+      spin.classList.add('active');
+      indicator.style.transform='translateX(-50%) translateY(14px)';
+      indicator.style.opacity='1';
+      try{
+        await loadAll();
+        if(mode==='staff'){renderStaff();}else{renderAdmin();}
+      }catch(e){/* エラーは通常のloadAll内で表示済み */}
+      spin.classList.remove('active');
+      indicator.style.transform='translateX(-50%) translateY(-50px)';
+      indicator.style.opacity='0';
+      refreshing=false;
+    } else {
+      indicator.style.transform='translateX(-50%) translateY(-50px)';
+      indicator.style.opacity='0';
+    }
+    lastPull=0;
+  },{passive:true});
+}
+
+/* ── ライトボックス（ピンチ拡縮対応） ── */
+// src：先に表示するサムネイル（無ければ空）／loadFull：高画質版を返す関数（取得済みはキャッシュから即返る）
+function openLightbox(src,loadFull){
+  const lb=document.createElement('div');
+  lb.className='lightbox';
+  lb.innerHTML=`<div class="lightbox-close" id="lb-close">✕</div><img alt="" id="lb-img" style="touch-action:none;cursor:zoom-in;user-select:none"><div id="lb-status" style="position:absolute;bottom:20px;left:50%;transform:translateX(-50%);color:#fff;font-size:13px;background:rgba(0,0,0,.45);padding:6px 14px;border-radius:20px;pointer-events:none;display:none"></div>`;
+  document.body.appendChild(lb);
+
+  const img=document.getElementById('lb-img');
+  const status=document.getElementById('lb-status');
+  if(src)img.src=src;else img.style.display='none';
+  if(loadFull){
+    status.textContent=src?'高画質を読み込み中…':'画像を読み込み中…';
+    status.style.display='block';
+    loadFull().then(data=>{
+      if(!img.isConnected)return;
+      img.src=data;img.style.display='';status.style.display='none';
+    }).catch(e=>{
+      console.warn('高画質画像の取得失敗',e);
+      if(src)status.style.display='none';else status.textContent='画像を読み込めませんでした';
+    });
+  }
+  const closeBtn=document.getElementById('lb-close');
+  let scale=1, minScale=0.5, maxScale=8;
+  let translateX=0, translateY=0;
+  let lastTX=0, lastTY=0;
+  // ピンチ用
+  let pinching=false, initDist=0, initScale=1;
+  let pinchMidX=0, pinchMidY=0, initTX=0, initTY=0;
+  // ドラッグ用
+  let dragging=false, dragStartX=0, dragStartY=0;
+  let lastTap=0;
+
+  function applyTransform(animate){
+    img.style.transition=animate?'transform .2s ease':'none';
+    img.style.transform=`translate(${translateX}px,${translateY}px) scale(${scale})`;
+  }
+  function getDist(t){
+    return Math.hypot(t[0].clientX-t[1].clientX, t[0].clientY-t[1].clientY);
+  }
+  function getMid(t){
+    return {x:(t[0].clientX+t[1].clientX)/2, y:(t[0].clientY+t[1].clientY)/2};
+  }
+
+  lb.addEventListener('touchstart',e=>{
+    e.preventDefault();
+    if(e.touches.length===2){
+      pinching=true; dragging=false;
+      initDist=getDist(e.touches);
+      initScale=scale;
+      const mid=getMid(e.touches);
+      pinchMidX=mid.x; pinchMidY=mid.y;
+      initTX=translateX; initTY=translateY;
+    } else if(e.touches.length===1){
+      dragging=true; pinching=false;
+      dragStartX=e.touches[0].clientX-translateX;
+      dragStartY=e.touches[0].clientY-translateY;
+      // ダブルタップ
+      const now=Date.now();
+      if(now-lastTap<300){
+        if(scale>1){scale=1;translateX=0;translateY=0;lastTX=0;lastTY=0;}
+        else{scale=2.5;}
+        applyTransform(true);
+        dragging=false;
+      }
+      lastTap=now;
+    }
+  },{passive:false});
+
+  lb.addEventListener('touchmove',e=>{
+    e.preventDefault();
+    if(pinching&&e.touches.length===2){
+      const dist=getDist(e.touches);
+      const newScale=Math.min(maxScale,Math.max(minScale,initScale*(dist/initDist)));
+      // ピンチ中心点を基準にズーム
+      const mid=getMid(e.touches);
+      const dx=mid.x-pinchMidX;
+      const dy=mid.y-pinchMidY;
+      translateX=initTX+(newScale-initScale)*(pinchMidX-initTX/initScale*0+0)*0+dx;
+      translateY=initTY+dy;
+      scale=newScale;
+      translateX=initTX+dx;
+      translateY=initTY+dy;
+      applyTransform(false);
+    } else if(dragging&&e.touches.length===1){
+      translateX=e.touches[0].clientX-dragStartX;
+      translateY=e.touches[0].clientY-dragStartY;
+      applyTransform(false);
+    }
+  },{passive:false});
+
+  lb.addEventListener('touchend',e=>{
+    e.preventDefault();
+    if(e.touches.length===0){
+      pinching=false; dragging=false;
+      lastTX=translateX; lastTY=translateY;
+      // 背景タップで閉じる（移動・拡縮していない時のみ）
+    } else if(e.touches.length===1&&pinching){
+      pinching=false;
+      dragStartX=e.touches[0].clientX-translateX;
+      dragStartY=e.touches[0].clientY-translateY;
+      dragging=true;
+    }
+  },{passive:false});
+
+  // PCマウスホイールでズーム
+  lb.addEventListener('wheel',e=>{
+    e.preventDefault();
+    scale=Math.min(maxScale,Math.max(minScale,scale*(e.deltaY<0?1.1:0.9)));
+    applyTransform(false);
+  },{passive:false});
+
+  // 閉じる（touchendとclickの両方対応）
+  closeBtn.addEventListener('touchend',e=>{e.stopPropagation();e.preventDefault();lb.remove();},{passive:false});
+  closeBtn.addEventListener('click',e=>{e.stopPropagation();lb.remove();});
+  // 背景タップで閉じる（スケール1かつ移動なしの時）
+  lb.addEventListener('touchend',e=>{
+    if(e.target===lb&&e.changedTouches.length===1&&!pinching){
+      lb.remove();
+    }
+  },{passive:true});
+  lb.addEventListener('click',e=>{if(e.target===lb)lb.remove();});
+}
+
+/* ── ドラムロール ── */
+function initDrum(pickerId, listId, max, initVal, initRemain, unit){
+  const list=document.getElementById(listId);
+  const picker=document.getElementById(pickerId);
+  if(!list||!picker)return;
+
+  const ITEM_H=42;
+  const items=[];
+  for(let i=1;i<=max;i++)items.push(i);
+
+  // リスト生成（前後にパディング用ダミー）
+  const pad=1;
+  let innerHtml='';
+  for(let p=0;p<pad;p++) innerHtml+=`<div class="drum-item" style="height:${ITEM_H}px"></div>`;
+  items.forEach((v,i)=>{ innerHtml+=`<div class="drum-item${v===initVal?' selected':''}" data-val="${v}" style="height:${ITEM_H}px">${v}</div>`; });
+  for(let p=0;p<pad;p++) innerHtml+=`<div class="drum-item" style="height:${ITEM_H}px"></div>`;
+  list.innerHTML=innerHtml;
+
+  let currentIdx=initVal-1; // 0-indexed
+  window._drumValue=initVal;
+
+  function scrollTo(idx, animate){
+    idx=Math.max(0,Math.min(items.length-1,idx));
+    currentIdx=idx;
+    window._drumValue=items[idx];
+    const offset=-(idx*ITEM_H);
+    list.style.transition=animate?'transform .2s cubic-bezier(.25,.46,.45,.94)':'none';
+    list.style.transform=`translateY(${offset}px)`;
+    // selected更新
+    list.querySelectorAll('.drum-item[data-val]').forEach(el=>{
+      el.classList.toggle('selected',parseInt(el.dataset.val)===items[idx]);
+    });
+    // 残り数更新
+    const rem=max-items[idx];
+    const unitVal=unit;
+    const lbl=document.getElementById('remaining-label');
+    if(lbl)lbl.textContent=rem>0?`残り：${rem}${unitVal} → 要購入に残ります`:`全数購入（要購入から削除）`;
+  }
+
+  // 初期位置
+  scrollTo(initVal-1, false);
+
+  // タッチ・マウスドラッグ
+  let startY=0, startIdx=0, dragging=false;
+
+  function onStart(y){startY=y;startIdx=currentIdx;dragging=true;}
+  function onMove(y){
+    if(!dragging)return;
+    const diff=Math.round((startY-y)/ITEM_H);
+    scrollTo(startIdx+diff, false);
+  }
+  function onEnd(){dragging=false;}
+
+  picker.addEventListener('touchstart',e=>{onStart(e.touches[0].clientY);},{passive:true});
+  picker.addEventListener('touchmove',e=>{onMove(e.touches[0].clientY);e.preventDefault();},{passive:false});
+  picker.addEventListener('touchend',()=>onEnd());
+  picker.addEventListener('mousedown',e=>{onStart(e.clientY);});
+  window.addEventListener('mousemove',e=>{if(dragging)onMove(e.clientY);});
+  window.addEventListener('mouseup',()=>onEnd());
+
+  // ホイール
+  picker.addEventListener('wheel',e=>{
+    e.preventDefault();
+    scrollTo(currentIdx+(e.deltaY>0?1:-1),true);
+  },{passive:false});
+}
+</script>
+</body>
+</html>
